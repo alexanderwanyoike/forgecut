@@ -1,4 +1,4 @@
-import { createSignal, For, onMount, onCleanup } from "solid-js";
+import { createSignal, createEffect, For, onMount, onCleanup } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 
 interface TimelineData {
@@ -64,6 +64,32 @@ export default function Timeline(props: TimelineProps) {
   } | null>(null);
 
   const [viewWidth, setViewWidth] = createSignal(0);
+
+  // Waveform cache: asset_id -> peaks array
+  const [waveforms, setWaveforms] = createSignal<Record<string, number[][]>>({});
+
+  const fetchWaveform = async (assetId: string) => {
+    if (waveforms()[assetId]) return;
+    try {
+      const data = await invoke<{ peaks: [number, number][]; sample_rate: number; samples_per_peak: number }>("get_waveform", { assetId });
+      setWaveforms((prev) => ({ ...prev, [assetId]: data.peaks }));
+    } catch (_) {
+      // Waveform extraction may fail for non-audio files; silently ignore
+    }
+  };
+
+  // Fetch waveforms for audio clips whenever timeline changes
+  createEffect(() => {
+    for (const track of timeline().tracks) {
+      if (track.kind !== "Audio") continue;
+      for (const item of track.items) {
+        const data = getItemData(item);
+        if (data.variant === "AudioClip" && data.asset_id) {
+          fetchWaveform(data.asset_id);
+        }
+      }
+    }
+  });
 
   let timelineRef: HTMLDivElement | undefined;
 
@@ -330,13 +356,29 @@ export default function Timeline(props: TimelineProps) {
     setTrimState({ itemId, edge, startMouseX: e.clientX, originalUs: currentUs });
   };
 
-  const trackColor = (kind: string) => {
+  const trackColor = (kind: string, isPip?: boolean) => {
+    if (isPip) return "#9b59b6";
     switch (kind) {
       case "Video": return "#4a9eff";
       case "Audio": return "#4aff7f";
       case "OverlayImage": return "#c840e9";
       case "OverlayText": return "#e9a840";
       default: return "#ff9f4a";
+    }
+  };
+
+  const isPipTrack = (track: Track, tracks: Track[]) => {
+    if (track.kind !== "Video") return false;
+    const firstVideoIndex = tracks.findIndex((t) => t.kind === "Video");
+    return tracks.indexOf(track) !== firstVideoIndex;
+  };
+
+  const handleAddPipTrack = async () => {
+    try {
+      const tl = await invoke<TimelineData>("add_track", { kind: "Video" });
+      setTimeline(tl);
+    } catch (err) {
+      console.error("add_track failed:", err);
     }
   };
 
@@ -373,6 +415,7 @@ export default function Timeline(props: TimelineProps) {
       <div class="timeline-controls">
         <span class="timeline-label">Timeline</span>
         <button class="add-text-btn" onClick={handleAddText}>+ Text</button>
+        <button class="add-text-btn" onClick={handleAddPipTrack}>+ PiP Track</button>
         <button
           class={`snap-toggle-btn${snapping() ? " snap-active" : ""}`}
           onClick={() => setSnapping((s) => !s)}
@@ -385,6 +428,7 @@ export default function Timeline(props: TimelineProps) {
           <span>{pixelsPerSecond()}px/s</span>
           <button onClick={() => setPixelsPerSecond((p) => Math.min(300, p + 20))}>+</button>
         </div>
+        <span class="shortcut-hints">S: Split | Del: Delete | Ctrl+Z: Undo | Ctrl+Shift+Z: Redo</span>
       </div>
 
       <div class="timeline-minimap">
@@ -423,14 +467,16 @@ export default function Timeline(props: TimelineProps) {
 
           <div class="track-lanes">
             <For each={timeline().tracks}>
-              {(track, trackIndex) => (
+              {(track, trackIndex) => {
+                const pip = isPipTrack(track, timeline().tracks);
+                return (
                 <div
-                  class="track-lane"
+                  class={`track-lane${pip ? " track-lane-pip" : ""}`}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => handleDrop(e, track.id)}
                 >
                   <div class="track-label">
-                    {track.kind === "Video" ? "V" : track.kind === "Audio" ? "A" : track.kind === "OverlayImage" ? "Img" : track.kind === "OverlayText" ? "T" : "?"}
+                    {pip ? "PiP" : track.kind === "Video" ? "V" : track.kind === "Audio" ? "A" : track.kind === "OverlayImage" ? "Img" : track.kind === "OverlayText" ? "T" : "?"}
                     {trackIndex() + 1}
                   </div>
                   <div class="track-content">
@@ -444,7 +490,7 @@ export default function Timeline(props: TimelineProps) {
                             style={{
                               left: `${usToPixels(data.startUs)}px`,
                               width: `${Math.max(4, usToPixels(data.durationUs))}px`,
-                              "background-color": trackColor(track.kind),
+                              "background-color": trackColor(track.kind, pip),
                             }}
                             onMouseDown={(e) => handleClipMouseDown(e, data.id, data.startUs)}
                           >
@@ -461,6 +507,37 @@ export default function Timeline(props: TimelineProps) {
                             <span class="clip-label">
                               {data.variant === "AudioClip" ? "Audio" : data.variant === "VideoClip" ? "Video" : data.variant === "ImageOverlay" ? "Image" : data.variant === "TextOverlay" ? data.text || "Text" : data.variant}
                             </span>
+                            {data.variant === "AudioClip" && waveforms()[data.asset_id] && (
+                              <svg
+                                class="waveform-svg"
+                                viewBox={`0 0 ${waveforms()[data.asset_id]!.length} 100`}
+                                preserveAspectRatio="none"
+                                style={{
+                                  position: "absolute",
+                                  left: "6px",
+                                  right: "6px",
+                                  top: "0",
+                                  bottom: "0",
+                                  width: "calc(100% - 12px)",
+                                  height: "100%",
+                                  opacity: "0.5",
+                                  "pointer-events": "none",
+                                }}
+                              >
+                                <For each={waveforms()[data.asset_id]!}>
+                                  {(peak, i) => (
+                                    <line
+                                      x1={i()}
+                                      x2={i()}
+                                      y1={50 - (peak as unknown as [number, number])[1] * 50}
+                                      y2={50 - (peak as unknown as [number, number])[0] * 50}
+                                      stroke="white"
+                                      stroke-width="1"
+                                    />
+                                  )}
+                                </For>
+                              </svg>
+                            )}
                             <div
                               class="trim-handle trim-handle-right"
                               onMouseDown={(e) =>
@@ -477,7 +554,8 @@ export default function Timeline(props: TimelineProps) {
                     </For>
                   </div>
                 </div>
-              )}
+                );
+              }}
             </For>
           </div>
         </div>

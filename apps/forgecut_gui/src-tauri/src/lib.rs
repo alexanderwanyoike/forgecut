@@ -452,6 +452,7 @@ fn set_clip_volume(
     serde_json::to_value(&project.timeline).map_err(|e| e.to_string())
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 fn add_image_overlay(
     asset_id: String,
@@ -511,6 +512,7 @@ fn add_image_overlay(
     serde_json::to_value(&project.timeline).map_err(|e| e.to_string())
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 fn add_text_overlay(
     track_id: String,
@@ -740,6 +742,24 @@ fn update_item_property(
 }
 
 #[tauri::command]
+fn add_track(kind: String, state: tauri::State<AppState>) -> Result<serde_json::Value, String> {
+    let mut project = state.project.lock().unwrap();
+    let track_kind = match kind.as_str() {
+        "Video" => forgecut_core::types::TrackKind::Video,
+        "Audio" => forgecut_core::types::TrackKind::Audio,
+        "OverlayImage" => forgecut_core::types::TrackKind::OverlayImage,
+        "OverlayText" => forgecut_core::types::TrackKind::OverlayText,
+        _ => return Err(format!("Unknown track kind: {kind}")),
+    };
+    project.timeline.tracks.push(forgecut_core::types::Track {
+        id: uuid::Uuid::new_v4(),
+        kind: track_kind,
+        items: vec![],
+    });
+    serde_json::to_value(&project.timeline).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn get_snap_points(
     exclude_item_id: Option<String>,
     state: tauri::State<AppState>,
@@ -942,13 +962,29 @@ fn get_thumbnails(
         .collect())
 }
 
+#[tauri::command]
+fn get_waveform(asset_id: String, state: tauri::State<AppState>) -> Result<serde_json::Value, String> {
+    let project = state.project.lock().unwrap();
+    let asset = project
+        .assets
+        .iter()
+        .find(|a| a.id.to_string() == asset_id)
+        .ok_or("Asset not found")?;
+
+    let cache_dir = std::env::temp_dir().join("forgecut-waveforms");
+    let data = forgecut_render::waveform::extract_waveform(&asset.path, &cache_dir, &asset_id, 256)
+        .map_err(|e| e.to_string())?;
+
+    serde_json::to_value(&data).map_err(|e| e.to_string())
+}
+
 fn urlencoding_simple(s: &str) -> String {
     s.bytes()
         .map(|b| {
             if b.is_ascii_alphanumeric() || b == b'/' || b == b'.' || b == b'-' || b == b'_' {
                 format!("{}", b as char)
             } else {
-                format!("%{:02X}", b)
+                format!("%{b:02X}")
             }
         })
         .collect()
@@ -1034,6 +1070,7 @@ pub fn run() {
             get_item_details,
             update_item_property,
             get_snap_points,
+            add_track,
             get_project_settings,
             export_project,
             generate_proxy,
@@ -1041,6 +1078,7 @@ pub fn run() {
             autosave,
             get_autosave_path,
             get_thumbnails,
+            get_waveform,
         ])
         .setup(|app| {
             let window =

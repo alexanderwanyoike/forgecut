@@ -29,17 +29,92 @@ pub struct RenderProgress {
     pub eta_seconds: Option<f64>,
 }
 
+/// Build PiP overlay filter chains for video clips on non-primary tracks.
+///
+/// Each PiP clip is trimmed, scaled to 25% of the project size, and overlaid
+/// in the bottom-right corner of the base video.  Returns the filter string
+/// and the final output video label.
+fn compile_pip_overlays(
+    project: &Project,
+    path_to_index: &HashMap<PathBuf, usize>,
+    base_label: &str,
+    out_label: &str,
+    pip_clips: &[&Item],
+) -> (String, String) {
+    let proj_w = project.settings.width;
+    let proj_h = project.settings.height;
+
+    // PiP defaults: 25% size, bottom-right corner with 20px margin
+    let pip_w = proj_w / 4;
+    let pip_h = proj_h / 4;
+    let pip_x = proj_w - pip_w - 20;
+    let pip_y = proj_h - pip_h - 20;
+
+    let mut filters: Vec<String> = Vec::new();
+    let mut current_label = base_label.to_string();
+
+    for (i, clip) in pip_clips.iter().enumerate() {
+        let (asset_id, source_in_us, source_out_us, timeline_start_us) = match clip {
+            Item::VideoClip {
+                asset_id,
+                source_in_us,
+                source_out_us,
+                timeline_start_us,
+                ..
+            } => (*asset_id, *source_in_us, *source_out_us, *timeline_start_us),
+            _ => continue,
+        };
+
+        let asset = project.assets.iter().find(|a| a.id == asset_id).unwrap();
+        let input_idx = path_to_index[&asset.path];
+
+        let start_s = source_in_us.as_seconds();
+        let end_s = source_out_us.as_seconds();
+        let tl_start_s = timeline_start_us.as_seconds();
+        let clip_duration = end_s - start_s;
+        let tl_end_s = tl_start_s + clip_duration;
+
+        let scaled_label = format!("pip_scaled_{i}");
+        let next_label = if i == pip_clips.len() - 1 {
+            out_label.to_string()
+        } else {
+            format!("pip_{i}")
+        };
+
+        // Trim and scale the PiP input
+        filters.push(format!(
+            "[{input_idx}:v]trim=start={start_s}:end={end_s},setpts=PTS-STARTPTS,scale={pip_w}:{pip_h}[{scaled_label}]"
+        ));
+
+        // Overlay on base video with time-scoped enable
+        filters.push(format!(
+            "[{current_label}][{scaled_label}]overlay=x={pip_x}:y={pip_y}:enable='between(t,{tl_start_s},{tl_end_s})'[{next_label}]"
+        ));
+
+        current_label = next_label.clone();
+    }
+
+    (filters.join(";"), current_label)
+}
+
 /// Compile a project into an ffmpeg render plan.
 ///
 /// For v0.1: concatenate video clips with trim/setpts/atrim/asetpts/concat filters.
+/// PiP: additional video tracks overlay on the primary video track.
 pub fn compile(project: &Project) -> Result<RenderPlan> {
-    // Collect all video clips from all video tracks, sorted by timeline_start_us
-    let mut video_clips: Vec<&Item> = project
+    // Find the primary (first) video track
+    let video_tracks: Vec<&Track> = project
         .timeline
         .tracks
         .iter()
         .filter(|t| t.kind == TrackKind::Video)
-        .flat_map(|t| t.items.iter())
+        .collect();
+
+    let primary_track = video_tracks.first().ok_or(RenderError::NoClips)?;
+    // Collect video clips from the primary track only
+    let mut video_clips: Vec<&Item> = primary_track
+        .items
+        .iter()
         .filter(|item| matches!(item, Item::VideoClip { .. }))
         .collect();
 
@@ -48,6 +123,14 @@ pub fn compile(project: &Project) -> Result<RenderPlan> {
     }
 
     video_clips.sort_by_key(|item| item.timeline_start_us());
+
+    // Collect PiP clips from non-primary video tracks
+    let pip_clips: Vec<&Item> = video_tracks
+        .iter()
+        .skip(1)
+        .flat_map(|t| t.items.iter())
+        .filter(|item| matches!(item, Item::VideoClip { .. }))
+        .collect();
 
     // Collect image overlays
     let mut image_overlays: Vec<&Item> = project
@@ -85,6 +168,25 @@ pub fn compile(project: &Project) -> Result<RenderPlan> {
     // Also add image overlay assets as inputs
     for overlay in &image_overlays {
         let asset_id = overlay.asset_id().unwrap();
+        let asset = project
+            .assets
+            .iter()
+            .find(|a| a.id == asset_id)
+            .ok_or(RenderError::AssetNotFound(asset_id))?;
+
+        if !path_to_index.contains_key(&asset.path) {
+            let idx = inputs.len();
+            path_to_index.insert(asset.path.clone(), idx);
+            inputs.push(RenderInput {
+                path: asset.path.clone(),
+                index: idx,
+            });
+        }
+    }
+
+    // Also add PiP clip assets as inputs
+    for clip in &pip_clips {
+        let asset_id = clip.asset_id().unwrap();
         let asset = project
             .assets
             .iter()
@@ -186,12 +288,34 @@ pub fn compile(project: &Project) -> Result<RenderPlan> {
 
     let has_audio_overlay = !audio_clips.is_empty();
     let has_image_overlay = !image_overlays.is_empty();
+    let has_pip = !pip_clips.is_empty();
     let video_audio_out = if has_audio_overlay { "concat_a" } else { "outa" };
-    let video_out_label = if has_image_overlay { "basev" } else { "outv" };
+
+    // Determine concat video output label based on downstream stages
+    let concat_video_label = if has_pip {
+        "concatv"
+    } else if has_image_overlay {
+        "basev"
+    } else {
+        "outv"
+    };
 
     filters.push(format!(
-        "{concat_inputs}concat=n={clip_count}:v=1:a=1[{video_out_label}][{video_audio_out}]"
+        "{concat_inputs}concat=n={clip_count}:v=1:a=1[{concat_video_label}][{video_audio_out}]"
     ));
+
+    // Apply PiP overlay filters
+    if has_pip {
+        let pip_out_label = if has_image_overlay { "basev" } else { "outv" };
+        let (pip_filters, _final_label) = compile_pip_overlays(
+            project,
+            &path_to_index,
+            concat_video_label,
+            pip_out_label,
+            &pip_clips,
+        );
+        filters.push(pip_filters);
+    }
 
     // Process audio overlay clips
     if has_audio_overlay {
@@ -235,7 +359,7 @@ pub fn compile(project: &Project) -> Result<RenderPlan> {
 
     // Apply image overlay filters
     if has_image_overlay {
-        let mut current_video_label = video_out_label.to_string();
+        let mut current_video_label = "basev".to_string();
         for (i, overlay) in image_overlays.iter().enumerate() {
             if let Item::ImageOverlay {
                 asset_id,
