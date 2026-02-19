@@ -62,9 +62,9 @@ impl fmt::Display for TimeUs {
         let mins = total_mins % 60;
         let hours = total_mins / 60;
         if self.0 < 0 {
-            write!(f, "-{:02}:{:02}:{:02}.{:03}", hours, mins, secs, ms)
+            write!(f, "-{hours:02}:{mins:02}:{secs:02}.{ms:03}")
         } else {
-            write!(f, "{:02}:{:02}:{:02}.{:03}", hours, mins, secs, ms)
+            write!(f, "{hours:02}:{mins:02}:{secs:02}.{ms:03}")
         }
     }
 }

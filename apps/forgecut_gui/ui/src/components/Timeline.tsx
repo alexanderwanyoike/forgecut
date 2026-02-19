@@ -42,6 +42,8 @@ export default function Timeline(props: TimelineProps) {
   });
   const [pixelsPerSecond, setPixelsPerSecond] = createSignal(100);
   const [scrollLeft, setScrollLeft] = createSignal(0);
+  const [snapping, setSnapping] = createSignal(true);
+  const [snapLineUs, setSnapLineUs] = createSignal<number | null>(null);
 
   const selectedClipId = () => props.selectedClipId;
   const setSelectedClipId = (id: string | null) => props.onSelectedClipChange(id);
@@ -61,7 +63,39 @@ export default function Timeline(props: TimelineProps) {
     originalUs: number;
   } | null>(null);
 
+  const [viewWidth, setViewWidth] = createSignal(0);
+
   let timelineRef: HTMLDivElement | undefined;
+
+  const handleWheel = (e: WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -10 : 10;
+      setPixelsPerSecond(p => Math.max(10, Math.min(500, p + delta)));
+    }
+  };
+
+  const scrollToPlayhead = () => {
+    if (!timelineRef) return;
+    const playheadPx = usToPixels(props.playheadUs);
+    const vw = timelineRef.clientWidth;
+    timelineRef.scrollLeft = playheadPx - vw / 2;
+  };
+
+  const fitAll = () => {
+    if (!timelineRef) return;
+    let maxEnd = 5_000_000;
+    for (const track of timeline().tracks) {
+      for (const item of track.items) {
+        const data = getItemData(item);
+        const end = data.startUs + data.durationUs;
+        if (end > maxEnd) maxEnd = end;
+      }
+    }
+    const vw = timelineRef.clientWidth - 48;
+    const needed = maxEnd / 1_000_000;
+    setPixelsPerSecond(Math.max(10, Math.min(500, vw / needed)));
+  };
 
   onMount(async () => {
     const tl = await invoke<TimelineData>("init_default_tracks");
@@ -150,9 +184,32 @@ export default function Timeline(props: TimelineProps) {
     if (ds) {
       const dx = e.clientX - ds.startMouseX;
       const deltaUs = pixelsToUs(dx);
-      const newStartUs = Math.max(0, Math.round(ds.originalStartUs + deltaUs));
+      let newStartUs = Math.max(0, Math.round(ds.originalStartUs + deltaUs));
       setDragState(null);
+      setSnapLineUs(null);
       if (Math.abs(dx) < 3) return;
+
+      if (snapping()) {
+        try {
+          const snapPoints = await invoke<number[]>("get_snap_points", {
+            excludeItemId: ds.itemId,
+          });
+          const thresholdUs = Math.round(pixelsToUs(5));
+          let bestDist = thresholdUs + 1;
+          let bestPoint = newStartUs;
+          for (const point of snapPoints) {
+            const dist = Math.abs(newStartUs - point);
+            if (dist < bestDist) {
+              bestDist = dist;
+              bestPoint = point;
+            }
+          }
+          if (bestDist <= thresholdUs) {
+            newStartUs = bestPoint;
+          }
+        } catch (_) {}
+      }
+
       try {
         const tl = await invoke<TimelineData>("move_clip", {
           itemId: ds.itemId,
@@ -185,11 +242,46 @@ export default function Timeline(props: TimelineProps) {
     }
   };
 
+  // Snap-line preview cache: filled on first move after drag starts
+  let snapPointsCache: number[] | null = null;
+
+  const handleGlobalMouseMove = (e: MouseEvent) => {
+    const ds = dragState();
+    if (!ds || !snapping()) {
+      if (snapLineUs() !== null) setSnapLineUs(null);
+      return;
+    }
+    const dx = e.clientX - ds.startMouseX;
+    const deltaUs = pixelsToUs(dx);
+    const pos = Math.max(0, Math.round(ds.originalStartUs + deltaUs));
+
+    if (!snapPointsCache) {
+      invoke<number[]>("get_snap_points", { excludeItemId: ds.itemId })
+        .then((pts) => { snapPointsCache = pts; })
+        .catch(() => {});
+      return;
+    }
+
+    const thresholdUs = Math.round(pixelsToUs(5));
+    let bestDist = thresholdUs + 1;
+    let bestPoint: number | null = null;
+    for (const point of snapPointsCache) {
+      const dist = Math.abs(pos - point);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestPoint = point;
+      }
+    }
+    setSnapLineUs(bestDist <= thresholdUs ? bestPoint : null);
+  };
+
   onMount(() => {
     window.addEventListener("mouseup", handleGlobalMouseUp);
+    window.addEventListener("mousemove", handleGlobalMouseMove);
   });
   onCleanup(() => {
     window.removeEventListener("mouseup", handleGlobalMouseUp);
+    window.removeEventListener("mousemove", handleGlobalMouseMove);
   });
 
   const handleDrop = async (e: DragEvent, trackId: string) => {
@@ -223,6 +315,7 @@ export default function Timeline(props: TimelineProps) {
     if ((e.target as HTMLElement).classList.contains("trim-handle")) return;
     e.stopPropagation();
     setSelectedClipId(itemId);
+    snapPointsCache = null;
     setDragState({ itemId, startMouseX: e.clientX, originalStartUs: startUs });
   };
 
@@ -280,6 +373,13 @@ export default function Timeline(props: TimelineProps) {
       <div class="timeline-controls">
         <span class="timeline-label">Timeline</span>
         <button class="add-text-btn" onClick={handleAddText}>+ Text</button>
+        <button
+          class={`snap-toggle-btn${snapping() ? " snap-active" : ""}`}
+          onClick={() => setSnapping((s) => !s)}
+          title={snapping() ? "Snapping on" : "Snapping off"}
+        >Snap</button>
+        <button class="timeline-nav-btn" onClick={scrollToPlayhead} title="Scroll to playhead">|&lt;&gt;|</button>
+        <button class="timeline-nav-btn" onClick={fitAll} title="Fit all">[ ]</button>
         <div class="zoom-control">
           <button onClick={() => setPixelsPerSecond((p) => Math.max(20, p - 20))}>-</button>
           <span>{pixelsPerSecond()}px/s</span>
@@ -287,10 +387,21 @@ export default function Timeline(props: TimelineProps) {
         </div>
       </div>
 
+      <div class="timeline-minimap">
+        <div class="minimap-viewport" style={{
+          left: `${(scrollLeft() / totalWidth()) * 100}%`,
+          width: `${(viewWidth() / totalWidth()) * 100}%`,
+        }} />
+      </div>
+
       <div
         class="timeline-scroll"
         ref={timelineRef}
-        onScroll={(e) => setScrollLeft(e.currentTarget.scrollLeft)}
+        onWheel={handleWheel}
+        onScroll={(e) => {
+          setScrollLeft(e.currentTarget.scrollLeft);
+          setViewWidth(e.currentTarget.clientWidth);
+        }}
         onMouseDown={() => setSelectedClipId(null)}
       >
         <div class="timeline-content" style={{ width: `${totalWidth()}px` }}>
@@ -305,6 +416,10 @@ export default function Timeline(props: TimelineProps) {
           </div>
 
           <div class="playhead" style={{ left: `${usToPixels(props.playheadUs)}px` }} />
+
+          {snapLineUs() !== null && (
+            <div class="snap-line" style={{ left: `${usToPixels(snapLineUs()!)}px` }} />
+          )}
 
           <div class="track-lanes">
             <For each={timeline().tracks}>

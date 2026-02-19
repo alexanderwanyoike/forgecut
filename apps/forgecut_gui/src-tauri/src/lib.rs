@@ -39,7 +39,7 @@ fn start_media_server() -> u16 {
             let file = match std::fs::File::open(&path) {
                 Ok(f) => f,
                 Err(e) => {
-                    let resp = tiny_http::Response::from_string(format!("Not found: {}", e))
+                    let resp = tiny_http::Response::from_string(format!("Not found: {e}"))
                         .with_status_code(404);
                     let _ = request.respond(resp);
                     continue;
@@ -90,7 +90,7 @@ fn start_media_server() -> u16 {
 
                 let content_range = tiny_http::Header::from_bytes(
                     "Content-Range",
-                    format!("bytes {}-{}/{}", start, end, total_size),
+                    format!("bytes {start}-{end}/{total_size}"),
                 ).unwrap();
 
                 let resp = tiny_http::Response::new(
@@ -125,16 +125,24 @@ fn create_project(state: tauri::State<AppState>) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn save_project(state: tauri::State<AppState>) -> Result<(), String> {
-    tracing::info!("save_project called");
-    let _project = state.project.lock().unwrap();
-    Ok(())
+fn save_project(path: String, state: tauri::State<AppState>) -> Result<(), String> {
+    tracing::info!("save_project called: {}", path);
+    let project = state.project.lock().unwrap();
+    project
+        .save_to_file(&path)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn load_project(state: tauri::State<AppState>) -> Result<String, String> {
-    tracing::info!("load_project called");
-    let project = state.project.lock().unwrap();
+fn load_project(path: String, state: tauri::State<AppState>) -> Result<String, String> {
+    tracing::info!("load_project called: {}", path);
+    let loaded = forgecut_core::types::Project::load_from_file(&path)
+        .map_err(|e| e.to_string())?;
+    let mut project = state.project.lock().unwrap();
+    *project = loaded;
+    // Also reset history since the project changed
+    let mut history = state.history.lock().unwrap();
+    *history = forgecut_core::history::History::new(100);
     serde_json::to_string(&*project).map_err(|e| e.to_string())
 }
 
@@ -153,7 +161,7 @@ fn import_assets(
                 project.assets.push(asset);
                 imported.push(json);
             }
-            Err(e) => return Err(format!("Failed to import {}: {}", path_str, e)),
+            Err(e) => return Err(format!("Failed to import {path_str}: {e}")),
         }
     }
     Ok(imported)
@@ -662,7 +670,7 @@ fn update_item_property(
                         "volume" => {
                             *volume = value.as_f64().ok_or("Invalid volume value")?;
                         }
-                        _ => return Err(format!("Unknown property: {}", property)),
+                        _ => return Err(format!("Unknown property: {property}")),
                     },
                     forgecut_core::types::Item::TextOverlay {
                         text,
@@ -694,7 +702,7 @@ fn update_item_property(
                         "y" => {
                             *y = value.as_i64().ok_or("Invalid y value")? as i32;
                         }
-                        _ => return Err(format!("Unknown property: {}", property)),
+                        _ => return Err(format!("Unknown property: {property}")),
                     },
                     forgecut_core::types::Item::ImageOverlay {
                         x,
@@ -720,7 +728,7 @@ fn update_item_property(
                         "opacity" => {
                             *opacity = value.as_f64().ok_or("Invalid opacity value")?;
                         }
-                        _ => return Err(format!("Unknown property: {}", property)),
+                        _ => return Err(format!("Unknown property: {property}")),
                     },
                 }
                 return serde_json::to_value(&project.timeline)
@@ -729,6 +737,17 @@ fn update_item_property(
         }
     }
     Err("Item not found".into())
+}
+
+#[tauri::command]
+fn get_snap_points(
+    exclude_item_id: Option<String>,
+    state: tauri::State<AppState>,
+) -> Result<Vec<i64>, String> {
+    let exclude_uuid = exclude_item_id.and_then(|s| uuid::Uuid::parse_str(&s).ok());
+    let project = state.project.lock().unwrap();
+    let points = forgecut_core::snapping::collect_snap_points(&project.timeline, exclude_uuid);
+    Ok(points.iter().map(|p| p.0).collect())
 }
 
 #[tauri::command]
@@ -748,7 +767,7 @@ async fn export_project(
     let project = state.project.lock().unwrap().clone();
 
     let plan = forgecut_render::render::compile(&project)
-        .map_err(|e| format!("Compile error: {}", e))?;
+        .map_err(|e| format!("Compile error: {e}"))?;
 
     let mut plan = plan;
     plan.output_path = std::path::PathBuf::from(&output_path);
@@ -791,13 +810,148 @@ async fn export_project(
     // Run the export
     forgecut_render::render::execute(&plan, progress_tx, total_duration_us)
         .await
-        .map_err(|e| format!("Export error: {}", e))?;
+        .map_err(|e| format!("Export error: {e}"))?;
 
     let _ = app.emit(
         "export-complete",
         serde_json::json!({"output_path": output_path}),
     );
     Ok(())
+}
+
+#[tauri::command]
+fn generate_proxy(asset_id: String, state: tauri::State<AppState>) -> Result<String, String> {
+    let project = state.project.lock().unwrap();
+    let asset = project
+        .assets
+        .iter()
+        .find(|a| a.id.to_string() == asset_id)
+        .ok_or("Asset not found")?;
+
+    let proxy_dir = std::env::temp_dir().join("forgecut-proxies");
+    let proxy_path =
+        forgecut_render::proxy::generate_proxy(&asset.path, &proxy_dir, &asset_id)
+            .map_err(|e| e.to_string())?;
+
+    Ok(proxy_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn get_proxy_path(asset_id: String) -> Result<Option<String>, String> {
+    let proxy_dir = std::env::temp_dir().join("forgecut-proxies");
+    Ok(
+        forgecut_render::proxy::proxy_path(&proxy_dir, &asset_id)
+            .map(|p| p.to_string_lossy().to_string()),
+    )
+}
+
+#[tauri::command]
+fn autosave(state: tauri::State<AppState>) -> Result<(), String> {
+    let project = state.project.lock().unwrap();
+    let autosave_dir = std::env::temp_dir().join("forgecut-autosave");
+    std::fs::create_dir_all(&autosave_dir).map_err(|e| e.to_string())?;
+
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let filename = format!("autosave-{timestamp}.forgecut");
+    let path = autosave_dir.join(&filename);
+
+    project.save_to_file(&path).map_err(|e| e.to_string())?;
+
+    // Clean old autosaves (keep last 5)
+    let mut entries: Vec<_> = std::fs::read_dir(&autosave_dir)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name().to_string_lossy().starts_with("autosave-"))
+        .collect();
+    entries.sort_by_key(|e| std::cmp::Reverse(e.file_name()));
+    for old in entries.into_iter().skip(5) {
+        let _ = std::fs::remove_file(old.path());
+    }
+
+    tracing::info!("Autosaved to {}", path.display());
+    Ok(())
+}
+
+#[tauri::command]
+fn get_autosave_path() -> Result<Option<String>, String> {
+    let autosave_dir = std::env::temp_dir().join("forgecut-autosave");
+    if !autosave_dir.exists() {
+        return Ok(None);
+    }
+
+    let mut entries: Vec<_> = std::fs::read_dir(&autosave_dir)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name().to_string_lossy().starts_with("autosave-"))
+        .collect();
+    entries.sort_by_key(|e| std::cmp::Reverse(e.file_name()));
+
+    Ok(entries
+        .first()
+        .map(|e| e.path().to_string_lossy().to_string()))
+}
+
+#[tauri::command]
+fn get_thumbnails(
+    asset_id: String,
+    state: tauri::State<AppState>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let project = state.project.lock().unwrap();
+    let asset = project
+        .assets
+        .iter()
+        .find(|a| a.id.to_string() == asset_id)
+        .ok_or("Asset not found")?;
+
+    let duration_s = asset
+        .probe
+        .as_ref()
+        .map(|p| p.duration_us.as_seconds())
+        .unwrap_or(0.0);
+
+    if duration_s <= 0.0 {
+        return Ok(vec![]);
+    }
+
+    let cache_dir = std::env::temp_dir().join("forgecut-thumbnails");
+    let interval = (duration_s / 10.0).max(1.0); // ~10 thumbnails per clip
+
+    let thumbs = forgecut_render::thumbnails::extract_thumbnails(
+        &asset.path,
+        &cache_dir,
+        &asset_id,
+        duration_s,
+        interval,
+        160,
+    )
+    .map_err(|e| e.to_string())?;
+
+    let media_port = state.media_server_port;
+    Ok(thumbs
+        .iter()
+        .map(|(t, path)| {
+            serde_json::json!({
+                "time_seconds": t,
+                "url": format!("http://127.0.0.1:{}/{}", media_port,
+                    urlencoding_simple(&path.to_string_lossy()))
+            })
+        })
+        .collect())
+}
+
+fn urlencoding_simple(s: &str) -> String {
+    s.bytes()
+        .map(|b| {
+            if b.is_ascii_alphanumeric() || b == b'/' || b == b'.' || b == b'-' || b == b'_' {
+                format!("{}", b as char)
+            } else {
+                format!("%{:02X}", b)
+            }
+        })
+        .collect()
 }
 
 fn check_dependencies() {
@@ -879,8 +1033,14 @@ pub fn run() {
             get_overlays_at_time,
             get_item_details,
             update_item_property,
+            get_snap_points,
             get_project_settings,
             export_project,
+            generate_proxy,
+            get_proxy_path,
+            autosave,
+            get_autosave_path,
+            get_thumbnails,
         ])
         .setup(|app| {
             let window =

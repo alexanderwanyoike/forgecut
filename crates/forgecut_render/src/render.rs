@@ -430,8 +430,7 @@ pub async fn execute(
     let status = child.wait().await.map_err(RenderError::Io)?;
     if !status.success() {
         return Err(RenderError::FfmpegFailed(format!(
-            "ffmpeg exited with {}",
-            status
+            "ffmpeg exited with {status}"
         )));
     }
 

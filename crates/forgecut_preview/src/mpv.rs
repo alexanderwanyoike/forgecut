@@ -12,6 +12,12 @@ pub struct MpvController {
 // Safety: Only accessed behind Mutex in AppState
 unsafe impl Send for MpvController {}
 
+impl Default for MpvController {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MpvController {
     pub fn new() -> Self {
         let socket_path =
@@ -32,11 +38,11 @@ impl MpvController {
     ) -> Result<(), String> {
         self.stop();
 
-        let geometry = format!("{}x{}+{}+{}", w, h, sx, sy);
+        let geometry = format!("{w}x{h}+{sx}+{sy}");
         let log_path =
             std::env::temp_dir().join(format!("forgecut-mpv-{}.log", std::process::id()));
         let log_file = std::fs::File::create(&log_path).ok();
-        eprintln!("[mpv] starting with geometry={}", geometry);
+        eprintln!("[mpv] starting with geometry={geometry}");
         eprintln!("[mpv] log: {}", log_path.display());
 
         let child = Command::new("mpv")
@@ -50,14 +56,14 @@ impl MpvController {
                 "--ontop",
                 "--no-focus-on-open",
                 "--title=forgecut-preview",
-                &format!("--geometry={}", geometry),
+                &format!("--geometry={geometry}"),
                 &format!("--input-ipc-server={}", self.socket_path.display()),
             ])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(log_file.map(Stdio::from).unwrap_or(Stdio::null()))
             .spawn()
-            .map_err(|e| format!("Failed to start mpv: {}", e))?;
+            .map_err(|e| format!("Failed to start mpv: {e}"))?;
 
         self.process = Some(child);
 
@@ -92,23 +98,23 @@ impl MpvController {
 
     fn send_command(&self, command: serde_json::Value) -> Result<serde_json::Value, String> {
         let mut stream = UnixStream::connect(&self.socket_path)
-            .map_err(|e| format!("Failed to connect to mpv: {}", e))?;
+            .map_err(|e| format!("Failed to connect to mpv: {e}"))?;
         stream
             .set_read_timeout(Some(std::time::Duration::from_secs(2)))
             .ok();
 
-        let msg = format!("{}\n", command);
+        let msg = format!("{command}\n");
         stream
             .write_all(msg.as_bytes())
-            .map_err(|e| format!("Write failed: {}", e))?;
+            .map_err(|e| format!("Write failed: {e}"))?;
 
         let mut reader = BufReader::new(stream);
         let mut response = String::new();
         reader
             .read_line(&mut response)
-            .map_err(|e| format!("Read failed: {}", e))?;
+            .map_err(|e| format!("Read failed: {e}"))?;
 
-        serde_json::from_str(&response).map_err(|e| format!("Parse failed: {}", e))
+        serde_json::from_str(&response).map_err(|e| format!("Parse failed: {e}"))
     }
 
     pub fn load_file(&self, path: &str) -> Result<(), String> {

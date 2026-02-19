@@ -60,11 +60,36 @@ html, body, #root {
   color: var(--text-secondary);
   padding: 4px 8px;
   border-radius: 4px;
+  position: relative;
 }
 
 .menu-label:hover {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.06);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  min-width: 160px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 4px 0;
+}
+
+.dropdown-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .project-name {
@@ -376,6 +401,33 @@ html, body, #root {
   background: #f0b850;
 }
 
+.snap-toggle-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.snap-toggle-btn.snap-active {
+  background: #4a9eff;
+  color: #fff;
+  border-color: #4a9eff;
+}
+
+.snap-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #ffcc00;
+  z-index: 11;
+  pointer-events: none;
+}
+
 .zoom-control {
   display: flex;
   align-items: center;
@@ -393,6 +445,37 @@ html, body, #root {
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
+}
+
+.timeline-nav-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.timeline-nav-btn:hover {
+  background: var(--accent);
+}
+
+.timeline-minimap {
+  height: 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+}
+
+.minimap-viewport {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  background: rgba(108, 92, 231, 0.3);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  min-width: 8px;
 }
 
 .timeline-scroll {
