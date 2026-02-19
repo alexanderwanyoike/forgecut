@@ -447,6 +447,14 @@ html, body, #root {
   font-size: 14px;
 }
 
+.shortcut-hints {
+  font-size: 10px;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 .timeline-nav-btn {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);

@@ -47,7 +47,6 @@ export default function Preview(props: PreviewProps) {
     try {
       const port = await invoke<number>("get_media_port");
       setMediaPort(port);
-      console.log("[Preview] media server port:", port);
     } catch (e) {
       console.error("[Preview] failed to get media port:", e);
     }
@@ -98,7 +97,6 @@ export default function Preview(props: PreviewProps) {
       return;
     }
 
-    console.log("[Preview] playing:", clip.file_path, "seek:", clip.seek_seconds);
     currentClip = clip;
 
     if (!videoRef) return;
@@ -111,10 +109,8 @@ export default function Preview(props: PreviewProps) {
       videoRef.src = url;
 
       videoRef.onloadedmetadata = () => {
-        console.log("[Preview] metadata loaded, duration:", videoRef!.duration);
         videoRef!.currentTime = clip!.seek_seconds;
         videoRef!.play().then(() => {
-          console.log("[Preview] playing");
           setStatusMsg("");
           props.onPlayingChange(true);
           startPolling();

@@ -42,8 +42,8 @@ impl MpvController {
         let log_path =
             std::env::temp_dir().join(format!("forgecut-mpv-{}.log", std::process::id()));
         let log_file = std::fs::File::create(&log_path).ok();
-        eprintln!("[mpv] starting with geometry={geometry}");
-        eprintln!("[mpv] log: {}", log_path.display());
+        tracing::info!("[mpv] starting with geometry={geometry}");
+        tracing::info!("[mpv] log: {}", log_path.display());
 
         let child = Command::new("mpv")
             .args([
