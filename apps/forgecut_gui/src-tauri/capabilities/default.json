@@ -1,0 +1,14 @@
+{
+  "identifier": "default",
+  "description": "Default capability for ForgeCut",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "dialog:default",
+    "shell:default",
+    "fs:default",
+    "fs:allow-read",
+    "fs:read-all"
+  ]
+}
