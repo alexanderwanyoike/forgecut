@@ -990,6 +990,61 @@ fn urlencoding_simple(s: &str) -> String {
         .collect()
 }
 
+#[tauri::command]
+fn extract_clip_audio(
+    file_path: String,
+    start_seconds: f64,
+    duration_seconds: f64,
+) -> Result<String, String> {
+    let audio_dir = std::env::temp_dir().join("forgecut-audio");
+    std::fs::create_dir_all(&audio_dir).map_err(|e| e.to_string())?;
+
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    file_path.hash(&mut hasher);
+    start_seconds.to_bits().hash(&mut hasher);
+    duration_seconds.to_bits().hash(&mut hasher);
+    let hash = format!("{:016x}", hasher.finish());
+
+    let wav_path = audio_dir.join(format!("{hash}.wav"));
+
+    // Return cached if exists
+    if wav_path.exists() {
+        return Ok(wav_path.to_string_lossy().to_string());
+    }
+
+    let status = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-ss",
+            &format!("{start_seconds:.6}"),
+            "-i",
+            &file_path,
+            "-t",
+            &format!("{duration_seconds:.6}"),
+            "-vn",
+            "-f",
+            "wav",
+            "-acodec",
+            "pcm_s16le",
+            "-ac",
+            "2",
+            "-ar",
+            "48000",
+        ])
+        .arg(wav_path.as_os_str())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map_err(|e| format!("ffmpeg spawn failed: {e}"))?;
+
+    if !status.success() {
+        return Err("ffmpeg audio extraction failed".into());
+    }
+
+    Ok(wav_path.to_string_lossy().to_string())
+}
+
 fn check_dependencies() {
     let deps = [
         ("ffmpeg", "video rendering/export", "sudo apt install ffmpeg"),
@@ -1079,6 +1134,7 @@ pub fn run() {
             get_autosave_path,
             get_thumbnails,
             get_waveform,
+            extract_clip_audio,
         ])
         .setup(|app| {
             let window =

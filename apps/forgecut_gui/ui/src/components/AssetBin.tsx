@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js";
+import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 
@@ -17,7 +17,7 @@ interface Asset {
 }
 
 export default function AssetBin() {
-  const [assets, setAssets] = createSignal<Asset[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
 
   const handleImport = async () => {
     const selected = await open({
@@ -62,40 +62,41 @@ export default function AssetBin() {
   };
 
   return (
-    <aside class="panel asset-bin">
-      <div class="panel-header">Assets</div>
-      <button class="import-btn" onClick={handleImport}>Import Media</button>
-      <div class="asset-list">
-        <For each={assets()}>
-          {(asset) => (
-            <div
-              class="asset-item"
-              draggable={true}
-              onDragStart={(e) => {
-                e.dataTransfer?.setData("application/forgecut-asset", JSON.stringify(asset));
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                handleRemove(asset.id);
-              }}
-            >
-              <span class="asset-icon">{kindIcon(asset.kind)}</span>
-              <div class="asset-info">
-                <div class="asset-name">{asset.name}</div>
-                <div class="asset-meta">
-                  <Show when={asset.probe}>
-                    {asset.probe?.width && asset.probe.height
+    <aside className="panel asset-bin">
+      <div className="panel-header">Assets</div>
+      <button className="import-btn" onClick={handleImport}>Import Media</button>
+      <div className="asset-list">
+        {assets.map((asset) => (
+          <div
+            key={asset.id}
+            className="asset-item"
+            draggable={true}
+            onDragStart={(e) => {
+              e.dataTransfer?.setData("application/forgecut-asset", JSON.stringify(asset));
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              handleRemove(asset.id);
+            }}
+          >
+            <span className="asset-icon">{kindIcon(asset.kind)}</span>
+            <div className="asset-info">
+              <div className="asset-name">{asset.name}</div>
+              <div className="asset-meta">
+                {asset.probe && (
+                  <>
+                    {asset.probe.width && asset.probe.height
                       ? `${asset.probe.width}x${asset.probe.height}`
                       : ""}
-                    {asset.probe?.duration_us
+                    {asset.probe.duration_us
                       ? ` \u2022 ${formatDuration(asset.probe.duration_us)}`
                       : ""}
-                  </Show>
-                </div>
+                  </>
+                )}
               </div>
             </div>
-          )}
-        </For>
+          </div>
+        ))}
       </div>
     </aside>
   );

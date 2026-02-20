@@ -1,5 +1,8 @@
-import { createSignal, createEffect, For, onMount, onCleanup } from "solid-js";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+
+/** Width of the track label column in pixels */
+const LABEL_W = 48;
 
 interface TimelineData {
   tracks: Track[];
@@ -31,56 +34,61 @@ interface TimelineProps {
   playheadUs: number;
   playing: boolean;
   onPlayheadChange: (us: number) => void;
+  onPlayingChange: (playing: boolean) => void;
   selectedClipId: string | null;
   onSelectedClipChange: (id: string | null) => void;
 }
 
 export default function Timeline(props: TimelineProps) {
-  const [timeline, setTimeline] = createSignal<TimelineData>({
+  const [timeline, setTimeline] = useState<TimelineData>({
     tracks: [],
     markers: [],
   });
-  const [pixelsPerSecond, setPixelsPerSecond] = createSignal(100);
-  const [scrollLeft, setScrollLeft] = createSignal(0);
-  const [snapping, setSnapping] = createSignal(true);
-  const [snapLineUs, setSnapLineUs] = createSignal<number | null>(null);
+  const [pixelsPerSecond, setPixelsPerSecond] = useState(100);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [snapping, setSnapping] = useState(true);
+  const [snapLineUs, setSnapLineUs] = useState<number | null>(null);
 
-  const selectedClipId = () => props.selectedClipId;
+  const selectedClipId = props.selectedClipId;
   const setSelectedClipId = (id: string | null) => props.onSelectedClipChange(id);
 
   // Drag state for moving clips
-  const [dragState, setDragState] = createSignal<{
+  const [dragState, setDragState] = useState<{
     itemId: string;
     startMouseX: number;
     originalStartUs: number;
   } | null>(null);
 
   // Drag state for trimming clips
-  const [trimState, setTrimState] = createSignal<{
+  const [trimState, setTrimState] = useState<{
     itemId: string;
     edge: "left" | "right";
     startMouseX: number;
     originalUs: number;
   } | null>(null);
 
-  const [viewWidth, setViewWidth] = createSignal(0);
+  const [viewWidth, setViewWidth] = useState(0);
 
   // Waveform cache: asset_id -> peaks array
-  const [waveforms, setWaveforms] = createSignal<Record<string, number[][]>>({});
+  const [waveforms, setWaveforms] = useState<Record<string, number[][]>>({});
 
-  const fetchWaveform = async (assetId: string) => {
-    if (waveforms()[assetId]) return;
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const rulerDraggingRef = useRef(false);
+  const snapPointsCacheRef = useRef<number[] | null>(null);
+
+  const fetchWaveform = useCallback(async (assetId: string) => {
+    if (waveforms[assetId]) return;
     try {
       const data = await invoke<{ peaks: [number, number][]; sample_rate: number; samples_per_peak: number }>("get_waveform", { assetId });
       setWaveforms((prev) => ({ ...prev, [assetId]: data.peaks }));
     } catch (_) {
       // Waveform extraction may fail for non-audio files; silently ignore
     }
-  };
+  }, [waveforms]);
 
   // Fetch waveforms for audio clips whenever timeline changes
-  createEffect(() => {
-    for (const track of timeline().tracks) {
+  useEffect(() => {
+    for (const track of timeline.tracks) {
       if (track.kind !== "Audio") continue;
       for (const item of track.items) {
         const data = getItemData(item);
@@ -89,11 +97,24 @@ export default function Timeline(props: TimelineProps) {
         }
       }
     }
-  });
+  }, [timeline]);
 
-  let timelineRef: HTMLDivElement | undefined;
+  const usToPixels = (us: number) => (us / 1_000_000) * pixelsPerSecond;
+  const pixelsToUs = (px: number) => (px / pixelsPerSecond) * 1_000_000;
 
-  const handleWheel = (e: WheelEvent) => {
+  const totalWidth = () => {
+    let maxEnd = 30_000_000;
+    for (const track of timeline.tracks) {
+      for (const item of track.items) {
+        const data = getItemData(item);
+        const end = data.startUs + data.durationUs;
+        if (end > maxEnd) maxEnd = end;
+      }
+    }
+    return usToPixels(maxEnd + 5_000_000) + LABEL_W;
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       const delta = e.deltaY > 0 ? -10 : 10;
@@ -102,51 +123,47 @@ export default function Timeline(props: TimelineProps) {
   };
 
   const scrollToPlayhead = () => {
-    if (!timelineRef) return;
-    const playheadPx = usToPixels(props.playheadUs);
-    const vw = timelineRef.clientWidth;
-    timelineRef.scrollLeft = playheadPx - vw / 2;
+    if (!timelineRef.current) return;
+    const playheadPx = usToPixels(props.playheadUs) + LABEL_W;
+    const vw = timelineRef.current.clientWidth;
+    timelineRef.current.scrollLeft = playheadPx - vw / 2;
   };
 
   const fitAll = () => {
-    if (!timelineRef) return;
+    if (!timelineRef.current) return;
     let maxEnd = 5_000_000;
-    for (const track of timeline().tracks) {
+    for (const track of timeline.tracks) {
       for (const item of track.items) {
         const data = getItemData(item);
         const end = data.startUs + data.durationUs;
         if (end > maxEnd) maxEnd = end;
       }
     }
-    const vw = timelineRef.clientWidth - 48;
+    const vw = timelineRef.current.clientWidth - LABEL_W;
     const needed = maxEnd / 1_000_000;
     setPixelsPerSecond(Math.max(10, Math.min(500, vw / needed)));
   };
 
-  onMount(async () => {
-    const tl = await invoke<TimelineData>("init_default_tracks");
-    setTimeline(tl);
-  });
+  // Init default tracks on mount
+  useEffect(() => {
+    (async () => {
+      const tl = await invoke<TimelineData>("init_default_tracks");
+      setTimeline(tl);
+    })();
+  }, []);
 
-  const usToPixels = (us: number) => (us / 1_000_000) * pixelsPerSecond();
-  const pixelsToUs = (px: number) => (px / pixelsPerSecond()) * 1_000_000;
-
-  const totalWidth = () => {
-    let maxEnd = 30_000_000;
-    for (const track of timeline().tracks) {
-      for (const item of track.items) {
-        const data = getItemData(item);
-        const end = data.startUs + data.durationUs;
-        if (end > maxEnd) maxEnd = end;
-      }
-    }
-    return usToPixels(maxEnd + 5_000_000);
+  const calcPlayheadFromMouse = (e: MouseEvent | React.MouseEvent): number => {
+    if (!timelineRef.current) return 0;
+    const rect = timelineRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left + scrollLeft - LABEL_W;
+    return Math.max(0, Math.round(pixelsToUs(x)));
   };
 
-  // Keyboard shortcuts
-  const handleKeyDown = async (e: KeyboardEvent) => {
-    // Space bar: play/pause (let it bubble -- handled by Preview)
+  // --- Global event handlers via refs to avoid stale closures ---
 
+  // Keyboard shortcuts
+  const handleKeyDownRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  handleKeyDownRef.current = async (e: KeyboardEvent) => {
     // Undo: Ctrl+Z
     if (e.key === "z" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
       e.preventDefault();
@@ -167,7 +184,7 @@ export default function Timeline(props: TimelineProps) {
       return;
     }
 
-    const sel = selectedClipId();
+    const sel = selectedClipId;
     if (!sel) return;
 
     // Delete selected clip
@@ -199,13 +216,17 @@ export default function Timeline(props: TimelineProps) {
     }
   };
 
-  onMount(() => window.addEventListener("keydown", handleKeyDown));
-  onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => handleKeyDownRef.current(e);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
-  // Global mouse move/up for drag and trim
-  const handleGlobalMouseUp = async (e: MouseEvent) => {
-    const ds = dragState();
-    const ts = trimState();
+  // Global mouse up for drag and trim
+  const handleGlobalMouseUpRef = useRef<(e: MouseEvent) => void>(() => {});
+  handleGlobalMouseUpRef.current = async (e: MouseEvent) => {
+    const ds = dragState;
+    const ts = trimState;
 
     if (ds) {
       const dx = e.clientX - ds.startMouseX;
@@ -215,7 +236,7 @@ export default function Timeline(props: TimelineProps) {
       setSnapLineUs(null);
       if (Math.abs(dx) < 3) return;
 
-      if (snapping()) {
+      if (snapping) {
         try {
           const snapPoints = await invoke<number[]>("get_snap_points", {
             excludeItemId: ds.itemId,
@@ -268,22 +289,21 @@ export default function Timeline(props: TimelineProps) {
     }
   };
 
-  // Snap-line preview cache: filled on first move after drag starts
-  let snapPointsCache: number[] | null = null;
-
-  const handleGlobalMouseMove = (e: MouseEvent) => {
-    const ds = dragState();
-    if (!ds || !snapping()) {
-      if (snapLineUs() !== null) setSnapLineUs(null);
+  // Global mouse move for snap-line preview
+  const handleGlobalMouseMoveRef = useRef<(e: MouseEvent) => void>(() => {});
+  handleGlobalMouseMoveRef.current = (e: MouseEvent) => {
+    const ds = dragState;
+    if (!ds || !snapping) {
+      if (snapLineUs !== null) setSnapLineUs(null);
       return;
     }
     const dx = e.clientX - ds.startMouseX;
     const deltaUs = pixelsToUs(dx);
     const pos = Math.max(0, Math.round(ds.originalStartUs + deltaUs));
 
-    if (!snapPointsCache) {
+    if (!snapPointsCacheRef.current) {
       invoke<number[]>("get_snap_points", { excludeItemId: ds.itemId })
-        .then((pts) => { snapPointsCache = pts; })
+        .then((pts) => { snapPointsCacheRef.current = pts; })
         .catch(() => {});
       return;
     }
@@ -291,7 +311,7 @@ export default function Timeline(props: TimelineProps) {
     const thresholdUs = Math.round(pixelsToUs(5));
     let bestDist = thresholdUs + 1;
     let bestPoint: number | null = null;
-    for (const point of snapPointsCache) {
+    for (const point of snapPointsCacheRef.current) {
       const dist = Math.abs(pos - point);
       if (dist < bestDist) {
         bestDist = dist;
@@ -301,23 +321,57 @@ export default function Timeline(props: TimelineProps) {
     setSnapLineUs(bestDist <= thresholdUs ? bestPoint : null);
   };
 
-  onMount(() => {
-    window.addEventListener("mouseup", handleGlobalMouseUp);
-    window.addEventListener("mousemove", handleGlobalMouseMove);
-  });
-  onCleanup(() => {
-    window.removeEventListener("mouseup", handleGlobalMouseUp);
-    window.removeEventListener("mousemove", handleGlobalMouseMove);
-  });
+  useEffect(() => {
+    const upHandler = (e: MouseEvent) => handleGlobalMouseUpRef.current(e);
+    const moveHandler = (e: MouseEvent) => handleGlobalMouseMoveRef.current(e);
+    window.addEventListener("mouseup", upHandler);
+    window.addEventListener("mousemove", moveHandler);
+    return () => {
+      window.removeEventListener("mouseup", upHandler);
+      window.removeEventListener("mousemove", moveHandler);
+    };
+  }, []);
 
-  const handleDrop = async (e: DragEvent, trackId: string) => {
+  // Ruler scrub handlers
+  const handleRulerMouseMoveRef = useRef<(e: MouseEvent) => void>(() => {});
+  handleRulerMouseMoveRef.current = (e: MouseEvent) => {
+    if (!rulerDraggingRef.current) return;
+    if (props.playing) props.onPlayingChange(false);
+    props.onPlayheadChange(calcPlayheadFromMouse(e));
+  };
+
+  const handleRulerMouseUpRef = useRef<() => void>(() => {});
+  handleRulerMouseUpRef.current = () => {
+    rulerDraggingRef.current = false;
+  };
+
+  useEffect(() => {
+    const moveHandler = (e: MouseEvent) => handleRulerMouseMoveRef.current(e);
+    const upHandler = () => handleRulerMouseUpRef.current();
+    window.addEventListener("mousemove", moveHandler);
+    window.addEventListener("mouseup", upHandler);
+    return () => {
+      window.removeEventListener("mousemove", moveHandler);
+      window.removeEventListener("mouseup", upHandler);
+    };
+  }, []);
+
+  const handleRulerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    rulerDraggingRef.current = true;
+    if (props.playing) props.onPlayingChange(false);
+    props.onPlayheadChange(calcPlayheadFromMouse(e));
+  };
+
+  const handleDrop = async (e: React.DragEvent, trackId: string) => {
     e.preventDefault();
     const assetJson = e.dataTransfer?.getData("application/forgecut-asset");
     if (!assetJson) return;
     const asset = JSON.parse(assetJson);
 
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = e.clientX - rect.left + scrollLeft();
+    const trackContent = (e.currentTarget as HTMLElement).querySelector(".track-content") as HTMLElement;
+    const rect = trackContent.getBoundingClientRect();
+    const x = e.clientX - rect.left;
     const startUs = Math.max(0, Math.round(pixelsToUs(x)));
 
     const tl = await invoke<TimelineData>("add_clip_to_timeline", {
@@ -328,25 +382,16 @@ export default function Timeline(props: TimelineProps) {
     setTimeline(tl);
   };
 
-  const handleRulerClick = (e: MouseEvent) => {
-    if (props.playing) return; // Don't move playhead during playback
-    if (!timelineRef) return;
-    const rect = timelineRef.getBoundingClientRect();
-    const x = e.clientX - rect.left + scrollLeft();
-    const us = Math.max(0, Math.round(pixelsToUs(x)));
-    props.onPlayheadChange(us);
-  };
-
-  const handleClipMouseDown = (e: MouseEvent, itemId: string, startUs: number) => {
+  const handleClipMouseDown = (e: React.MouseEvent, itemId: string, startUs: number) => {
     if ((e.target as HTMLElement).classList.contains("trim-handle")) return;
     e.stopPropagation();
     setSelectedClipId(itemId);
-    snapPointsCache = null;
+    snapPointsCacheRef.current = null;
     setDragState({ itemId, startMouseX: e.clientX, originalStartUs: startUs });
   };
 
   const handleTrimMouseDown = (
-    e: MouseEvent,
+    e: React.MouseEvent,
     itemId: string,
     edge: "left" | "right",
     currentUs: number
@@ -402,161 +447,163 @@ export default function Timeline(props: TimelineProps) {
 
   const renderRuler = () => {
     const width = totalWidth();
-    const interval = pixelsPerSecond() >= 80 ? 1 : pixelsPerSecond() >= 40 ? 2 : 5;
+    const interval = pixelsPerSecond >= 80 ? 1 : pixelsPerSecond >= 40 ? 2 : 5;
     const ticks = [];
-    for (let sec = 0; sec * pixelsPerSecond() < width; sec += interval) {
+    for (let sec = 0; sec * pixelsPerSecond + LABEL_W < width; sec += interval) {
       ticks.push(sec);
     }
     return ticks;
   };
 
   return (
-    <section class="panel timeline">
-      <div class="timeline-controls">
-        <span class="timeline-label">Timeline</span>
-        <button class="add-text-btn" onClick={handleAddText}>+ Text</button>
-        <button class="add-text-btn" onClick={handleAddPipTrack}>+ PiP Track</button>
+    <section className="panel timeline">
+      <div className="timeline-controls">
+        <span className="timeline-label">Timeline</span>
+        <button className="add-text-btn" onClick={handleAddText}>+ Text</button>
+        <button className="add-text-btn" onClick={handleAddPipTrack}>+ PiP Track</button>
         <button
-          class={`snap-toggle-btn${snapping() ? " snap-active" : ""}`}
+          className={`snap-toggle-btn${snapping ? " snap-active" : ""}`}
           onClick={() => setSnapping((s) => !s)}
-          title={snapping() ? "Snapping on" : "Snapping off"}
+          title={snapping ? "Snapping on" : "Snapping off"}
         >Snap</button>
-        <button class="timeline-nav-btn" onClick={scrollToPlayhead} title="Scroll to playhead">|&lt;&gt;|</button>
-        <button class="timeline-nav-btn" onClick={fitAll} title="Fit all">[ ]</button>
-        <div class="zoom-control">
+        <button className="timeline-nav-btn" onClick={scrollToPlayhead} title="Scroll to playhead">|&lt;&gt;|</button>
+        <button className="timeline-nav-btn" onClick={fitAll} title="Fit all">[ ]</button>
+        <div className="zoom-control">
           <button onClick={() => setPixelsPerSecond((p) => Math.max(20, p - 20))}>-</button>
-          <span>{pixelsPerSecond()}px/s</span>
+          <span>{pixelsPerSecond}px/s</span>
           <button onClick={() => setPixelsPerSecond((p) => Math.min(300, p + 20))}>+</button>
         </div>
-        <span class="shortcut-hints">S: Split | Del: Delete | Ctrl+Z: Undo | Ctrl+Shift+Z: Redo</span>
+        <span className="shortcut-hints">S: Split | Del: Delete | Ctrl+Z: Undo | Ctrl+Shift+Z: Redo</span>
       </div>
 
-      <div class="timeline-minimap">
-        <div class="minimap-viewport" style={{
-          left: `${(scrollLeft() / totalWidth()) * 100}%`,
-          width: `${(viewWidth() / totalWidth()) * 100}%`,
+      <div className="timeline-minimap">
+        <div className="minimap-viewport" style={{
+          left: `${(scrollLeft / totalWidth()) * 100}%`,
+          width: `${(viewWidth / totalWidth()) * 100}%`,
         }} />
       </div>
 
       <div
-        class="timeline-scroll"
+        className="timeline-scroll"
         ref={timelineRef}
         onWheel={handleWheel}
         onScroll={(e) => {
           setScrollLeft(e.currentTarget.scrollLeft);
           setViewWidth(e.currentTarget.clientWidth);
         }}
-        onMouseDown={() => setSelectedClipId(null)}
+        onMouseDown={(e) => {
+          setSelectedClipId(null);
+          // Seek playhead when clicking empty track area
+          if ((e.target as HTMLElement).classList.contains("track-content")) {
+            if (props.playing) props.onPlayingChange(false);
+            props.onPlayheadChange(calcPlayheadFromMouse(e));
+          }
+        }}
       >
-        <div class="timeline-content" style={{ width: `${totalWidth()}px` }}>
-          <div class="time-ruler" onMouseDown={handleRulerClick}>
-            <For each={renderRuler()}>
-              {(sec) => (
-                <div class="ruler-tick" style={{ left: `${sec * pixelsPerSecond()}px` }}>
-                  <span class="ruler-label">{formatTimecode(sec)}</span>
-                </div>
-              )}
-            </For>
+        <div className="timeline-content" style={{ width: `${totalWidth()}px` }}>
+          <div className="time-ruler" onMouseDown={handleRulerMouseDown}>
+            {renderRuler().map((sec) => (
+              <div key={sec} className="ruler-tick" style={{ left: `${sec * pixelsPerSecond + LABEL_W}px` }}>
+                <span className="ruler-label">{formatTimecode(sec)}</span>
+              </div>
+            ))}
           </div>
 
-          <div class="playhead" style={{ left: `${usToPixels(props.playheadUs)}px` }} />
+          <div className="playhead" style={{ left: `${usToPixels(props.playheadUs) + LABEL_W}px` }} />
 
-          {snapLineUs() !== null && (
-            <div class="snap-line" style={{ left: `${usToPixels(snapLineUs()!)}px` }} />
+          {snapLineUs !== null && (
+            <div className="snap-line" style={{ left: `${usToPixels(snapLineUs!) + LABEL_W}px` }} />
           )}
 
-          <div class="track-lanes">
-            <For each={timeline().tracks}>
-              {(track, trackIndex) => {
-                const pip = isPipTrack(track, timeline().tracks);
-                return (
+          <div className="track-lanes">
+            {timeline.tracks.map((track, trackIndex) => {
+              const pip = isPipTrack(track, timeline.tracks);
+              return (
                 <div
-                  class={`track-lane${pip ? " track-lane-pip" : ""}`}
+                  key={track.id}
+                  className={`track-lane${pip ? " track-lane-pip" : ""}`}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => handleDrop(e, track.id)}
                 >
-                  <div class="track-label">
+                  <div className="track-label">
                     {pip ? "PiP" : track.kind === "Video" ? "V" : track.kind === "Audio" ? "A" : track.kind === "OverlayImage" ? "Img" : track.kind === "OverlayText" ? "T" : "?"}
-                    {trackIndex() + 1}
+                    {trackIndex + 1}
                   </div>
-                  <div class="track-content">
-                    <For each={track.items}>
-                      {(item) => {
-                        const data = getItemData(item);
-                        const isSelected = () => selectedClipId() === data.id;
-                        return (
+                  <div className="track-content">
+                    {track.items.map((item) => {
+                      const data = getItemData(item);
+                      const isSelected = selectedClipId === data.id;
+                      return (
+                        <div
+                          key={data.id}
+                          className={`clip${isSelected ? " clip-selected" : ""}`}
+                          style={{
+                            left: `${usToPixels(data.startUs)}px`,
+                            width: `${Math.max(4, usToPixels(data.durationUs))}px`,
+                            backgroundColor: trackColor(track.kind, pip),
+                          }}
+                          onMouseDown={(e) => handleClipMouseDown(e, data.id, data.startUs)}
+                        >
                           <div
-                            class={`clip${isSelected() ? " clip-selected" : ""}`}
-                            style={{
-                              left: `${usToPixels(data.startUs)}px`,
-                              width: `${Math.max(4, usToPixels(data.durationUs))}px`,
-                              "background-color": trackColor(track.kind, pip),
-                            }}
-                            onMouseDown={(e) => handleClipMouseDown(e, data.id, data.startUs)}
-                          >
-                            <div
-                              class="trim-handle trim-handle-left"
-                              onMouseDown={(e) =>
-                                handleTrimMouseDown(
-                                  e, data.id, "left",
-                                  data.variant === "VideoClip" || data.variant === "AudioClip"
-                                    ? data.source_in_us : data.startUs
-                                )
-                              }
-                            />
-                            <span class="clip-label">
-                              {data.variant === "AudioClip" ? "Audio" : data.variant === "VideoClip" ? "Video" : data.variant === "ImageOverlay" ? "Image" : data.variant === "TextOverlay" ? data.text || "Text" : data.variant}
-                            </span>
-                            {data.variant === "AudioClip" && waveforms()[data.asset_id] && (
-                              <svg
-                                class="waveform-svg"
-                                viewBox={`0 0 ${waveforms()[data.asset_id]!.length} 100`}
-                                preserveAspectRatio="none"
-                                style={{
-                                  position: "absolute",
-                                  left: "6px",
-                                  right: "6px",
-                                  top: "0",
-                                  bottom: "0",
-                                  width: "calc(100% - 12px)",
-                                  height: "100%",
-                                  opacity: "0.5",
-                                  "pointer-events": "none",
-                                }}
-                              >
-                                <For each={waveforms()[data.asset_id]!}>
-                                  {(peak, i) => (
-                                    <line
-                                      x1={i()}
-                                      x2={i()}
-                                      y1={50 - (peak as unknown as [number, number])[1] * 50}
-                                      y2={50 - (peak as unknown as [number, number])[0] * 50}
-                                      stroke="white"
-                                      stroke-width="1"
-                                    />
-                                  )}
-                                </For>
-                              </svg>
-                            )}
-                            <div
-                              class="trim-handle trim-handle-right"
-                              onMouseDown={(e) =>
-                                handleTrimMouseDown(
-                                  e, data.id, "right",
-                                  data.variant === "VideoClip" || data.variant === "AudioClip"
-                                    ? data.source_out_us : data.startUs + data.durationUs
-                                )
-                              }
-                            />
-                          </div>
-                        );
-                      }}
-                    </For>
+                            className="trim-handle trim-handle-left"
+                            onMouseDown={(e) =>
+                              handleTrimMouseDown(
+                                e, data.id, "left",
+                                data.variant === "VideoClip" || data.variant === "AudioClip"
+                                  ? data.source_in_us : data.startUs
+                              )
+                            }
+                          />
+                          <span className="clip-label">
+                            {data.variant === "AudioClip" ? "Audio" : data.variant === "VideoClip" ? "Video" : data.variant === "ImageOverlay" ? "Image" : data.variant === "TextOverlay" ? data.text || "Text" : data.variant}
+                          </span>
+                          {data.variant === "AudioClip" && waveforms[data.asset_id] && (
+                            <svg
+                              className="waveform-svg"
+                              viewBox={`0 0 ${waveforms[data.asset_id]!.length} 100`}
+                              preserveAspectRatio="none"
+                              style={{
+                                position: "absolute",
+                                left: "6px",
+                                right: "6px",
+                                top: "0",
+                                bottom: "0",
+                                width: "calc(100% - 12px)",
+                                height: "100%",
+                                opacity: "0.5",
+                                pointerEvents: "none",
+                              }}
+                            >
+                              {waveforms[data.asset_id]!.map((peak, i) => (
+                                <line
+                                  key={i}
+                                  x1={i}
+                                  x2={i}
+                                  y1={50 - (peak as unknown as [number, number])[1] * 50}
+                                  y2={50 - (peak as unknown as [number, number])[0] * 50}
+                                  stroke="white"
+                                  strokeWidth="1"
+                                />
+                              ))}
+                            </svg>
+                          )}
+                          <div
+                            className="trim-handle trim-handle-right"
+                            onMouseDown={(e) =>
+                              handleTrimMouseDown(
+                                e, data.id, "right",
+                                data.variant === "VideoClip" || data.variant === "AudioClip"
+                                  ? data.source_out_us : data.startUs + data.durationUs
+                              )
+                            }
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                );
-              }}
-            </For>
+              );
+            })}
           </div>
         </div>
       </div>

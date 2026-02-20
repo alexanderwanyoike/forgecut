@@ -234,9 +234,10 @@ html, body, #root {
 .preview-video {
   width: 100%;
   height: 100%;
-  object-fit: contain;
   background: #000;
   border-radius: 4px;
+  display: block;
+  object-fit: contain;
 }
 
 .placeholder-label {

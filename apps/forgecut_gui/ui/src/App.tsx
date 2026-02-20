@@ -1,5 +1,4 @@
-import { createSignal, Show, onMount, onCleanup } from "solid-js";
-import type { Component } from "solid-js";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import AssetBin from "./components/AssetBin";
@@ -8,20 +7,20 @@ import Inspector from "./components/Inspector";
 import Preview from "./components/Preview";
 import Timeline from "./components/Timeline";
 
-const App: Component = () => {
-  const [showExport, setShowExport] = createSignal(false);
-  const [playheadUs, setPlayheadUs] = createSignal(0);
-  const [playing, setPlaying] = createSignal(false);
-  const [selectedClipId, setSelectedClipId] = createSignal<string | null>(null);
-  const [projectName, setProjectName] = createSignal("Untitled Project");
-  const [showFileMenu, setShowFileMenu] = createSignal(false);
+export default function App() {
+  const [showExport, setShowExport] = useState(false);
+  const [playheadUs, setPlayheadUs] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState("Untitled Project");
+  const [showFileMenu, setShowFileMenu] = useState(false);
 
-  onMount(() => {
+  useEffect(() => {
     const interval = setInterval(async () => {
       try { await invoke("autosave"); } catch (_) {}
     }, 60_000);
-    onCleanup(() => clearInterval(interval));
-  });
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSave = async () => {
     setShowFileMenu(false);
@@ -50,7 +49,6 @@ const App: Component = () => {
       setProjectName(
         (filePath as string).split("/").pop()?.replace(".forgecut", "") || "Project"
       );
-      // Reload the page state by re-fetching timeline
       window.location.reload();
     } catch (e) {
       console.error("load_project failed:", e);
@@ -58,51 +56,50 @@ const App: Component = () => {
   };
 
   return (
-    <div class="shell" onClick={() => showFileMenu() && setShowFileMenu(false)}>
-      <header class="menu-bar">
-        <div class="menu-items">
+    <div className="shell" onClick={() => showFileMenu && setShowFileMenu(false)}>
+      <header className="menu-bar">
+        <div className="menu-items">
           <span
-            class="menu-label"
-            onClick={(e) => { e.stopPropagation(); setShowFileMenu(!showFileMenu()); }}
+            className="menu-label"
+            onClick={(e) => { e.stopPropagation(); setShowFileMenu(!showFileMenu); }}
           >
             File
-            <Show when={showFileMenu()}>
-              <div class="dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                <div class="dropdown-item" onClick={handleOpen}>Open Project...</div>
-                <div class="dropdown-item" onClick={handleSave}>Save Project...</div>
+            {showFileMenu && (
+              <div className="dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                <div className="dropdown-item" onClick={handleOpen}>Open Project...</div>
+                <div className="dropdown-item" onClick={handleSave}>Save Project...</div>
               </div>
-            </Show>
+            )}
           </span>
-          <span class="menu-label">Edit</span>
-          <span class="menu-label" onClick={() => setShowExport(true)}>Export</span>
+          <span className="menu-label">Edit</span>
+          <span className="menu-label" onClick={() => setShowExport(true)}>Export</span>
         </div>
-        <span class="project-name">{projectName()}</span>
+        <span className="project-name">{projectName}</span>
       </header>
 
       <AssetBin />
 
       <Preview
-        playheadUs={playheadUs()}
-        playing={playing()}
+        playheadUs={playheadUs}
+        playing={playing}
         onPlayingChange={setPlaying}
         onPlayheadChange={setPlayheadUs}
       />
 
-      <Inspector selectedClipId={selectedClipId()} />
+      <Inspector selectedClipId={selectedClipId} />
 
       <Timeline
-        playheadUs={playheadUs()}
-        playing={playing()}
+        playheadUs={playheadUs}
+        playing={playing}
         onPlayheadChange={setPlayheadUs}
-        selectedClipId={selectedClipId()}
+        onPlayingChange={setPlaying}
+        selectedClipId={selectedClipId}
         onSelectedClipChange={setSelectedClipId}
       />
 
-      <Show when={showExport()}>
+      {showExport && (
         <ExportDialog onClose={() => setShowExport(false)} />
-      </Show>
+      )}
     </div>
   );
-};
-
-export default App;
+}

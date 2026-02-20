@@ -1,4 +1,4 @@
-import { createSignal, Show, onCleanup } from "solid-js";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { save } from "@tauri-apps/plugin-dialog";
@@ -12,18 +12,20 @@ interface RenderProgress {
 }
 
 export default function ExportDialog(props: { onClose: () => void }) {
-  const [exporting, setExporting] = createSignal(false);
-  const [progress, setProgress] = createSignal<RenderProgress | null>(null);
-  const [error, setError] = createSignal<string | null>(null);
-  const [done, setDone] = createSignal(false);
+  const [exporting, setExporting] = useState(false);
+  const [progress, setProgress] = useState<RenderProgress | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
 
-  let unlistenProgress: (() => void) | null = null;
-  let unlistenComplete: (() => void) | null = null;
+  const unlistenProgressRef = useRef<(() => void) | null>(null);
+  const unlistenCompleteRef = useRef<(() => void) | null>(null);
 
-  onCleanup(() => {
-    unlistenProgress?.();
-    unlistenComplete?.();
-  });
+  useEffect(() => {
+    return () => {
+      unlistenProgressRef.current?.();
+      unlistenCompleteRef.current?.();
+    };
+  }, []);
 
   const handleExport = async () => {
     const filePath = await save({
@@ -35,15 +37,15 @@ export default function ExportDialog(props: { onClose: () => void }) {
     setExporting(true);
     setError(null);
 
-    unlistenProgress = await listen<RenderProgress>("export-progress", (event) => {
+    unlistenProgressRef.current = await listen<RenderProgress>("export-progress", (event) => {
       setProgress(event.payload);
     });
 
-    unlistenComplete = await listen("export-complete", () => {
+    unlistenCompleteRef.current = await listen("export-complete", () => {
       setDone(true);
       setExporting(false);
-      unlistenProgress?.();
-      unlistenComplete?.();
+      unlistenProgressRef.current?.();
+      unlistenCompleteRef.current?.();
     });
 
     try {
@@ -51,57 +53,57 @@ export default function ExportDialog(props: { onClose: () => void }) {
     } catch (e) {
       setError(String(e));
       setExporting(false);
-      unlistenProgress?.();
-      unlistenComplete?.();
+      unlistenProgressRef.current?.();
+      unlistenCompleteRef.current?.();
     }
   };
 
   return (
-    <div class="export-dialog-overlay" onClick={(e) => { if (e.target === e.currentTarget && !exporting()) props.onClose(); }}>
-      <div class="export-dialog">
-        <div class="export-header">
+    <div className="export-dialog-overlay" onClick={(e) => { if (e.target === e.currentTarget && !exporting) props.onClose(); }}>
+      <div className="export-dialog">
+        <div className="export-header">
           <h3>Export Project</h3>
-          <Show when={!exporting()}>
-            <button class="close-btn" onClick={props.onClose}>&times;</button>
-          </Show>
+          {!exporting && (
+            <button className="close-btn" onClick={props.onClose}>&times;</button>
+          )}
         </div>
 
-        <div class="export-body">
-          <div class="export-info">
-            <div class="info-row"><span>Format:</span><span>MP4 (H.264 + AAC)</span></div>
-            <div class="info-row"><span>Quality:</span><span>CRF 23</span></div>
-            <div class="info-row"><span>Audio:</span><span>AAC 192kbps 48kHz</span></div>
+        <div className="export-body">
+          <div className="export-info">
+            <div className="info-row"><span>Format:</span><span>MP4 (H.264 + AAC)</span></div>
+            <div className="info-row"><span>Quality:</span><span>CRF 23</span></div>
+            <div className="info-row"><span>Audio:</span><span>AAC 192kbps 48kHz</span></div>
           </div>
 
-          <Show when={exporting()}>
-            <div class="export-progress">
-              <div class="progress-bar">
-                <div class="progress-fill" style={{ width: `${progress()?.percent ?? 0}%` }} />
+          {exporting && (
+            <div className="export-progress">
+              <div className="progress-bar">
+                <div className="progress-fill" style={{ width: `${progress?.percent ?? 0}%` }} />
               </div>
-              <div class="progress-stats">
-                <span>{(progress()?.percent ?? 0).toFixed(1)}%</span>
-                <span>Frame {progress()?.frame ?? 0} &bull; {(progress()?.fps ?? 0).toFixed(1)} fps</span>
-                <Show when={progress()?.speed}><span>Speed: {progress()?.speed}</span></Show>
+              <div className="progress-stats">
+                <span>{(progress?.percent ?? 0).toFixed(1)}%</span>
+                <span>Frame {progress?.frame ?? 0} &bull; {(progress?.fps ?? 0).toFixed(1)} fps</span>
+                {progress?.speed && <span>Speed: {progress.speed}</span>}
               </div>
             </div>
-          </Show>
+          )}
 
-          <Show when={error()}>
-            <div class="export-error">{error()}</div>
-          </Show>
+          {error && (
+            <div className="export-error">{error}</div>
+          )}
 
-          <Show when={done()}>
-            <div class="export-success">Export complete!</div>
-          </Show>
+          {done && (
+            <div className="export-success">Export complete!</div>
+          )}
         </div>
 
-        <div class="export-footer">
-          <Show when={!exporting() && !done()}>
-            <button class="btn-export" onClick={handleExport}>Export</button>
-          </Show>
-          <Show when={done()}>
-            <button class="btn-export" onClick={props.onClose}>Close</button>
-          </Show>
+        <div className="export-footer">
+          {!exporting && !done && (
+            <button className="btn-export" onClick={handleExport}>Export</button>
+          )}
+          {done && (
+            <button className="btn-export" onClick={props.onClose}>Close</button>
+          )}
         </div>
       </div>
     </div>
