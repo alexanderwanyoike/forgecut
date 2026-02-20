@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 
@@ -16,8 +16,21 @@ interface Asset {
   } | null;
 }
 
-export default function AssetBin() {
+interface AssetBinProps {
+  projectVersion: number;
+}
+
+export default function AssetBin({ projectVersion }: AssetBinProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const list = await invoke<Asset[]>("get_assets");
+        setAssets(list ?? []);
+      } catch (_) {}
+    })();
+  }, [projectVersion]);
 
   const handleImport = async () => {
     const selected = await open({

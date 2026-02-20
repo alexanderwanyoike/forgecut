@@ -25,6 +25,7 @@ describe("Timeline thumbnails", () => {
     onPlayingChange: () => {},
     selectedClipId: null,
     onSelectedClipChange: () => {},
+    projectVersion: 0,
   };
 
   const timelineWithVideo = {

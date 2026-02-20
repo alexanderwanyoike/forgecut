@@ -29,6 +29,7 @@ describe("Timeline controls", () => {
     onPlayingChange: () => {},
     selectedClipId: null,
     onSelectedClipChange: () => {},
+    projectVersion: 0,
   };
 
   beforeEach(() => {

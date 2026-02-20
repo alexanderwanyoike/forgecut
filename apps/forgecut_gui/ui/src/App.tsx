@@ -14,6 +14,7 @@ export default function App() {
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("Untitled Project");
   const [showFileMenu, setShowFileMenu] = useState(false);
+  const [projectVersion, setProjectVersion] = useState(0);
   const [theme, setTheme] = useState(() => localStorage.getItem("forgecut-theme") || "dark");
 
   useEffect(() => {
@@ -55,7 +56,10 @@ export default function App() {
       setProjectName(
         (filePath as string).split("/").pop()?.replace(".forgecut", "") || "Project"
       );
-      window.location.reload();
+      setPlayheadUs(0);
+      setPlaying(false);
+      setSelectedClipId(null);
+      setProjectVersion((v) => v + 1);
     } catch (e) {
       console.error("load_project failed:", e);
     }
@@ -86,7 +90,7 @@ export default function App() {
         <span className="project-name">{projectName}</span>
       </header>
 
-      <AssetBin />
+      <AssetBin projectVersion={projectVersion} />
 
       <Preview
         playheadUs={playheadUs}
@@ -104,6 +108,7 @@ export default function App() {
         onPlayingChange={setPlaying}
         selectedClipId={selectedClipId}
         onSelectedClipChange={setSelectedClipId}
+        projectVersion={projectVersion}
       />
 
       {showExport && (

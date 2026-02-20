@@ -37,6 +37,7 @@ interface TimelineProps {
   onPlayingChange: (playing: boolean) => void;
   selectedClipId: string | null;
   onSelectedClipChange: (id: string | null) => void;
+  projectVersion: number;
 }
 
 export default function Timeline(props: TimelineProps) {
@@ -199,13 +200,22 @@ export default function Timeline(props: TimelineProps) {
     }
   }, [pixelsPerSecond]);
 
-  // Init default tracks on mount
+  // Init default tracks on mount and after project load
   useEffect(() => {
     (async () => {
       const tl = await invoke<TimelineData>("init_default_tracks");
       setTimeline(tl);
     })();
-  }, []);
+  }, [props.projectVersion]);
+
+  // Clear stale caches when project changes
+  useEffect(() => {
+    if (props.projectVersion === 0) return;
+    setThumbnails({});
+    setWaveforms({});
+    setThumbnailsLoading({});
+    thumbnailsLoadingRef.current = {};
+  }, [props.projectVersion]);
 
   const calcPlayheadFromMouse = (e: MouseEvent | React.MouseEvent): number => {
     if (!timelineRef.current) return 0;

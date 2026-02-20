@@ -523,6 +523,7 @@ pub async fn execute(
     use tokio::io::{AsyncBufReadExt, BufReader};
     use tokio::process::Command;
 
+
     let args = build_ffmpeg_args(plan);
 
     let mut child = Command::new("ffmpeg")
@@ -540,14 +541,25 @@ pub async fn execute(
         })?;
 
     let stderr = child.stderr.take().unwrap();
-    let reader = BufReader::new(stderr);
-    let mut lines = reader.lines();
+    let mut reader = BufReader::new(stderr);
 
     let total_secs = total_duration_us.as_seconds();
 
-    while let Ok(Some(line)) = lines.next_line().await {
-        if let Some(progress) = parse_progress(&line, total_secs) {
-            let _ = progress_tx.send(progress);
+    let mut buf = Vec::new();
+    loop {
+        buf.clear();
+        let n = reader
+            .read_until(b'\r', &mut buf)
+            .await
+            .map_err(RenderError::Io)?;
+        if n == 0 {
+            break;
+        }
+        let chunk = String::from_utf8_lossy(&buf);
+        for segment in chunk.split(['\r', '\n']) {
+            if let Some(progress) = parse_progress(segment.trim(), total_secs) {
+                let _ = progress_tx.send(progress);
+            }
         }
     }
 
