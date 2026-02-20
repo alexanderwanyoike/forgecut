@@ -5,119 +5,6 @@ use raw_window_handle::HasWindowHandle;
 use tauri::Emitter;
 use tauri::Manager;
 
-fn percent_decode(s: &str) -> String {
-    let mut result = Vec::with_capacity(s.len());
-    let mut bytes = s.bytes();
-    while let Some(b) = bytes.next() {
-        if b == b'%' {
-            let h = bytes.next().unwrap_or(b'0');
-            let l = bytes.next().unwrap_or(b'0');
-            let hex_str = [h, l];
-            if let Ok(decoded) = u8::from_str_radix(std::str::from_utf8(&hex_str).unwrap_or("00"), 16) {
-                result.push(decoded);
-            }
-        } else {
-            result.push(b);
-        }
-    }
-    String::from_utf8_lossy(&result).into_owned()
-}
-
-/// Start a local HTTP file server that streams media files with Range support.
-/// Returns the port number.
-fn start_media_server() -> u16 {
-    use std::io::{Read, Seek, SeekFrom};
-
-    let server = tiny_http::Server::http("127.0.0.1:0").expect("Failed to start media server");
-    let port = server.server_addr().to_ip().unwrap().port();
-    tracing::info!("Media server started on port {}", port);
-
-    std::thread::spawn(move || {
-        for request in server.incoming_requests() {
-            let raw_path = request.url().to_string();
-            let path = percent_decode(raw_path.strip_prefix('/').unwrap_or(&raw_path));
-
-            let file = match std::fs::File::open(&path) {
-                Ok(f) => f,
-                Err(e) => {
-                    let resp = tiny_http::Response::from_string(format!("Not found: {e}"))
-                        .with_status_code(404);
-                    let _ = request.respond(resp);
-                    continue;
-                }
-            };
-
-            let total_size = file.metadata().map(|m| m.len()).unwrap_or(0);
-            let mime: tiny_http::Header = {
-                let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
-                let ct = match ext.as_str() {
-                    "mp4" => "video/mp4",
-                    "mkv" => "video/x-matroska",
-                    "webm" => "video/webm",
-                    "avi" => "video/x-msvideo",
-                    "mov" => "video/quicktime",
-                    "mp3" => "audio/mpeg",
-                    "wav" => "audio/wav",
-                    "flac" => "audio/flac",
-                    "png" => "image/png",
-                    "jpg" | "jpeg" => "image/jpeg",
-                    _ => "application/octet-stream",
-                };
-                tiny_http::Header::from_bytes("Content-Type", ct).unwrap()
-            };
-
-            let accept_ranges = tiny_http::Header::from_bytes("Accept-Ranges", "bytes").unwrap();
-            let cors = tiny_http::Header::from_bytes("Access-Control-Allow-Origin", "*").unwrap();
-
-            // Check for Range header
-            let range_header = request.headers().iter()
-                .find(|h| h.field.as_str() == "Range" || h.field.as_str() == "range")
-                .map(|h| h.value.as_str().to_string());
-
-            if let Some(range) = range_header {
-                let range_str = range.strip_prefix("bytes=").unwrap_or(&range);
-                let parts: Vec<&str> = range_str.split('-').collect();
-                let start: u64 = parts[0].parse().unwrap_or(0);
-                let end: u64 = if parts.len() > 1 && !parts[1].is_empty() {
-                    parts[1].parse().unwrap_or(total_size - 1)
-                } else {
-                    total_size - 1
-                };
-
-                let length = end - start + 1;
-                let mut file = file;
-                let _ = file.seek(SeekFrom::Start(start));
-                let reader = file.take(length);
-
-                let content_range = tiny_http::Header::from_bytes(
-                    "Content-Range",
-                    format!("bytes {start}-{end}/{total_size}"),
-                ).unwrap();
-
-                let resp = tiny_http::Response::new(
-                    tiny_http::StatusCode(206),
-                    vec![mime, accept_ranges, cors, content_range],
-                    reader,
-                    Some(length as usize),
-                    None,
-                );
-                let _ = request.respond(resp);
-            } else {
-                let resp = tiny_http::Response::new(
-                    tiny_http::StatusCode(200),
-                    vec![mime, accept_ranges, cors],
-                    file,
-                    Some(total_size as usize),
-                    None,
-                );
-                let _ = request.respond(resp);
-            }
-        }
-    });
-
-    port
-}
-
 #[tauri::command]
 fn create_project(state: tauri::State<AppState>) -> Result<String, String> {
     tracing::info!("create_project called");
@@ -383,13 +270,6 @@ fn redo(state: tauri::State<AppState>) -> Result<serde_json::Value, String> {
         .redo(&mut project.timeline)
         .map_err(|e| e.to_string())?;
     serde_json::to_value(&project.timeline).map_err(|e| e.to_string())
-}
-
-/// Given a playhead position in microseconds, find the clip under it and return
-/// the file path and the seek offset within that clip.
-#[tauri::command]
-fn get_media_port(state: tauri::State<AppState>) -> Result<u16, String> {
-    Ok(state.media_server_port)
 }
 
 #[tauri::command]
@@ -916,54 +796,6 @@ fn get_autosave_path() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-fn get_thumbnails(
-    asset_id: String,
-    state: tauri::State<AppState>,
-) -> Result<Vec<serde_json::Value>, String> {
-    let project = state.project.lock().unwrap();
-    let asset = project
-        .assets
-        .iter()
-        .find(|a| a.id.to_string() == asset_id)
-        .ok_or("Asset not found")?;
-
-    let duration_s = asset
-        .probe
-        .as_ref()
-        .map(|p| p.duration_us.as_seconds())
-        .unwrap_or(0.0);
-
-    if duration_s <= 0.0 {
-        return Ok(vec![]);
-    }
-
-    let cache_dir = std::env::temp_dir().join("forgecut-thumbnails");
-    let interval = (duration_s / 10.0).max(1.0); // ~10 thumbnails per clip
-
-    let thumbs = forgecut_render::thumbnails::extract_thumbnails(
-        &asset.path,
-        &cache_dir,
-        &asset_id,
-        duration_s,
-        interval,
-        160,
-    )
-    .map_err(|e| e.to_string())?;
-
-    let media_port = state.media_server_port;
-    Ok(thumbs
-        .iter()
-        .map(|(t, path)| {
-            serde_json::json!({
-                "time_seconds": t,
-                "url": format!("http://127.0.0.1:{}/{}", media_port,
-                    urlencoding_simple(&path.to_string_lossy()))
-            })
-        })
-        .collect())
-}
-
-#[tauri::command]
 fn get_waveform(asset_id: String, state: tauri::State<AppState>) -> Result<serde_json::Value, String> {
     let project = state.project.lock().unwrap();
     let asset = project
@@ -977,73 +809,6 @@ fn get_waveform(asset_id: String, state: tauri::State<AppState>) -> Result<serde
         .map_err(|e| e.to_string())?;
 
     serde_json::to_value(&data).map_err(|e| e.to_string())
-}
-
-fn urlencoding_simple(s: &str) -> String {
-    s.bytes()
-        .map(|b| {
-            if b.is_ascii_alphanumeric() || b == b'/' || b == b'.' || b == b'-' || b == b'_' {
-                format!("{}", b as char)
-            } else {
-                format!("%{b:02X}")
-            }
-        })
-        .collect()
-}
-
-#[tauri::command]
-fn extract_clip_audio(
-    file_path: String,
-    start_seconds: f64,
-    duration_seconds: f64,
-) -> Result<String, String> {
-    let audio_dir = std::env::temp_dir().join("forgecut-audio");
-    std::fs::create_dir_all(&audio_dir).map_err(|e| e.to_string())?;
-
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    file_path.hash(&mut hasher);
-    start_seconds.to_bits().hash(&mut hasher);
-    duration_seconds.to_bits().hash(&mut hasher);
-    let hash = format!("{:016x}", hasher.finish());
-
-    let wav_path = audio_dir.join(format!("{hash}.wav"));
-
-    // Return cached if exists
-    if wav_path.exists() {
-        return Ok(wav_path.to_string_lossy().to_string());
-    }
-
-    let status = std::process::Command::new("ffmpeg")
-        .args([
-            "-y",
-            "-ss",
-            &format!("{start_seconds:.6}"),
-            "-i",
-            &file_path,
-            "-t",
-            &format!("{duration_seconds:.6}"),
-            "-vn",
-            "-f",
-            "wav",
-            "-acodec",
-            "pcm_s16le",
-            "-ac",
-            "2",
-            "-ar",
-            "48000",
-        ])
-        .arg(wav_path.as_os_str())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .map_err(|e| format!("ffmpeg spawn failed: {e}"))?;
-
-    if !status.success() {
-        return Err("ffmpeg audio extraction failed".into());
-    }
-
-    Ok(wav_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -1162,8 +927,6 @@ pub fn run() {
         )
         .init();
 
-    let media_port = start_media_server();
-
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
@@ -1174,7 +937,6 @@ pub fn run() {
                 forgecut_core::project::preset_1080p(),
             )),
             history: std::sync::Mutex::new(forgecut_core::history::History::new(100)),
-            media_server_port: media_port,
             mpv: std::sync::Mutex::new(forgecut_preview::mpv::MpvController::new()),
         })
         .invoke_handler(tauri::generate_handler![
@@ -1194,7 +956,6 @@ pub fn run() {
             undo,
             redo,
             get_clip_at_playhead,
-            get_media_port,
             set_clip_volume,
             add_image_overlay,
             add_text_overlay,
@@ -1209,9 +970,7 @@ pub fn run() {
             get_proxy_path,
             autosave,
             get_autosave_path,
-            get_thumbnails,
             get_waveform,
-            extract_clip_audio,
             mpv_start,
             mpv_stop,
             mpv_load_file,

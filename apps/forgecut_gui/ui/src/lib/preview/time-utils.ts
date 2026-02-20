@@ -51,12 +51,3 @@ export function formatTimeUs(us: number): string {
     .toString()
     .padStart(3, "0")}`;
 }
-
-/** Build a media URL for the local HTTP server */
-export function buildMediaUrl(port: number, filePath: string): string {
-  const encoded = filePath
-    .split("/")
-    .map((c) => encodeURIComponent(c))
-    .join("/");
-  return `http://127.0.0.1:${port}/${encoded}`;
-}

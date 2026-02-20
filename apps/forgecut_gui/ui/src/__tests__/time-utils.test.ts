@@ -5,7 +5,6 @@ import {
   computeSeekSeconds,
   sourceTimeToPlayheadUs,
   formatTimeUs,
-  buildMediaUrl,
 } from "../lib/preview/time-utils";
 
 describe("usToSeconds", () => {
@@ -97,26 +96,5 @@ describe("formatTimeUs", () => {
 
   it("formats sub-second values", () => {
     expect(formatTimeUs(500_000)).toBe("00:00:00.500");
-  });
-});
-
-describe("buildMediaUrl", () => {
-  it("builds correct URL with port and path", () => {
-    const url = buildMediaUrl(8080, "/home/user/video.mp4");
-    // Leading empty segment from split("/") produces the leading /
-    // Path components are individually encoded but / separators are preserved
-    expect(url).toBe("http://127.0.0.1:8080//home/user/video.mp4");
-  });
-
-  it("preserves / separators", () => {
-    const url = buildMediaUrl(9000, "media/clip.mp4");
-    expect(url).toContain("127.0.0.1:9000");
-    expect(url).toContain("/");
-  });
-
-  it("encodes spaces", () => {
-    const url = buildMediaUrl(8080, "my videos/clip 1.mp4");
-    expect(url).toContain("my%20videos");
-    expect(url).toContain("clip%201.mp4");
   });
 });
