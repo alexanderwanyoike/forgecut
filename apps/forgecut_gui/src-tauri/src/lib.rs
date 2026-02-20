@@ -819,37 +819,45 @@ fn get_autosave_path() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-fn get_clip_thumbnails(asset_id: String, state: tauri::State<AppState>) -> Result<Vec<serde_json::Value>, String> {
-    let project = state.project.lock().unwrap();
-    let asset = project
-        .assets
-        .iter()
-        .find(|a| a.id.to_string() == asset_id)
-        .ok_or("Asset not found")?;
+async fn get_clip_thumbnails(asset_id: String, state: tauri::State<'_, AppState>) -> Result<Vec<serde_json::Value>, String> {
+    let (asset_path, duration_seconds, aid) = {
+        let project = state.project.lock().unwrap();
+        let asset = project
+            .assets
+            .iter()
+            .find(|a| a.id.to_string() == asset_id)
+            .ok_or("Asset not found")?;
 
-    let duration_seconds = asset
-        .probe
-        .as_ref()
-        .map(|p| p.duration_us.as_seconds())
-        .unwrap_or(5.0);
+        let duration = asset
+            .probe
+            .as_ref()
+            .map(|p| p.duration_us.as_seconds())
+            .unwrap_or(5.0);
 
-    let cache_dir = std::env::temp_dir().join("forgecut-thumbnails");
-    let thumbs = forgecut_render::thumbnails::extract_thumbnails(
-        &asset.path,
-        &cache_dir,
-        &asset_id,
-        duration_seconds,
-        1.0,
-        160,
-    )
+        (asset.path.clone(), duration, asset_id.clone())
+    };
+
+    let thumbs = tokio::task::spawn_blocking(move || {
+        let cache_dir = std::env::temp_dir().join("forgecut-thumbnails");
+        forgecut_render::thumbnails::extract_thumbnails_base64(
+            &asset_path,
+            &cache_dir,
+            &aid,
+            duration_seconds,
+            2.0,
+            160,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
     .map_err(|e| e.to_string())?;
 
     Ok(thumbs
         .into_iter()
-        .map(|(time_seconds, path)| {
+        .map(|(time_seconds, data_uri)| {
             serde_json::json!({
                 "time_seconds": time_seconds,
-                "path": path.to_string_lossy(),
+                "data_uri": data_uri,
             })
         })
         .collect())

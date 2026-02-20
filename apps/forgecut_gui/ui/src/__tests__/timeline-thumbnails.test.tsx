@@ -5,7 +5,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 const mockInvoke = vi.fn();
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: any[]) => mockInvoke(...args),
-  convertFileSrc: vi.fn((path: string) => `asset://${path}`),
 }));
 
 // Mock ResizeObserver
@@ -56,9 +55,8 @@ describe("Timeline thumbnails", () => {
       if (cmd === "init_default_tracks") return timelineWithVideo;
       if (cmd === "get_clip_thumbnails") {
         return [
-          { time_seconds: 0, path: "/tmp/thumbs/0.jpg" },
-          { time_seconds: 1, path: "/tmp/thumbs/1000000.jpg" },
-          { time_seconds: 2, path: "/tmp/thumbs/2000000.jpg" },
+          { time_seconds: 0, data_uri: "data:image/jpeg;base64,/9j/4AAQ" },
+          { time_seconds: 2, data_uri: "data:image/jpeg;base64,/9j/4BBQ" },
         ];
       }
       if (cmd === "get_snap_points") return [];

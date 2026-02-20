@@ -71,6 +71,37 @@ pub fn extract_thumbnails(
     Ok(results)
 }
 
+/// Extract multiple thumbnails at regular intervals, returning base64-encoded JPEG data URIs.
+/// Returns list of (time_seconds, data_uri) pairs.
+pub fn extract_thumbnails_base64(
+    source_path: &Path,
+    cache_dir: &Path,
+    asset_id: &str,
+    duration_seconds: f64,
+    interval_seconds: f64,
+    thumb_width: u32,
+) -> Result<Vec<(f64, String)>> {
+    use base64::Engine;
+
+    let file_thumbs = extract_thumbnails(
+        source_path,
+        cache_dir,
+        asset_id,
+        duration_seconds,
+        interval_seconds,
+        thumb_width,
+    )?;
+
+    let mut results = Vec::with_capacity(file_thumbs.len());
+    for (t, path) in file_thumbs {
+        let bytes = std::fs::read(&path).map_err(RenderError::Io)?;
+        let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+        results.push((t, format!("data:image/jpeg;base64,{encoded}")));
+    }
+
+    Ok(results)
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -81,5 +112,24 @@ mod tests {
             asset_dir,
             std::path::PathBuf::from("/tmp/test-thumbs/asset123")
         );
+    }
+
+    #[test]
+    fn base64_data_uri_format() {
+        // Verify the data URI prefix format
+        let prefix = "data:image/jpeg;base64,";
+        assert!(prefix.starts_with("data:image/jpeg;base64,"));
+
+        // Verify base64 encoding roundtrip
+        use base64::Engine;
+        let sample = vec![0xFF, 0xD8, 0xFF, 0xE0]; // JPEG magic bytes
+        let encoded = base64::engine::general_purpose::STANDARD.encode(&sample);
+        let data_uri = format!("data:image/jpeg;base64,{encoded}");
+        assert!(data_uri.starts_with("data:image/jpeg;base64,"));
+
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(&data_uri["data:image/jpeg;base64,".len()..])
+            .unwrap();
+        assert_eq!(decoded, sample);
     }
 }

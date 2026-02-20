@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { convertFileSrc } from "@tauri-apps/api/core";
 
 /** Width of the track label column in pixels */
 const LABEL_W = 48;
@@ -96,13 +95,20 @@ export default function Timeline(props: TimelineProps) {
     }
   }, [waveforms]);
 
+  // Track in-flight thumbnail fetches to avoid duplicate requests
+  const thumbnailsLoadingRef = useRef<Record<string, boolean>>({});
+
   const fetchThumbnails = useCallback(async (assetId: string) => {
-    if (thumbnails[assetId]) return;
+    if (thumbnails[assetId] || thumbnailsLoadingRef.current[assetId]) return;
+    thumbnailsLoadingRef.current[assetId] = true;
     try {
-      const data = await invoke<{ time_seconds: number; path: string }[]>("get_clip_thumbnails", { assetId });
-      const mapped = data.map((t) => ({ time_seconds: t.time_seconds, url: convertFileSrc(t.path) }));
+      const data = await invoke<{ time_seconds: number; data_uri: string }[]>("get_clip_thumbnails", { assetId });
+      const mapped = data.map((t) => ({ time_seconds: t.time_seconds, url: t.data_uri }));
       setThumbnails((prev) => ({ ...prev, [assetId]: mapped }));
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      thumbnailsLoadingRef.current[assetId] = false;
+    }
   }, [thumbnails]);
 
   // Fetch thumbnails for video clips whenever timeline changes
