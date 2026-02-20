@@ -10,6 +10,8 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 forgecut_core = { path = "../../../crates/forgecut_core" }
 forgecut_render = { path = "../../../crates/forgecut_render" }
+forgecut_preview = { path = "../../../crates/forgecut_preview" }
+raw-window-handle = "0.6"
 tauri = { version = "2", features = [] }
 tiny_http = "0.12"
 tauri-plugin-dialog = "2"

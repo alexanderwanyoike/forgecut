@@ -774,7 +774,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "forgecut_core",
+ "forgecut_preview",
  "forgecut_render",
+ "raw-window-handle",
  "serde",
  "serde_json",
  "tauri",
@@ -812,6 +814,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "x11-dl",
 ]
 
 [[package]]

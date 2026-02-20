@@ -12,3 +12,4 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
+x11-dl = "2"

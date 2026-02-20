@@ -5,6 +5,10 @@
   "permissions": [
     "core:default",
     "core:event:default",
+    "core:window:default",
+    "core:window:allow-outer-position",
+    "core:window:allow-inner-position",
+    "core:window:allow-scale-factor",
     "dialog:default",
     "shell:default",
     "fs:default",

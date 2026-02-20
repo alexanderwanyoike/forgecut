@@ -7,15 +7,36 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
+// Mock @tauri-apps/api/window
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () => ({
+    scaleFactor: () => Promise.resolve(1.0),
+    innerPosition: () => Promise.resolve({ x: 0, y: 0 }),
+    onMoved: () => Promise.resolve(() => {}),
+    onResized: () => Promise.resolve(() => {}),
+  }),
+}));
+
+// Mock ResizeObserver
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal("ResizeObserver", MockResizeObserver);
+
 import { invoke } from "@tauri-apps/api/core";
 const mockInvoke = vi.mocked(invoke);
 
 describe("Preview component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: get_media_port returns a port, get_clip_at_playhead returns null
     mockInvoke.mockImplementation(async (cmd: string) => {
-      if (cmd === "get_media_port") return 9000;
+      if (cmd === "mpv_start") return undefined;
+      if (cmd === "mpv_stop") return undefined;
+      if (cmd === "mpv_pause") return undefined;
+      if (cmd === "mpv_seek") return undefined;
+      if (cmd === "mpv_load_file") return undefined;
       if (cmd === "get_clip_at_playhead") return null;
       if (cmd === "get_overlays_at_time") return [];
       return null;
@@ -31,7 +52,6 @@ describe("Preview component", () => {
         onPlayheadChange={() => {}}
       />
     );
-    // Play symbol
     const btn = screen.getByRole("button");
     expect(btn.textContent).toContain("\u25B6");
   });
@@ -46,7 +66,6 @@ describe("Preview component", () => {
       />
     );
     const btn = screen.getByRole("button");
-    // Stop symbol
     expect(btn.textContent).toContain("\u23F9");
   });
 
@@ -59,7 +78,6 @@ describe("Preview component", () => {
         onPlayheadChange={() => {}}
       />
     );
-    // 65.5 seconds = 00:01:05.500
     expect(screen.getByText("00:01:05.500")).toBeTruthy();
   });
 
@@ -73,10 +91,8 @@ describe("Preview component", () => {
       />
     );
 
-    // Wait for effects to run
     await new Promise((r) => setTimeout(r, 50));
 
-    // Should have been called with playhead value
     const calls = mockInvoke.mock.calls.filter(
       (c) => c[0] === "get_clip_at_playhead"
     );
@@ -96,7 +112,6 @@ describe("Preview component", () => {
       />
     );
 
-    // Wait for effects
     await new Promise((r) => setTimeout(r, 50));
 
     expect(screen.getByText("No clip at playhead")).toBeTruthy();

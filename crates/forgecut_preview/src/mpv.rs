@@ -7,6 +7,9 @@ use std::process::{Child, Command, Stdio};
 pub struct MpvController {
     process: Option<Child>,
     socket_path: PathBuf,
+    xlib: Option<x11_dl::xlib::Xlib>,
+    display: Option<*mut x11_dl::xlib::Display>,
+    child_window: Option<u64>,
 }
 
 // Safety: Only accessed behind Mutex in AppState
@@ -25,24 +28,65 @@ impl MpvController {
         Self {
             process: None,
             socket_path,
+            xlib: None,
+            display: None,
+            child_window: None,
         }
     }
 
-    /// Start mpv as a borderless window positioned at screen coordinates (sx, sy) with size (w, h).
-    pub fn start_at(
+    /// Start mpv embedded as a child window of the given X11 parent window.
+    /// Creates an X11 child window at (x, y) with size (w, h) inside the parent,
+    /// then starts mpv with --wid pointing to the child window.
+    pub fn start_embedded(
         &mut self,
-        sx: i32,
-        sy: i32,
+        parent_xid: u64,
+        x: i32,
+        y: i32,
         w: u32,
         h: u32,
     ) -> Result<(), String> {
         self.stop();
 
-        let geometry = format!("{w}x{h}+{sx}+{sy}");
+        let xlib = x11_dl::xlib::Xlib::open().map_err(|e| format!("Failed to open Xlib: {e}"))?;
+
+        let display = unsafe { (xlib.XOpenDisplay)(std::ptr::null()) };
+        if display.is_null() {
+            return Err("Failed to open X11 display".into());
+        }
+
+        let screen = unsafe { (xlib.XDefaultScreen)(display) };
+        let black_pixel = unsafe { (xlib.XBlackPixel)(display, screen) };
+
+        let child_xid = unsafe {
+            (xlib.XCreateSimpleWindow)(
+                display,
+                parent_xid as x11_dl::xlib::Window,
+                x,
+                y,
+                w,
+                h,
+                0,          // border width
+                black_pixel,
+                black_pixel,
+            )
+        };
+
+        if child_xid == 0 {
+            unsafe { (xlib.XCloseDisplay)(display) };
+            return Err("Failed to create X11 child window".into());
+        }
+
+        unsafe { (xlib.XMapWindow)(display, child_xid) };
+        unsafe { (xlib.XFlush)(display) };
+
+        self.xlib = Some(xlib);
+        self.display = Some(display);
+        self.child_window = Some(child_xid);
+
         let log_path =
             std::env::temp_dir().join(format!("forgecut-mpv-{}.log", std::process::id()));
         let log_file = std::fs::File::create(&log_path).ok();
-        tracing::info!("[mpv] starting with geometry={geometry}");
+        tracing::info!("[mpv] starting embedded in child xid={child_xid}, parent={parent_xid}");
         tracing::info!("[mpv] log: {}", log_path.display());
 
         let child = Command::new("mpv")
@@ -51,12 +95,8 @@ impl MpvController {
                 "--keep-open=yes",
                 "--osc=no",
                 "--osd-level=0",
-                "--no-border",
-                "--on-all-workspaces=no",
-                "--ontop",
                 "--no-focus-on-open",
-                "--title=forgecut-preview",
-                &format!("--geometry={geometry}"),
+                &format!("--wid={child_xid}"),
                 &format!("--input-ipc-server={}", self.socket_path.display()),
             ])
             .stdin(Stdio::null())
@@ -77,23 +117,23 @@ impl MpvController {
         Err("mpv socket did not appear".into())
     }
 
-    /// Reposition the mpv window using xdotool.
-    pub fn update_geometry(&self, sx: i32, sy: i32, w: u32, h: u32) {
-        let _ = Command::new("xdotool")
-            .args([
-                "search",
-                "--name",
-                "forgecut-preview",
-                "windowmove",
-                &sx.to_string(),
-                &sy.to_string(),
-                "windowsize",
-                &w.to_string(),
-                &h.to_string(),
-            ])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+    /// Reposition and resize the X11 child window.
+    pub fn update_geometry(&self, x: i32, y: i32, w: u32, h: u32) {
+        if let (Some(ref xlib), Some(display), Some(child_xid)) =
+            (&self.xlib, self.display, self.child_window)
+        {
+            unsafe {
+                (xlib.XMoveResizeWindow)(
+                    display,
+                    child_xid as x11_dl::xlib::Window,
+                    x,
+                    y,
+                    w,
+                    h,
+                );
+                (xlib.XFlush)(display);
+            }
+        }
     }
 
     fn send_command(&self, command: serde_json::Value) -> Result<serde_json::Value, String> {
@@ -154,6 +194,19 @@ impl MpvController {
             let _ = child.wait();
         }
         let _ = std::fs::remove_file(&self.socket_path);
+
+        // Destroy X11 child window and close display
+        if let (Some(ref xlib), Some(display), Some(child_xid)) =
+            (&self.xlib, self.display, self.child_window)
+        {
+            unsafe {
+                (xlib.XDestroyWindow)(display, child_xid as x11_dl::xlib::Window);
+                (xlib.XCloseDisplay)(display);
+            }
+        }
+        self.child_window = None;
+        self.display = None;
+        self.xlib = None;
     }
 }
 

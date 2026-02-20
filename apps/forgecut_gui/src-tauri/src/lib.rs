@@ -1,6 +1,7 @@
 mod state;
 
 use state::AppState;
+use raw_window_handle::HasWindowHandle;
 use tauri::Emitter;
 use tauri::Manager;
 
@@ -1045,10 +1046,85 @@ fn extract_clip_audio(
     Ok(wav_path.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+fn mpv_start(
+    x: i32,
+    y: i32,
+    w: u32,
+    h: u32,
+    state: tauri::State<AppState>,
+    window: tauri::WebviewWindow,
+) -> Result<(), String> {
+    let parent_xid = {
+        let handle = window
+            .window_handle()
+            .map_err(|e| format!("window handle error: {e}"))?;
+        match handle.as_ref() {
+            raw_window_handle::RawWindowHandle::Xlib(h) => h.window as u64,
+            raw_window_handle::RawWindowHandle::Xcb(h) => h.window.get() as u64,
+            other => return Err(format!("Unsupported window handle type: {other:?}")),
+        }
+    };
+
+    let mut mpv = state.mpv.lock().unwrap();
+    mpv.start_embedded(parent_xid, x, y, w, h)
+}
+
+#[tauri::command]
+fn mpv_stop(state: tauri::State<AppState>) -> Result<(), String> {
+    let mut mpv = state.mpv.lock().unwrap();
+    mpv.stop();
+    Ok(())
+}
+
+#[tauri::command]
+fn mpv_load_file(path: String, state: tauri::State<AppState>) -> Result<(), String> {
+    let mpv = state.mpv.lock().unwrap();
+    mpv.load_file(&path)
+}
+
+#[tauri::command]
+fn mpv_seek(seconds: f64, state: tauri::State<AppState>) -> Result<(), String> {
+    let mpv = state.mpv.lock().unwrap();
+    mpv.seek(seconds)
+}
+
+#[tauri::command]
+fn mpv_pause(state: tauri::State<AppState>) -> Result<(), String> {
+    let mpv = state.mpv.lock().unwrap();
+    mpv.pause()
+}
+
+#[tauri::command]
+fn mpv_resume(state: tauri::State<AppState>) -> Result<(), String> {
+    let mpv = state.mpv.lock().unwrap();
+    mpv.resume()
+}
+
+#[tauri::command]
+fn mpv_get_position(state: tauri::State<AppState>) -> Result<f64, String> {
+    let mpv = state.mpv.lock().unwrap();
+    mpv.get_position()
+}
+
+#[tauri::command]
+fn mpv_update_geometry(
+    x: i32,
+    y: i32,
+    w: u32,
+    h: u32,
+    state: tauri::State<AppState>,
+) -> Result<(), String> {
+    let mpv = state.mpv.lock().unwrap();
+    mpv.update_geometry(x, y, w, h);
+    Ok(())
+}
+
 fn check_dependencies() {
     let deps = [
         ("ffmpeg", "video rendering/export", "sudo apt install ffmpeg"),
         ("ffprobe", "media file analysis", "sudo apt install ffmpeg"),
+        ("mpv", "video preview playback", "sudo apt install mpv"),
     ];
 
     let mut missing = Vec::new();
@@ -1099,6 +1175,7 @@ pub fn run() {
             )),
             history: std::sync::Mutex::new(forgecut_core::history::History::new(100)),
             media_server_port: media_port,
+            mpv: std::sync::Mutex::new(forgecut_preview::mpv::MpvController::new()),
         })
         .invoke_handler(tauri::generate_handler![
             create_project,
@@ -1135,11 +1212,31 @@ pub fn run() {
             get_thumbnails,
             get_waveform,
             extract_clip_audio,
+            mpv_start,
+            mpv_stop,
+            mpv_load_file,
+            mpv_seek,
+            mpv_pause,
+            mpv_resume,
+            mpv_get_position,
+            mpv_update_geometry,
         ])
         .setup(|app| {
             let window =
                 app.get_webview_window("main").expect("main window not found");
             tracing::info!("ForgeCut window created: {:?}", window.title());
+
+            // Kill mpv on window close to prevent orphan processes
+            let app_handle = app.handle().clone();
+            window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { .. } = event {
+                    if let Some(state) = app_handle.try_state::<AppState>() {
+                        let mut mpv = state.mpv.lock().unwrap();
+                        mpv.stop();
+                    }
+                }
+            });
+
             Ok(())
         })
         .run(tauri::generate_context!())
