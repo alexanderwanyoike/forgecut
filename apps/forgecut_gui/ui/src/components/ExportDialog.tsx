@@ -20,6 +20,14 @@ export default function ExportDialog(props: { onClose: () => void }) {
   const unlistenProgressRef = useRef<(() => void) | null>(null);
   const unlistenCompleteRef = useRef<(() => void) | null>(null);
 
+  // Hide mpv X11 window on mount so it doesn't render above this dialog
+  useEffect(() => {
+    invoke("mpv_hide").catch(() => {});
+    return () => {
+      invoke("mpv_show").catch(() => {});
+    };
+  }, []);
+
   useEffect(() => {
     return () => {
       unlistenProgressRef.current?.();

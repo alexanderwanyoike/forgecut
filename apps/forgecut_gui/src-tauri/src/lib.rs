@@ -941,6 +941,20 @@ fn mpv_get_position(state: tauri::State<AppState>) -> Result<f64, String> {
 }
 
 #[tauri::command]
+fn mpv_hide(state: tauri::State<AppState>) -> Result<(), String> {
+    let mpv = state.mpv.lock().unwrap();
+    mpv.hide();
+    Ok(())
+}
+
+#[tauri::command]
+fn mpv_show(state: tauri::State<AppState>) -> Result<(), String> {
+    let mpv = state.mpv.lock().unwrap();
+    mpv.show();
+    Ok(())
+}
+
+#[tauri::command]
 fn mpv_update_geometry(
     x: i32,
     y: i32,
@@ -1049,6 +1063,8 @@ pub fn run() {
             mpv_resume,
             mpv_get_position,
             mpv_update_geometry,
+            mpv_hide,
+            mpv_show,
         ])
         .setup(|app| {
             let window =

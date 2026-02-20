@@ -136,6 +136,30 @@ impl MpvController {
         }
     }
 
+    /// Hide the X11 child window (unmap it so it doesn't render above DOM elements).
+    pub fn hide(&self) {
+        if let (Some(ref xlib), Some(display), Some(child_xid)) =
+            (&self.xlib, self.display, self.child_window)
+        {
+            unsafe {
+                (xlib.XUnmapWindow)(display, child_xid as x11_dl::xlib::Window);
+                (xlib.XFlush)(display);
+            }
+        }
+    }
+
+    /// Show the X11 child window (re-map it after hiding).
+    pub fn show(&self) {
+        if let (Some(ref xlib), Some(display), Some(child_xid)) =
+            (&self.xlib, self.display, self.child_window)
+        {
+            unsafe {
+                (xlib.XMapWindow)(display, child_xid as x11_dl::xlib::Window);
+                (xlib.XFlush)(display);
+            }
+        }
+    }
+
     fn send_command(&self, command: serde_json::Value) -> Result<serde_json::Value, String> {
         let mut stream = UnixStream::connect(&self.socket_path)
             .map_err(|e| format!("Failed to connect to mpv: {e}"))?;

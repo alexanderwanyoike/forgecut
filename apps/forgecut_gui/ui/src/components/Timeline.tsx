@@ -81,6 +81,9 @@ export default function Timeline(props: TimelineProps) {
   // Thumbnail cache: asset_id -> {time_seconds, url}[]
   const [thumbnails, setThumbnails] = useState<Record<string, { time_seconds: number; url: string }[]>>({});
 
+  // Track which assets have thumbnails currently loading (reactive, for shimmer UI)
+  const [thumbnailsLoading, setThumbnailsLoading] = useState<Record<string, boolean>>({});
+
   const timelineRef = useRef<HTMLDivElement>(null);
   const rulerDraggingRef = useRef(false);
   const snapPointsCacheRef = useRef<number[] | null>(null);
@@ -101,6 +104,7 @@ export default function Timeline(props: TimelineProps) {
   const fetchThumbnails = useCallback(async (assetId: string) => {
     if (thumbnails[assetId] || thumbnailsLoadingRef.current[assetId]) return;
     thumbnailsLoadingRef.current[assetId] = true;
+    setThumbnailsLoading((prev) => ({ ...prev, [assetId]: true }));
     try {
       const data = await invoke<{ time_seconds: number; data_uri: string }[]>("get_clip_thumbnails", { assetId });
       const mapped = data.map((t) => ({ time_seconds: t.time_seconds, url: t.data_uri }));
@@ -108,6 +112,7 @@ export default function Timeline(props: TimelineProps) {
     } catch (_) {
     } finally {
       thumbnailsLoadingRef.current[assetId] = false;
+      setThumbnailsLoading((prev) => ({ ...prev, [assetId]: false }));
     }
   }, [thumbnails]);
 
@@ -661,7 +666,7 @@ export default function Timeline(props: TimelineProps) {
                       return (
                         <div
                           key={data.id}
-                          className={`clip${isSelected ? " clip-selected" : ""}`}
+                          className={`clip${isSelected ? " clip-selected" : ""}${data.variant === "VideoClip" && thumbnailsLoading[data.asset_id] && !thumbnails[data.asset_id] ? " clip-loading-thumbs" : ""}`}
                           style={{
                             left: `${usToPixels(data.startUs)}px`,
                             width: `${Math.max(4, usToPixels(data.durationUs))}px`,

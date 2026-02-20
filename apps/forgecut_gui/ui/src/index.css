@@ -663,6 +663,26 @@ html, body, #root {
   opacity: 0.4;
 }
 
+/* Thumbnail loading shimmer */
+.clip-loading-thumbs {
+  overflow: hidden;
+}
+
+.clip-loading-thumbs::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
+  animation: shimmer 1.5s infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 /* Cross-track drag drop target */
 .track-lane-drop-target {
   background: rgba(108, 92, 231, 0.1);
