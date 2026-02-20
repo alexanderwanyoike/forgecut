@@ -253,6 +253,29 @@ fn move_clip(
 }
 
 #[tauri::command]
+fn move_clip_to_track(
+    item_id: String,
+    new_track_id: String,
+    new_start_us: i64,
+    state: tauri::State<AppState>,
+) -> Result<serde_json::Value, String> {
+    let item_uuid = uuid::Uuid::parse_str(&item_id).map_err(|e| e.to_string())?;
+    let track_uuid = uuid::Uuid::parse_str(&new_track_id).map_err(|e| e.to_string())?;
+    let mut project = state.project.lock().unwrap();
+    let mut history = state.history.lock().unwrap();
+
+    let cmd = Box::new(forgecut_core::history::MoveItemToTrackCommand::new(
+        item_uuid,
+        track_uuid,
+        forgecut_core::types::TimeUs(new_start_us),
+    ));
+    history
+        .execute(cmd, &mut project.timeline)
+        .map_err(|e| e.to_string())?;
+    serde_json::to_value(&project.timeline).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn undo(state: tauri::State<AppState>) -> Result<serde_json::Value, String> {
     let mut project = state.project.lock().unwrap();
     let mut history = state.history.lock().unwrap();
@@ -796,6 +819,43 @@ fn get_autosave_path() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
+fn get_clip_thumbnails(asset_id: String, state: tauri::State<AppState>) -> Result<Vec<serde_json::Value>, String> {
+    let project = state.project.lock().unwrap();
+    let asset = project
+        .assets
+        .iter()
+        .find(|a| a.id.to_string() == asset_id)
+        .ok_or("Asset not found")?;
+
+    let duration_seconds = asset
+        .probe
+        .as_ref()
+        .map(|p| p.duration_us.as_seconds())
+        .unwrap_or(5.0);
+
+    let cache_dir = std::env::temp_dir().join("forgecut-thumbnails");
+    let thumbs = forgecut_render::thumbnails::extract_thumbnails(
+        &asset.path,
+        &cache_dir,
+        &asset_id,
+        duration_seconds,
+        1.0,
+        160,
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(thumbs
+        .into_iter()
+        .map(|(time_seconds, path)| {
+            serde_json::json!({
+                "time_seconds": time_seconds,
+                "path": path.to_string_lossy(),
+            })
+        })
+        .collect())
+}
+
+#[tauri::command]
 fn get_waveform(asset_id: String, state: tauri::State<AppState>) -> Result<serde_json::Value, String> {
     let project = state.project.lock().unwrap();
     let asset = project
@@ -953,6 +1013,7 @@ pub fn run() {
             split_clip,
             delete_clip,
             move_clip,
+            move_clip_to_track,
             undo,
             redo,
             get_clip_at_playhead,
@@ -970,6 +1031,7 @@ pub fn run() {
             get_proxy_path,
             autosave,
             get_autosave_path,
+            get_clip_thumbnails,
             get_waveform,
             mpv_start,
             mpv_stop,

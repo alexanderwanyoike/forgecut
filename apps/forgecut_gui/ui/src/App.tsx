@@ -14,6 +14,12 @@ export default function App() {
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("Untitled Project");
   const [showFileMenu, setShowFileMenu] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem("forgecut-theme") || "dark");
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("forgecut-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -74,6 +80,9 @@ export default function App() {
           <span className="menu-label">Edit</span>
           <span className="menu-label" onClick={() => setShowExport(true)}>Export</span>
         </div>
+        <button className="theme-toggle" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}>
+          {theme === "dark" ? "Light" : "Dark"}
+        </button>
         <span className="project-name">{projectName}</span>
       </header>
 

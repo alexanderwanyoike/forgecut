@@ -372,6 +372,56 @@ impl Command for SplitCommand {
 }
 
 // ---------------------------------------------------------------------------
+// MoveItemToTrackCommand
+// ---------------------------------------------------------------------------
+
+#[derive(Debug)]
+pub struct MoveItemToTrackCommand {
+    item_id: Uuid,
+    new_track_id: Uuid,
+    new_start_us: TimeUs,
+    old_track_id: RefCell<Option<Uuid>>,
+    old_start_us: RefCell<Option<TimeUs>>,
+}
+
+impl MoveItemToTrackCommand {
+    pub fn new(item_id: Uuid, new_track_id: Uuid, new_start_us: TimeUs) -> Self {
+        Self {
+            item_id,
+            new_track_id,
+            new_start_us,
+            old_track_id: RefCell::new(None),
+            old_start_us: RefCell::new(None),
+        }
+    }
+}
+
+impl Command for MoveItemToTrackCommand {
+    fn execute(&self, timeline: &mut Timeline) -> Result<()> {
+        let item = find_item(timeline, self.item_id)?;
+        *self.old_track_id.borrow_mut() = Some(item.track_id());
+        *self.old_start_us.borrow_mut() = Some(item.timeline_start_us());
+        timeline.move_item_to_track(self.item_id, self.new_track_id, self.new_start_us)
+    }
+
+    fn undo(&self, timeline: &mut Timeline) -> Result<()> {
+        let old_track_id = self
+            .old_track_id
+            .borrow()
+            .ok_or_else(|| CoreError::InvalidOperation("no old track_id saved".into()))?;
+        let old_start_us = self
+            .old_start_us
+            .borrow()
+            .ok_or_else(|| CoreError::InvalidOperation("no old start saved".into()))?;
+        timeline.move_item_to_track(self.item_id, old_track_id, old_start_us)
+    }
+
+    fn description(&self) -> &str {
+        "Move clip to track"
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -705,6 +755,52 @@ mod tests {
 
         history.redo(&mut tl).unwrap();
         assert_eq!(tl.tracks[0].items.len(), 2);
+    }
+
+    // -----------------------------------------------------------------------
+    // MoveItemToTrackCommand: move to track -> undo -> redo
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn move_to_track_undo_redo() {
+        let track_a = Uuid::new_v4();
+        let track_b = Uuid::new_v4();
+        let clip_id = Uuid::new_v4();
+        let item = Item::VideoClip {
+            id: clip_id,
+            asset_id: Uuid::new_v4(),
+            track_id: track_a,
+            timeline_start_us: TimeUs(0),
+            source_in_us: TimeUs(0),
+            source_out_us: TimeUs(5_000_000),
+        };
+        let mut tl = Timeline {
+            tracks: vec![
+                Track { id: track_a, kind: TrackKind::Video, items: vec![item] },
+                Track { id: track_b, kind: TrackKind::Video, items: vec![] },
+            ],
+            markers: vec![],
+        };
+        let mut history = History::new(100);
+
+        // Execute: move to track B at 2M
+        let cmd = Box::new(MoveItemToTrackCommand::new(clip_id, track_b, TimeUs(2_000_000)));
+        history.execute(cmd, &mut tl).unwrap();
+        assert!(tl.tracks[0].items.is_empty());
+        assert_eq!(tl.tracks[1].items.len(), 1);
+        assert_eq!(tl.tracks[1].items[0].timeline_start_us(), TimeUs(2_000_000));
+
+        // Undo: back on track A at 0
+        history.undo(&mut tl).unwrap();
+        assert_eq!(tl.tracks[0].items.len(), 1);
+        assert!(tl.tracks[1].items.is_empty());
+        assert_eq!(tl.tracks[0].items[0].timeline_start_us(), TimeUs(0));
+
+        // Redo: back on track B at 2M
+        history.redo(&mut tl).unwrap();
+        assert!(tl.tracks[0].items.is_empty());
+        assert_eq!(tl.tracks[1].items.len(), 1);
+        assert_eq!(tl.tracks[1].items[0].timeline_start_us(), TimeUs(2_000_000));
     }
 
     // -----------------------------------------------------------------------

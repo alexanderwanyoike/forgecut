@@ -388,6 +388,63 @@ impl Timeline {
         Ok((left_id, right_id))
     }
 
+    /// Move an item to a different track at a given timeline position.
+    /// If the target track is the same, delegates to `move_item`.
+    /// Validates that the target track exists and has a compatible kind.
+    pub fn move_item_to_track(
+        &mut self,
+        item_id: Uuid,
+        new_track_id: Uuid,
+        new_start_us: TimeUs,
+    ) -> Result<()> {
+        let (src_track_idx, item_idx) = self
+            .find_item_location(item_id)
+            .ok_or(CoreError::ItemNotFound(item_id))?;
+
+        let src_track_id = self.tracks[src_track_idx].id;
+
+        // Same track → delegate
+        if src_track_id == new_track_id {
+            return self.move_item(item_id, new_start_us);
+        }
+
+        // Find target track
+        let dst_track_idx = self
+            .tracks
+            .iter()
+            .position(|t| t.id == new_track_id)
+            .ok_or(CoreError::TrackNotFound(new_track_id))?;
+
+        // Validate compatible track kinds
+        if self.tracks[src_track_idx].kind != self.tracks[dst_track_idx].kind {
+            return Err(CoreError::InvalidOperation(
+                "cannot move item to a track of a different kind".into(),
+            ));
+        }
+
+        // Remove from source track
+        let mut item = self.tracks[src_track_idx].items.remove(item_idx);
+        let original_start = item.timeline_start_us();
+
+        // Update position and track_id
+        set_timeline_start(&mut item, new_start_us);
+        set_track_id(&mut item, new_track_id);
+
+        // Check overlaps on target track
+        for existing in &self.tracks[dst_track_idx].items {
+            if items_overlap(existing, &item) {
+                // Rollback
+                set_timeline_start(&mut item, original_start);
+                set_track_id(&mut item, src_track_id);
+                self.tracks[src_track_idx].items.insert(item_idx, item);
+                return Err(CoreError::OverlapDetected);
+            }
+        }
+
+        self.tracks[dst_track_idx].items.push(item);
+        Ok(())
+    }
+
     /// Reorder an item within its track (move to a different index in items vec)
     pub fn reorder_item(&mut self, item_id: Uuid, new_index: usize) -> Result<()> {
         let (track_idx, item_idx) = self
@@ -430,6 +487,16 @@ fn items_overlap(a: &Item, b: &Item) -> bool {
     let b_end = b.timeline_end_us().0;
 
     a_start < b_end && b_start < a_end
+}
+
+/// Helper: set track_id on any Item variant.
+fn set_track_id(item: &mut Item, new_id: Uuid) {
+    match item {
+        Item::VideoClip { track_id, .. } => *track_id = new_id,
+        Item::AudioClip { track_id, .. } => *track_id = new_id,
+        Item::ImageOverlay { track_id, .. } => *track_id = new_id,
+        Item::TextOverlay { track_id, .. } => *track_id = new_id,
+    }
 }
 
 /// Helper: set timeline_start_us on any Item variant.
@@ -852,6 +919,78 @@ mod tests {
         let items = &tl.tracks[0].items;
         // Clip1-left at [0, 2M), clip2 at [2M, 7M) -- no overlap
         assert_eq!(items.len(), 2);
+    }
+
+    // -----------------------------------------------------------------------
+    // move_item_to_track
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn move_item_to_different_track_succeeds() {
+        let track_a = Uuid::new_v4();
+        let track_b = Uuid::new_v4();
+        let (clip_id, clip) = make_video_clip(track_a, 0, 0, 5_000_000);
+        let mut tl = Timeline {
+            tracks: vec![
+                Track { id: track_a, kind: TrackKind::Video, items: vec![clip] },
+                Track { id: track_b, kind: TrackKind::Video, items: vec![] },
+            ],
+            markers: vec![],
+        };
+
+        tl.move_item_to_track(clip_id, track_b, TimeUs(1_000_000)).unwrap();
+        assert!(tl.tracks[0].items.is_empty());
+        assert_eq!(tl.tracks[1].items.len(), 1);
+        assert_eq!(tl.tracks[1].items[0].timeline_start_us(), TimeUs(1_000_000));
+        assert_eq!(tl.tracks[1].items[0].track_id(), track_b);
+    }
+
+    #[test]
+    fn move_item_to_incompatible_track_fails() {
+        let video_track = Uuid::new_v4();
+        let audio_track = Uuid::new_v4();
+        let (clip_id, clip) = make_video_clip(video_track, 0, 0, 5_000_000);
+        let mut tl = Timeline {
+            tracks: vec![
+                Track { id: video_track, kind: TrackKind::Video, items: vec![clip] },
+                Track { id: audio_track, kind: TrackKind::Audio, items: vec![] },
+            ],
+            markers: vec![],
+        };
+
+        let result = tl.move_item_to_track(clip_id, audio_track, TimeUs(0));
+        assert!(result.is_err());
+        // Item should remain on original track
+        assert_eq!(tl.tracks[0].items.len(), 1);
+    }
+
+    #[test]
+    fn move_item_to_track_with_overlap_fails_and_rollback() {
+        let track_a = Uuid::new_v4();
+        let track_b = Uuid::new_v4();
+        let (clip_id, clip) = make_video_clip(track_a, 0, 0, 5_000_000);
+        let (_, blocker) = make_video_clip(track_b, 0, 0, 5_000_000);
+        let mut tl = Timeline {
+            tracks: vec![
+                Track { id: track_a, kind: TrackKind::Video, items: vec![clip] },
+                Track { id: track_b, kind: TrackKind::Video, items: vec![blocker] },
+            ],
+            markers: vec![],
+        };
+
+        let result = tl.move_item_to_track(clip_id, track_b, TimeUs(2_000_000));
+        assert!(matches!(result.unwrap_err(), CoreError::OverlapDetected));
+        // Rollback: item back on original track at original position
+        assert_eq!(tl.tracks[0].items.len(), 1);
+        assert_eq!(tl.tracks[0].items[0].timeline_start_us(), TimeUs(0));
+        assert_eq!(tl.tracks[0].items[0].track_id(), track_a);
+    }
+
+    #[test]
+    fn move_to_same_track_delegates_to_move_item() {
+        let (mut tl, track_id, clip_id) = make_test_timeline();
+        tl.move_item_to_track(clip_id, track_id, TimeUs(10_000_000)).unwrap();
+        assert_eq!(tl.tracks[0].items[0].timeline_start_us(), TimeUs(10_000_000));
     }
 
     // -----------------------------------------------------------------------

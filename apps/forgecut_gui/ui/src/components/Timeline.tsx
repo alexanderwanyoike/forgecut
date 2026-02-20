@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 /** Width of the track label column in pixels */
 const LABEL_W = 48;
@@ -56,8 +57,14 @@ export default function Timeline(props: TimelineProps) {
   const [dragState, setDragState] = useState<{
     itemId: string;
     startMouseX: number;
+    startMouseY: number;
     originalStartUs: number;
+    trackId: string;
+    trackKind: string;
   } | null>(null);
+
+  // Track the target track during cross-track drag
+  const [dragTargetTrackId, setDragTargetTrackId] = useState<string | null>(null);
 
   // Drag state for trimming clips
   const [trimState, setTrimState] = useState<{
@@ -72,6 +79,9 @@ export default function Timeline(props: TimelineProps) {
   // Waveform cache: asset_id -> peaks array
   const [waveforms, setWaveforms] = useState<Record<string, number[][]>>({});
 
+  // Thumbnail cache: asset_id -> {time_seconds, url}[]
+  const [thumbnails, setThumbnails] = useState<Record<string, { time_seconds: number; url: string }[]>>({});
+
   const timelineRef = useRef<HTMLDivElement>(null);
   const rulerDraggingRef = useRef(false);
   const snapPointsCacheRef = useRef<number[] | null>(null);
@@ -85,6 +95,28 @@ export default function Timeline(props: TimelineProps) {
       // Waveform extraction may fail for non-audio files; silently ignore
     }
   }, [waveforms]);
+
+  const fetchThumbnails = useCallback(async (assetId: string) => {
+    if (thumbnails[assetId]) return;
+    try {
+      const data = await invoke<{ time_seconds: number; path: string }[]>("get_clip_thumbnails", { assetId });
+      const mapped = data.map((t) => ({ time_seconds: t.time_seconds, url: convertFileSrc(t.path) }));
+      setThumbnails((prev) => ({ ...prev, [assetId]: mapped }));
+    } catch (_) {}
+  }, [thumbnails]);
+
+  // Fetch thumbnails for video clips whenever timeline changes
+  useEffect(() => {
+    for (const track of timeline.tracks) {
+      if (track.kind !== "Video") continue;
+      for (const item of track.items) {
+        const data = getItemData(item);
+        if (data.variant === "VideoClip" && data.asset_id) {
+          fetchThumbnails(data.asset_id);
+        }
+      }
+    }
+  }, [timeline]);
 
   // Fetch waveforms for audio clips whenever timeline changes
   useEffect(() => {
@@ -144,6 +176,18 @@ export default function Timeline(props: TimelineProps) {
     setPixelsPerSecond(Math.max(10, Math.min(500, vw / needed)));
   };
 
+  // Auto-scroll to playhead on zoom change
+  useEffect(() => {
+    if (!timelineRef.current) return;
+    const playheadPx = usToPixels(props.playheadUs) + LABEL_W;
+    const vw = timelineRef.current.clientWidth;
+    const currentScroll = timelineRef.current.scrollLeft;
+    // Only scroll if playhead is outside visible area
+    if (playheadPx < currentScroll || playheadPx > currentScroll + vw) {
+      timelineRef.current.scrollLeft = playheadPx - vw / 2;
+    }
+  }, [pixelsPerSecond]);
+
   // Init default tracks on mount
   useEffect(() => {
     (async () => {
@@ -181,6 +225,23 @@ export default function Timeline(props: TimelineProps) {
         const tl = await invoke<TimelineData>("redo");
         setTimeline(tl);
       } catch (_) {}
+      return;
+    }
+
+    // Zoom shortcuts
+    if ((e.key === "=" || e.key === "+") && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      setPixelsPerSecond(p => Math.min(500, p + 20));
+      return;
+    }
+    if (e.key === "-" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      setPixelsPerSecond(p => Math.max(10, p - 20));
+      return;
+    }
+    if (e.key === "0" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      fitAll();
       return;
     }
 
@@ -232,9 +293,11 @@ export default function Timeline(props: TimelineProps) {
       const dx = e.clientX - ds.startMouseX;
       const deltaUs = pixelsToUs(dx);
       let newStartUs = Math.max(0, Math.round(ds.originalStartUs + deltaUs));
+      const targetTrack = getTrackAtY(e.clientY);
       setDragState(null);
       setSnapLineUs(null);
-      if (Math.abs(dx) < 3) return;
+      setDragTargetTrackId(null);
+      if (Math.abs(dx) < 3 && Math.abs(e.clientY - ds.startMouseY) < 3) return;
 
       if (snapping) {
         try {
@@ -257,14 +320,28 @@ export default function Timeline(props: TimelineProps) {
         } catch (_) {}
       }
 
-      try {
-        const tl = await invoke<TimelineData>("move_clip", {
-          itemId: ds.itemId,
-          newStartUs,
-        });
-        setTimeline(tl);
-      } catch (err) {
-        console.error("move_clip failed:", err);
+      // Cross-track move if target is a different track of the same kind
+      if (targetTrack && targetTrack.id !== ds.trackId && targetTrack.kind === ds.trackKind) {
+        try {
+          const tl = await invoke<TimelineData>("move_clip_to_track", {
+            itemId: ds.itemId,
+            newTrackId: targetTrack.id,
+            newStartUs,
+          });
+          setTimeline(tl);
+        } catch (err) {
+          console.error("move_clip_to_track failed:", err);
+        }
+      } else {
+        try {
+          const tl = await invoke<TimelineData>("move_clip", {
+            itemId: ds.itemId,
+            newStartUs,
+          });
+          setTimeline(tl);
+        } catch (err) {
+          console.error("move_clip failed:", err);
+        }
       }
       return;
     }
@@ -293,10 +370,25 @@ export default function Timeline(props: TimelineProps) {
   const handleGlobalMouseMoveRef = useRef<(e: MouseEvent) => void>(() => {});
   handleGlobalMouseMoveRef.current = (e: MouseEvent) => {
     const ds = dragState;
-    if (!ds || !snapping) {
+    if (!ds) {
+      if (snapLineUs !== null) setSnapLineUs(null);
+      if (dragTargetTrackId !== null) setDragTargetTrackId(null);
+      return;
+    }
+
+    // Detect target track for cross-track drag highlight
+    const targetTrack = getTrackAtY(e.clientY);
+    if (targetTrack && targetTrack.id !== ds.trackId && targetTrack.kind === ds.trackKind) {
+      setDragTargetTrackId(targetTrack.id);
+    } else {
+      setDragTargetTrackId(null);
+    }
+
+    if (!snapping) {
       if (snapLineUs !== null) setSnapLineUs(null);
       return;
     }
+
     const dx = e.clientX - ds.startMouseX;
     const deltaUs = pixelsToUs(dx);
     const pos = Math.max(0, Math.round(ds.originalStartUs + deltaUs));
@@ -382,12 +474,25 @@ export default function Timeline(props: TimelineProps) {
     setTimeline(tl);
   };
 
-  const handleClipMouseDown = (e: React.MouseEvent, itemId: string, startUs: number) => {
+  const getTrackAtY = (clientY: number): { id: string; kind: string } | null => {
+    const lanes = document.querySelectorAll(".track-lane");
+    for (const lane of lanes) {
+      const rect = lane.getBoundingClientRect();
+      if (clientY >= rect.top && clientY <= rect.bottom) {
+        const trackIndex = Array.from(lanes).indexOf(lane);
+        const track = timeline.tracks[trackIndex];
+        if (track) return { id: track.id, kind: track.kind };
+      }
+    }
+    return null;
+  };
+
+  const handleClipMouseDown = (e: React.MouseEvent, itemId: string, startUs: number, trackId: string, trackKind: string) => {
     if ((e.target as HTMLElement).classList.contains("trim-handle")) return;
     e.stopPropagation();
     setSelectedClipId(itemId);
     snapPointsCacheRef.current = null;
-    setDragState({ itemId, startMouseX: e.clientX, originalStartUs: startUs });
+    setDragState({ itemId, startMouseX: e.clientX, startMouseY: e.clientY, originalStartUs: startUs, trackId, trackKind });
   };
 
   const handleTrimMouseDown = (
@@ -459,21 +564,35 @@ export default function Timeline(props: TimelineProps) {
     <section className="panel timeline">
       <div className="timeline-controls">
         <span className="timeline-label">Timeline</span>
-        <button className="add-text-btn" onClick={handleAddText}>+ Text</button>
-        <button className="add-text-btn" onClick={handleAddPipTrack}>+ PiP Track</button>
-        <button
-          className={`snap-toggle-btn${snapping ? " snap-active" : ""}`}
-          onClick={() => setSnapping((s) => !s)}
-          title={snapping ? "Snapping on" : "Snapping off"}
-        >Snap</button>
-        <button className="timeline-nav-btn" onClick={scrollToPlayhead} title="Scroll to playhead">|&lt;&gt;|</button>
-        <button className="timeline-nav-btn" onClick={fitAll} title="Fit all">[ ]</button>
-        <div className="zoom-control">
-          <button onClick={() => setPixelsPerSecond((p) => Math.max(20, p - 20))}>-</button>
-          <span>{pixelsPerSecond}px/s</span>
-          <button onClick={() => setPixelsPerSecond((p) => Math.min(300, p + 20))}>+</button>
+        <div className="control-group">
+          <button className="add-text-btn" onClick={handleAddText}>+ Text</button>
+          <button className="add-text-btn" onClick={handleAddPipTrack}>+ PiP</button>
         </div>
-        <span className="shortcut-hints">S: Split | Del: Delete | Ctrl+Z: Undo | Ctrl+Shift+Z: Redo</span>
+        <div className="control-group">
+          <button className="timeline-nav-btn" onClick={scrollToPlayhead} title="Scroll to playhead">Playhead</button>
+          <button className="timeline-nav-btn" onClick={fitAll} title="Fit all">Fit</button>
+        </div>
+        <div className="control-group">
+          <button
+            className={`snap-toggle-btn${snapping ? " snap-active" : ""}`}
+            onClick={() => setSnapping((s) => !s)}
+            title={snapping ? "Snapping on" : "Snapping off"}
+          >Snap</button>
+        </div>
+        <div className="control-group zoom-control">
+          <button onClick={() => setPixelsPerSecond((p) => Math.max(10, p - 20))}>-</button>
+          <input
+            type="range"
+            className="zoom-slider"
+            min={10}
+            max={500}
+            value={pixelsPerSecond}
+            onChange={(e) => setPixelsPerSecond(Number(e.target.value))}
+          />
+          <button onClick={() => setPixelsPerSecond((p) => Math.min(500, p + 20))}>+</button>
+          <span className="zoom-label">{Math.round(pixelsPerSecond)}%</span>
+        </div>
+        <span className="shortcut-hints">S: Split | Del: Delete | Ctrl+Z/Y: Undo/Redo</span>
       </div>
 
       <div className="timeline-minimap">
@@ -521,7 +640,7 @@ export default function Timeline(props: TimelineProps) {
               return (
                 <div
                   key={track.id}
-                  className={`track-lane${pip ? " track-lane-pip" : ""}`}
+                  className={`track-lane${pip ? " track-lane-pip" : ""}${dragTargetTrackId === track.id ? " track-lane-drop-target" : ""}`}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => handleDrop(e, track.id)}
                 >
@@ -542,7 +661,7 @@ export default function Timeline(props: TimelineProps) {
                             width: `${Math.max(4, usToPixels(data.durationUs))}px`,
                             backgroundColor: trackColor(track.kind, pip),
                           }}
-                          onMouseDown={(e) => handleClipMouseDown(e, data.id, data.startUs)}
+                          onMouseDown={(e) => handleClipMouseDown(e, data.id, data.startUs, track.id, track.kind)}
                         >
                           <div
                             className="trim-handle trim-handle-left"
@@ -554,6 +673,26 @@ export default function Timeline(props: TimelineProps) {
                               )
                             }
                           />
+                          {data.variant === "VideoClip" && thumbnails[data.asset_id] && (
+                            <div className="clip-thumbnails">
+                              {thumbnails[data.asset_id]
+                                .filter((t) => {
+                                  const tUs = t.time_seconds * 1_000_000;
+                                  return tUs >= (data.source_in_us || 0) && tUs < (data.source_out_us || Infinity);
+                                })
+                                .map((t) => (
+                                  <img
+                                    key={t.time_seconds}
+                                    className="clip-thumbnail"
+                                    src={t.url}
+                                    style={{
+                                      left: `${usToPixels((t.time_seconds * 1_000_000) - (data.source_in_us || 0))}px`,
+                                    }}
+                                    draggable={false}
+                                  />
+                                ))}
+                            </div>
+                          )}
                           <span className="clip-label">
                             {data.variant === "AudioClip" ? "Audio" : data.variant === "VideoClip" ? "Video" : data.variant === "ImageOverlay" ? "Image" : data.variant === "TextOverlay" ? data.text || "Text" : data.variant}
                           </span>
