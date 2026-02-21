@@ -96,6 +96,9 @@ impl MpvController {
                 "--osc=no",
                 "--osd-level=0",
                 "--no-focus-on-open",
+                "--no-terminal",
+                "--no-taskbar-progress",
+                "--x11-name=forgecut",
                 &format!("--wid={child_xid}"),
                 &format!("--input-ipc-server={}", self.socket_path.display()),
             ])

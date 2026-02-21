@@ -1009,6 +1009,12 @@ pub fn run() {
         )
         .init();
 
+    let mut ctx = tauri::generate_context!();
+    ctx.set_default_window_icon(Some(
+        tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))
+            .expect("failed to load app icon"),
+    ));
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
@@ -1084,6 +1090,6 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .run(ctx)
         .expect("error while running tauri application");
 }
