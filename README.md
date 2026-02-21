@@ -65,10 +65,12 @@ sudo apt-get install \
 yarn --cwd apps/forgecut_gui/ui install
 
 # Development (hot reload)
-cargo tauri dev --manifest-path apps/forgecut_gui/src-tauri/Cargo.toml
+cd apps/forgecut_gui/src-tauri
+cargo tauri dev
 
 # Production build
-cargo tauri build --manifest-path apps/forgecut_gui/src-tauri/Cargo.toml
+cd apps/forgecut_gui/src-tauri
+cargo tauri build
 ```
 
 ## Running Tests
