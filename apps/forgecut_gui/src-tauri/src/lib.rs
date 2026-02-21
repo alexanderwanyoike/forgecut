@@ -1067,20 +1067,42 @@ pub fn run() {
             mpv_show,
         ])
         .setup(|app| {
-            // Set GTK default icon so ALL windows (including file dialogs) show it
-            {
-                use gdk_pixbuf::prelude::PixbufLoaderExt;
-                let icon_bytes = include_bytes!("../icons/icon.png");
-                let loader = gdk_pixbuf::PixbufLoader::with_type("png").expect("png loader");
-                loader.write(icon_bytes).expect("icon write");
-                loader.close().expect("icon close");
-                if let Some(pixbuf) = loader.pixbuf() {
-                    gtk::Window::set_default_icon(&pixbuf);
-                }
+            use gdk_pixbuf::prelude::PixbufLoaderExt;
+            use gtk::prelude::GtkWindowExt;
+
+            // Load icon at multiple sizes so the WM can pick the best fit
+            let icon_data: &[&[u8]] = &[
+                include_bytes!("../icons/32x32.png"),
+                include_bytes!("../icons/128x128.png"),
+                include_bytes!("../icons/icon.png"),
+            ];
+            let icons: Vec<gdk_pixbuf::Pixbuf> = icon_data
+                .iter()
+                .filter_map(|data| {
+                    let loader = gdk_pixbuf::PixbufLoader::with_type("png").ok()?;
+                    loader.write(data).ok()?;
+                    loader.close().ok()?;
+                    loader.pixbuf()
+                })
+                .collect();
+
+            // 1. Set default icon list — fallback for GTK dialogs (rfd passes
+            //    NULL parent so dialogs don't inherit the main window's icon)
+            if !icons.is_empty() {
+                gtk::Window::set_default_icon_list(&icons);
             }
 
             let window =
                 app.get_webview_window("main").expect("main window not found");
+
+            // 2. Set icon list on the main GTK window directly — Tao already
+            //    sets a single icon, but multi-size list gives the WM better options
+            if !icons.is_empty() {
+                if let Ok(gtk_win) = window.gtk_window() {
+                    gtk_win.set_icon_list(&icons);
+                }
+            }
+
             tracing::info!("ForgeCut window created: {:?}", window.title());
 
             // Kill mpv on window close to prevent orphan processes
