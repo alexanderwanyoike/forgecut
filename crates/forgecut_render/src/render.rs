@@ -1154,4 +1154,77 @@ mod tests {
         assert_eq!(extract_value(line, "speed=").unwrap(), "1.50x");
         assert!(extract_value(line, "missing=").is_none());
     }
+
+    // --- Tests for \r-delimited chunk parsing (mirrors execute() logic) ---
+
+    /// Simulate the chunk-splitting logic from execute(): split on \r and \n,
+    /// trim each segment, and collect parse_progress results.
+    fn parse_chunk(raw: &str, total_secs: f64) -> Vec<RenderProgress> {
+        let mut results = Vec::new();
+        for segment in raw.split(['\r', '\n']) {
+            if let Some(progress) = parse_progress(segment.trim(), total_secs) {
+                results.push(progress);
+            }
+        }
+        results
+    }
+
+    #[test]
+    fn parse_cr_delimited_progress_yields_multiple_updates() {
+        let raw = "frame=  10 fps= 30 time=00:00:00.33 speed=1.00x\rframe=  20 fps= 30 time=00:00:00.66 speed=1.00x\rframe=  30 fps= 30 time=00:00:01.00 speed=1.00x\r";
+        let results = parse_chunk(raw, 10.0);
+        assert_eq!(results.len(), 3);
+        assert_eq!(results[0].frame, 10);
+        assert_eq!(results[1].frame, 20);
+        assert_eq!(results[2].frame, 30);
+        assert!((results[2].percent - 10.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn parse_mixed_cr_and_lf_delimiters() {
+        let raw = "frame=  10 fps= 30 time=00:00:01.00 speed=1.00x\rframe=  20 fps= 30 time=00:00:02.00 speed=1.50x\nframe=  30 fps= 30 time=00:00:03.00 speed=2.00x\n";
+        let results = parse_chunk(raw, 10.0);
+        assert_eq!(results.len(), 3);
+        assert!((results[0].percent - 10.0).abs() < 0.1);
+        assert!((results[1].percent - 20.0).abs() < 0.1);
+        assert!((results[2].percent - 30.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn parse_cr_chunk_filters_non_progress_lines() {
+        let raw = "Input #0, mov,mp4...\rStream #0:0: Video: h264\rframe=  50 fps= 25 time=00:00:02.00 speed=1.00x\r";
+        let results = parse_chunk(raw, 10.0);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].frame, 50);
+    }
+
+    #[test]
+    fn parse_many_rapid_cr_updates() {
+        let mut raw = String::new();
+        for i in 1..=100 {
+            let time_s = i as f64 * 0.1;
+            let h = (time_s / 3600.0) as u32;
+            let m = ((time_s % 3600.0) / 60.0) as u32;
+            let s = time_s % 60.0;
+            raw.push_str(&format!(
+                "frame={:4} fps= 60 time={:02}:{:02}:{:05.2} speed=2.00x\r",
+                i * 6, h, m, s
+            ));
+        }
+        let results = parse_chunk(&raw, 30.0);
+        assert_eq!(results.len(), 100);
+        assert_eq!(results[0].frame, 6);
+        assert_eq!(results[99].frame, 600);
+        // Last update: time=10.0s out of 30.0s = 33.3%
+        assert!((results[99].percent - 33.3).abs() < 0.5);
+    }
+
+    #[test]
+    fn parse_cr_chunk_with_trailing_whitespace() {
+        let raw = "  frame=  10 fps= 30 time=00:00:01.00 speed=1.00x  \r  \r  frame=  20 fps= 30 time=00:00:02.00 speed=1.50x  \r";
+        let results = parse_chunk(raw, 10.0);
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].frame, 10);
+        assert_eq!(results[1].frame, 20);
+    }
 }
