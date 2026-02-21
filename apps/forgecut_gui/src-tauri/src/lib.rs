@@ -1009,6 +1009,12 @@ pub fn run() {
         )
         .init();
 
+    let mut ctx = tauri::generate_context!();
+    ctx.set_default_window_icon(Some(
+        tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))
+            .expect("failed to load app icon"),
+    ));
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
@@ -1071,11 +1077,6 @@ pub fn run() {
                 app.get_webview_window("main").expect("main window not found");
             tracing::info!("ForgeCut window created: {:?}", window.title());
 
-            // Set the window icon so it shows correctly in taskbar at all times
-            let icon_bytes = include_bytes!("../icons/icon.png");
-            let icon = tauri::image::Image::from_bytes(icon_bytes).unwrap();
-            let _ = window.set_icon(icon);
-
             // Kill mpv on window close to prevent orphan processes
             let app_handle = app.handle().clone();
             window.on_window_event(move |event| {
@@ -1089,6 +1090,6 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .run(ctx)
         .expect("error while running tauri application");
 }
