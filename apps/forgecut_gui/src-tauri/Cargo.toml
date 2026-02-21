@@ -13,6 +13,8 @@ forgecut_render = { path = "../../../crates/forgecut_render" }
 forgecut_preview = { path = "../../../crates/forgecut_preview" }
 raw-window-handle = "0.6"
 tauri = { version = "2", features = [] }
+gtk = "0.18"
+gdk-pixbuf = "0.18"
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-fs = "2"

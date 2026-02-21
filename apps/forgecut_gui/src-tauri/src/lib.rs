@@ -1009,6 +1009,18 @@ pub fn run() {
         )
         .init();
 
+    // Set the GTK default icon so ALL windows (including file dialogs) show it
+    {
+        use gdk_pixbuf::prelude::PixbufLoaderExt;
+        let icon_bytes = include_bytes!("../icons/icon.png");
+        let loader = gdk_pixbuf::PixbufLoader::with_type("png").expect("png loader");
+        loader.write(icon_bytes).expect("icon write");
+        loader.close().expect("icon close");
+        if let Some(pixbuf) = loader.pixbuf() {
+            gtk::Window::set_default_icon(&pixbuf);
+        }
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
