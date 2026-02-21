@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
     branches: [main]
 
@@ -95,13 +96,13 @@ jobs:
 
   # ─────────────────────────────────────────────
   # Tauri build — Linux only
-  # (mpv + X11 embed is Linux-first; other platforms
-  #  require native mpv packaging not yet supported)
   # ─────────────────────────────────────────────
   build-tauri-linux:
     name: Tauri build (Linux)
     runs-on: ubuntu-latest
     needs: [test-rust-linux, test-frontend]
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -138,14 +139,21 @@ jobs:
         run: cargo install tauri-cli --version "^2" --locked
 
       - name: Build Tauri app
-        run: cargo tauri build --ci
+        run: cargo tauri build --ci --bundles deb,rpm
         working-directory: apps/forgecut_gui/src-tauri
 
-      - name: Upload Linux bundle
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: forgecut-linux
           path: |
-            apps/forgecut_gui/src-tauri/target/release/bundle/deb/*.deb
-            apps/forgecut_gui/src-tauri/target/release/bundle/appimage/*.AppImage
-          if-no-files-found: warn
+            target/release/bundle/deb/*.deb
+            target/release/bundle/rpm/*.rpm
+
+      - name: Upload release assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            target/release/bundle/deb/*.deb
+            target/release/bundle/rpm/*.rpm
