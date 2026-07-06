@@ -18,7 +18,12 @@ class MockResizeObserver {
 }
 vi.stubGlobal("ResizeObserver", MockResizeObserver);
 
-import Timeline from "../components/Timeline";
+import Timeline, {
+  TIMELINE_ZOOM_MAX,
+  TIMELINE_ZOOM_MIN,
+  minimapViewport,
+  timelineRulerInterval,
+} from "../components/Timeline";
 
 describe("Timeline controls", () => {
   const defaultProps = {
@@ -44,8 +49,39 @@ describe("Timeline controls", () => {
   it("zoom slider clamps to bounds", () => {
     render(<Timeline {...defaultProps} />);
     const slider = screen.getByRole("slider") as HTMLInputElement;
-    expect(Number(slider.min)).toBe(10);
-    expect(Number(slider.max)).toBe(500);
+    expect(Number(slider.min)).toBe(TIMELINE_ZOOM_MIN);
+    expect(Number(slider.max)).toBe(TIMELINE_ZOOM_MAX);
+  });
+
+  it("allows zooming out to the full timeline overview range", () => {
+    render(<Timeline {...defaultProps} />);
+    const zoomOut = screen.getByText("-");
+    const slider = screen.getByRole("slider") as HTMLInputElement;
+
+    for (let i = 0; i < 10; i += 1) {
+      fireEvent.click(zoomOut);
+    }
+
+    expect(Number(slider.value)).toBe(TIMELINE_ZOOM_MIN);
+    expect(screen.getByText(`${TIMELINE_ZOOM_MIN}%`)).toBeTruthy();
+  });
+
+  it("uses sparse ruler ticks at deep zoom-out levels", () => {
+    expect(timelineRulerInterval(100)).toBe(1);
+    expect(timelineRulerInterval(10)).toBe(10);
+    expect(timelineRulerInterval(1)).toBe(60);
+  });
+
+  it("maps the minimap viewport to the scrollable width", () => {
+    expect(minimapViewport(1_000, 500, 0)).toEqual({
+      leftPercent: 0,
+      widthPercent: 100,
+    });
+
+    expect(minimapViewport(1_000, 5_000, 2_000)).toEqual({
+      leftPercent: 40,
+      widthPercent: 20,
+    });
   });
 
   it("renders control group buttons", () => {

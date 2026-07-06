@@ -3,6 +3,38 @@ import { invoke } from "../lib/bridge";
 
 /** Width of the track label column in pixels */
 const LABEL_W = 48;
+export const TIMELINE_ZOOM_MIN = 1;
+export const TIMELINE_ZOOM_MAX = 500;
+
+function clampZoom(pixelsPerSecond: number) {
+  return Math.max(TIMELINE_ZOOM_MIN, Math.min(TIMELINE_ZOOM_MAX, pixelsPerSecond));
+}
+
+export function timelineRulerInterval(pixelsPerSecond: number) {
+  if (pixelsPerSecond >= 80) return 1;
+  if (pixelsPerSecond >= 40) return 2;
+  if (pixelsPerSecond >= 16) return 5;
+  if (pixelsPerSecond >= 8) return 10;
+  if (pixelsPerSecond >= 4) return 30;
+  return 60;
+}
+
+export function minimapViewport(
+  viewWidth: number,
+  timelineWidth: number,
+  scrollLeft: number,
+) {
+  const viewportWidth = Math.max(0, viewWidth);
+  const contentWidth = Math.max(timelineWidth, viewportWidth, 1);
+  const widthPercent = Math.min(100, (viewportWidth / contentWidth) * 100);
+  const scrollableWidth = Math.max(contentWidth - viewportWidth, 0);
+  const leftPercent =
+    scrollableWidth > 0
+      ? Math.min(100 - widthPercent, (Math.max(0, scrollLeft) / scrollableWidth) * (100 - widthPercent))
+      : 0;
+
+  return { leftPercent, widthPercent };
+}
 
 interface TimelineData {
   tracks: Track[];
@@ -89,6 +121,12 @@ export default function Timeline(props: TimelineProps) {
   const rulerDraggingRef = useRef(false);
   const snapPointsCacheRef = useRef<number[] | null>(null);
 
+  const updateViewportMetrics = useCallback(() => {
+    if (!timelineRef.current) return;
+    setScrollLeft(timelineRef.current.scrollLeft);
+    setViewWidth(timelineRef.current.clientWidth);
+  }, []);
+
   const fetchWaveform = useCallback(async (assetId: string) => {
     if (waveforms[assetId]) return;
     try {
@@ -162,7 +200,7 @@ export default function Timeline(props: TimelineProps) {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       const delta = e.deltaY > 0 ? -10 : 10;
-      setPixelsPerSecond(p => Math.max(10, Math.min(500, p + delta)));
+      setPixelsPerSecond(p => clampZoom(p + delta));
     }
   };
 
@@ -185,7 +223,7 @@ export default function Timeline(props: TimelineProps) {
     }
     const vw = timelineRef.current.clientWidth - LABEL_W;
     const needed = maxEnd / 1_000_000;
-    setPixelsPerSecond(Math.max(10, Math.min(500, vw / needed)));
+    setPixelsPerSecond(clampZoom(vw / needed));
   };
 
   // Auto-scroll to playhead on zoom change
@@ -199,6 +237,22 @@ export default function Timeline(props: TimelineProps) {
       timelineRef.current.scrollLeft = playheadPx - vw / 2;
     }
   }, [pixelsPerSecond]);
+
+  useEffect(() => {
+    const el = timelineRef.current;
+    if (!el) return;
+
+    updateViewportMetrics();
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateViewportMetrics) : null;
+    resizeObserver?.observe(el);
+    window.addEventListener("resize", updateViewportMetrics);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateViewportMetrics);
+    };
+  }, [updateViewportMetrics]);
 
   // Init default tracks on mount and after project load
   useEffect(() => {
@@ -252,12 +306,12 @@ export default function Timeline(props: TimelineProps) {
     // Zoom shortcuts
     if ((e.key === "=" || e.key === "+") && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      setPixelsPerSecond(p => Math.min(500, p + 20));
+      setPixelsPerSecond(p => clampZoom(p + 20));
       return;
     }
     if (e.key === "-" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      setPixelsPerSecond(p => Math.max(10, p - 20));
+      setPixelsPerSecond(p => clampZoom(p - 20));
       return;
     }
     if (e.key === "0" && (e.ctrlKey || e.metaKey)) {
@@ -573,13 +627,20 @@ export default function Timeline(props: TimelineProps) {
 
   const renderRuler = () => {
     const width = totalWidth();
-    const interval = pixelsPerSecond >= 80 ? 1 : pixelsPerSecond >= 40 ? 2 : 5;
+    const interval = timelineRulerInterval(pixelsPerSecond);
     const ticks = [];
     for (let sec = 0; sec * pixelsPerSecond + LABEL_W < width; sec += interval) {
       ticks.push(sec);
     }
     return ticks;
   };
+
+  const timelineWidth = totalWidth();
+  const { leftPercent: minimapLeft, widthPercent: minimapWidth } = minimapViewport(
+    viewWidth,
+    timelineWidth,
+    scrollLeft,
+  );
 
   return (
     <section className="panel timeline">
@@ -601,16 +662,16 @@ export default function Timeline(props: TimelineProps) {
           >Snap</button>
         </div>
         <div className="control-group zoom-control">
-          <button onClick={() => setPixelsPerSecond((p) => Math.max(10, p - 20))}>-</button>
+          <button onClick={() => setPixelsPerSecond((p) => clampZoom(p - 20))}>-</button>
           <input
             type="range"
             className="zoom-slider"
-            min={10}
-            max={500}
+            min={TIMELINE_ZOOM_MIN}
+            max={TIMELINE_ZOOM_MAX}
             value={pixelsPerSecond}
-            onChange={(e) => setPixelsPerSecond(Number(e.target.value))}
+            onChange={(e) => setPixelsPerSecond(clampZoom(Number(e.target.value)))}
           />
-          <button onClick={() => setPixelsPerSecond((p) => Math.min(500, p + 20))}>+</button>
+          <button onClick={() => setPixelsPerSecond((p) => clampZoom(p + 20))}>+</button>
           <span className="zoom-label">{Math.round(pixelsPerSecond)}%</span>
         </div>
         <span className="shortcut-hints">S: Split | Del: Delete | Ctrl+Z/Y: Undo/Redo</span>
@@ -618,8 +679,8 @@ export default function Timeline(props: TimelineProps) {
 
       <div className="timeline-minimap">
         <div className="minimap-viewport" style={{
-          left: `${(scrollLeft / totalWidth()) * 100}%`,
-          width: `${(viewWidth / totalWidth()) * 100}%`,
+          left: `${minimapLeft}%`,
+          width: `${minimapWidth}%`,
         }} />
       </div>
 
@@ -640,7 +701,7 @@ export default function Timeline(props: TimelineProps) {
           }
         }}
       >
-        <div className="timeline-content" style={{ width: `${totalWidth()}px` }}>
+        <div className="timeline-content" style={{ width: `${timelineWidth}px` }}>
           <div className="time-ruler" onMouseDown={handleRulerMouseDown}>
             {renderRuler().map((sec) => (
               <div key={sec} className="ruler-tick" style={{ left: `${sec * pixelsPerSecond + LABEL_W}px` }}>

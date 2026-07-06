@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 
 const remoteDebuggingPort = String(19_222 + Math.floor(Math.random() * 1000));
 const remoteDebuggingUrl = `http://127.0.0.1:${remoteDebuggingPort}`;
-const expectedText = ["TIMELINE", "No clip at playhead"];
+const expectedText = ["ASSETS", "INSPECTOR", "TIMELINE"];
 const children = [];
 
 function spawnChild(command, args, options = {}) {
