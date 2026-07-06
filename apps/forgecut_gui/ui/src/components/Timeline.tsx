@@ -5,9 +5,20 @@ import { invoke } from "../lib/bridge";
 const LABEL_W = 48;
 export const TIMELINE_ZOOM_MIN = 1;
 export const TIMELINE_ZOOM_MAX = 500;
+export const TIMELINE_ZOOM_STEP_FACTOR = 0.9;
 
 function clampZoom(pixelsPerSecond: number) {
   return Math.max(TIMELINE_ZOOM_MIN, Math.min(TIMELINE_ZOOM_MAX, pixelsPerSecond));
+}
+
+export function zoomOutLevel(pixelsPerSecond: number) {
+  if (pixelsPerSecond <= TIMELINE_ZOOM_MIN) return TIMELINE_ZOOM_MIN;
+  return clampZoom(Math.floor(pixelsPerSecond * TIMELINE_ZOOM_STEP_FACTOR));
+}
+
+export function zoomInLevel(pixelsPerSecond: number) {
+  if (pixelsPerSecond >= TIMELINE_ZOOM_MAX) return TIMELINE_ZOOM_MAX;
+  return clampZoom(Math.ceil(pixelsPerSecond / TIMELINE_ZOOM_STEP_FACTOR));
 }
 
 export function timelineRulerInterval(pixelsPerSecond: number) {
@@ -199,8 +210,7 @@ export default function Timeline(props: TimelineProps) {
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? -10 : 10;
-      setPixelsPerSecond(p => clampZoom(p + delta));
+      setPixelsPerSecond((p) => (e.deltaY > 0 ? zoomOutLevel(p) : zoomInLevel(p)));
     }
   };
 
@@ -306,12 +316,12 @@ export default function Timeline(props: TimelineProps) {
     // Zoom shortcuts
     if ((e.key === "=" || e.key === "+") && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      setPixelsPerSecond(p => clampZoom(p + 20));
+      setPixelsPerSecond(zoomInLevel);
       return;
     }
     if (e.key === "-" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      setPixelsPerSecond(p => clampZoom(p - 20));
+      setPixelsPerSecond(zoomOutLevel);
       return;
     }
     if (e.key === "0" && (e.ctrlKey || e.metaKey)) {
@@ -662,7 +672,7 @@ export default function Timeline(props: TimelineProps) {
           >Snap</button>
         </div>
         <div className="control-group zoom-control">
-          <button onClick={() => setPixelsPerSecond((p) => clampZoom(p - 20))}>-</button>
+          <button onClick={() => setPixelsPerSecond(zoomOutLevel)}>-</button>
           <input
             type="range"
             className="zoom-slider"
@@ -671,7 +681,7 @@ export default function Timeline(props: TimelineProps) {
             value={pixelsPerSecond}
             onChange={(e) => setPixelsPerSecond(clampZoom(Number(e.target.value)))}
           />
-          <button onClick={() => setPixelsPerSecond((p) => clampZoom(p + 20))}>+</button>
+          <button onClick={() => setPixelsPerSecond(zoomInLevel)}>+</button>
           <span className="zoom-label">{Math.round(pixelsPerSecond)}%</span>
         </div>
         <span className="shortcut-hints">S: Split | Del: Delete | Ctrl+Z/Y: Undo/Redo</span>
