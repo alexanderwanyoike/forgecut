@@ -10,6 +10,7 @@
     "build:electron": "tsc -p electron/tsconfig.json",
     "build:renderer": "tsc && vite build",
     "build": "yarn build:renderer && yarn build:electron",
+    "verify:electron": "node electron/scripts/verify-startup.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

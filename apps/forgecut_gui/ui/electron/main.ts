@@ -21,7 +21,10 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
-app.commandLine.appendSwitch("remote-debugging-port", "9222");
+app.commandLine.appendSwitch(
+  "remote-debugging-port",
+  process.env.ELECTRON_REMOTE_DEBUGGING_PORT ?? "9222",
+);
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -30,7 +33,7 @@ function createWindow(): void {
     title: "ForgeCut",
     icon: join(__dirname, "../assets/icon.png"),
     webPreferences: {
-      preload: join(__dirname, "preload.js"),
+      preload: join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
