@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { save, open } from "@tauri-apps/plugin-dialog";
+import { invoke, open, save } from "./lib/bridge";
 import AssetBin from "./components/AssetBin";
 import ExportDialog from "./components/ExportDialog";
 import Inspector from "./components/Inspector";

@@ -2,19 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import Preview from "../components/Preview";
 
-// Mock @tauri-apps/api/core
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-}));
-
-// Mock @tauri-apps/api/window
-vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({
-    scaleFactor: () => Promise.resolve(1.0),
-    innerPosition: () => Promise.resolve({ x: 0, y: 0 }),
-    onMoved: () => Promise.resolve(() => {}),
-    onResized: () => Promise.resolve(() => {}),
-  }),
+const mockInvoke = vi.hoisted(() => vi.fn());
+vi.mock("../lib/bridge", () => ({
+  invoke: mockInvoke,
+  mediaUrl: (path: string) => `forgecut-media://${path}`,
 }));
 
 // Mock ResizeObserver
@@ -25,18 +16,10 @@ class MockResizeObserver {
 }
 vi.stubGlobal("ResizeObserver", MockResizeObserver);
 
-import { invoke } from "@tauri-apps/api/core";
-const mockInvoke = vi.mocked(invoke);
-
 describe("Preview component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockInvoke.mockImplementation(async (cmd: string) => {
-      if (cmd === "mpv_start") return undefined;
-      if (cmd === "mpv_stop") return undefined;
-      if (cmd === "mpv_pause") return undefined;
-      if (cmd === "mpv_seek") return undefined;
-      if (cmd === "mpv_load_file") return undefined;
       if (cmd === "get_clip_at_playhead") return null;
       if (cmd === "get_overlays_at_time") return [];
       return null;
@@ -115,5 +98,17 @@ describe("Preview component", () => {
     await new Promise((r) => setTimeout(r, 50));
 
     expect(screen.getByText("No clip at playhead")).toBeTruthy();
+  });
+
+  it("renders an HTML video element", () => {
+    render(
+      <Preview
+        playheadUs={0}
+        playing={false}
+        onPlayingChange={() => {}}
+        onPlayheadChange={() => {}}
+      />
+    );
+    expect(document.querySelector("video.preview-video")).toBeTruthy();
   });
 });
