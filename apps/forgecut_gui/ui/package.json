@@ -4,19 +4,17 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node electron/scripts/dev.mjs",
     "dev:web": "vite",
-    "dev:electron": "node electron/scripts/dev.mjs",
+    "dev:electron": "yarn dev",
     "build:electron": "tsc -p electron/tsconfig.json",
-    "build": "tsc && vite build",
+    "build:renderer": "tsc && vite build",
+    "build": "yarn build:renderer && yarn build:electron",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.0.0",
-    "@tauri-apps/plugin-dialog": "^2.0.0",
-    "@tauri-apps/plugin-fs": "^2.0.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
   },

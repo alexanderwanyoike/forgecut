@@ -5,16 +5,16 @@ Lightweight Linux-first timeline video editor. Trim, stitch, overlays, and quick
 ## Architecture
 
 - **forgecut_core** -- Pure Rust data model, timeline editing, undo/redo, project save/load
-- **forgecut_render** -- ffmpeg integration: ffprobe, render pipeline, export
-- **forgecut_preview** -- mpv integration: IPC control, preview playback
-- **apps/forgecut_gui/** -- Tauri 2 + SolidJS + Vite frontend
+- **forgecut_render** -- Rust render reference implementation during migration
+- **apps/forgecut_gui/ui/electron/** -- Electron main/preload and Node backend commands
+- **apps/forgecut_gui/ui/src/** -- React + Vite renderer
 
 ## Build
 
 - Use `yarn` (never npm/pnpm)
 - Rust workspace with `cargo check --workspace` / `cargo test --workspace`
-- Frontend: `yarn --cwd apps/forgecut_gui/ui install && yarn --cwd apps/forgecut_gui/ui build`
-- Tauri dev: `cargo tauri dev` from `apps/forgecut_gui/src-tauri`
+- App: `yarn --cwd apps/forgecut_gui/ui install && yarn --cwd apps/forgecut_gui/ui build`
+- Electron dev: `yarn --cwd apps/forgecut_gui/ui dev`
 
 ## Conventions
 
