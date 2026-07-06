@@ -47,6 +47,16 @@ export function minimapViewport(
   return { leftPercent, widthPercent };
 }
 
+export function timelinePointerUs(
+  clientX: number,
+  timelineLeft: number,
+  scrollLeft: number,
+  pixelsPerSecond: number,
+) {
+  const x = clientX - timelineLeft + scrollLeft - LABEL_W;
+  return Math.max(0, Math.round((x / pixelsPerSecond) * 1_000_000));
+}
+
 interface TimelineData {
   tracks: Track[];
   markers: any[];
@@ -281,11 +291,19 @@ export default function Timeline(props: TimelineProps) {
     thumbnailsLoadingRef.current = {};
   }, [props.projectVersion]);
 
-  const calcPlayheadFromMouse = (e: MouseEvent | React.MouseEvent): number => {
+  const calcPlayheadFromClientX = (clientX: number): number => {
     if (!timelineRef.current) return 0;
     const rect = timelineRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left + scrollLeft - LABEL_W;
-    return Math.max(0, Math.round(pixelsToUs(x)));
+    return timelinePointerUs(
+      clientX,
+      rect.left,
+      timelineRef.current.scrollLeft,
+      pixelsPerSecond,
+    );
+  };
+
+  const calcPlayheadFromMouse = (e: MouseEvent | React.MouseEvent): number => {
+    return calcPlayheadFromClientX(e.clientX);
   };
 
   // --- Global event handlers via refs to avoid stale closures ---
@@ -382,7 +400,11 @@ export default function Timeline(props: TimelineProps) {
       setDragState(null);
       setSnapLineUs(null);
       setDragTargetTrackId(null);
-      if (Math.abs(dx) < 3 && Math.abs(e.clientY - ds.startMouseY) < 3) return;
+      if (Math.abs(dx) < 3 && Math.abs(e.clientY - ds.startMouseY) < 3) {
+        if (props.playing) props.onPlayingChange(false);
+        props.onPlayheadChange(calcPlayheadFromClientX(e.clientX));
+        return;
+      }
 
       if (snapping) {
         try {

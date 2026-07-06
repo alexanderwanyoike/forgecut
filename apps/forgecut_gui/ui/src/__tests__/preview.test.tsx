@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import Preview from "../components/Preview";
 
 const mockInvoke = vi.hoisted(() => vi.fn());
@@ -83,6 +83,48 @@ describe("Preview component", () => {
     expect(calls[0][1]).toEqual({ playheadUs: 1_000_000 });
 
     unmount();
+  });
+
+  it("seeks the preview video when playheadUs changes within a clip", async () => {
+    mockInvoke.mockImplementation(async (cmd: string, args?: { playheadUs?: number }) => {
+      if (cmd === "get_clip_at_playhead") {
+        return {
+          file_path: "/tmp/clip.mp4",
+          seek_seconds: (args?.playheadUs ?? 0) / 1_000_000,
+          clip_start_us: 0,
+          clip_end_us: 12_000_000,
+          source_in_us: 0,
+        };
+      }
+      if (cmd === "get_overlays_at_time") return [];
+      return null;
+    });
+    const { rerender } = render(
+      <Preview
+        playheadUs={1_000_000}
+        playing={false}
+        onPlayingChange={() => {}}
+        onPlayheadChange={() => {}}
+      />
+    );
+    const video = document.querySelector("video.preview-video") as HTMLVideoElement;
+
+    await waitFor(() => {
+      expect(video.currentTime).toBe(1);
+    });
+
+    rerender(
+      <Preview
+        playheadUs={4_000_000}
+        playing={false}
+        onPlayingChange={() => {}}
+        onPlayheadChange={() => {}}
+      />
+    );
+
+    await waitFor(() => {
+      expect(video.currentTime).toBe(4);
+    });
   });
 
   it("shows 'No clip at playhead' when no clip found", async () => {

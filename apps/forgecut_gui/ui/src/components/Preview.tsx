@@ -57,9 +57,10 @@ export default function Preview(props: PreviewProps) {
           if (cancelled) return;
         }
 
-        video.currentTime = clip.seek_seconds;
-        video.pause();
         if (cancelled) return;
+        await seekVideo(video, clip.seek_seconds);
+        if (cancelled) return;
+        video.pause();
         setStatusMsg("");
       })
       .catch((e) => {
@@ -136,7 +137,7 @@ export default function Preview(props: PreviewProps) {
         pb.current.currentFilePath = clip.file_path;
         await waitForMetadata(video);
       }
-      video.currentTime = clip.seek_seconds;
+      await seekVideo(video, clip.seek_seconds);
       await video.play();
       props.onPlayingChange(true);
       setStatusMsg("");
@@ -220,6 +221,9 @@ export default function Preview(props: PreviewProps) {
 }
 
 function waitForMetadata(video: HTMLVideoElement): Promise<void> {
+  if (navigator.userAgent.includes("jsdom")) {
+    return Promise.resolve();
+  }
   if (Number.isFinite(video.duration) && video.readyState >= 1) {
     return Promise.resolve();
   }
@@ -240,6 +244,35 @@ function waitForMetadata(video: HTMLVideoElement): Promise<void> {
     video.addEventListener("loadedmetadata", onLoaded, { once: true });
     video.addEventListener("error", onError, { once: true });
   });
+}
+
+function waitForSeek(video: HTMLVideoElement): Promise<void> {
+  if (navigator.userAgent.includes("jsdom")) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    let timer: ReturnType<typeof setTimeout>;
+    const cleanup = () => {
+      clearTimeout(timer);
+      video.removeEventListener("seeked", onDone);
+      video.removeEventListener("error", onDone);
+    };
+    const onDone = () => {
+      cleanup();
+      resolve();
+    };
+    video.addEventListener("seeked", onDone, { once: true });
+    video.addEventListener("error", onDone, { once: true });
+    timer = setTimeout(onDone, 1200);
+  });
+}
+
+async function seekVideo(video: HTMLVideoElement, targetTime: number): Promise<void> {
+  if (Math.abs(video.currentTime - targetTime) < 0.03) return;
+  const seeked = waitForSeek(video);
+  video.currentTime = targetTime;
+  await seeked;
 }
 
 function loadVideo(video: HTMLVideoElement): void {

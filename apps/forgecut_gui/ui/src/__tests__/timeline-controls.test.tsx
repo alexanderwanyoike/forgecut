@@ -1,12 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
+const mockInvoke = vi.hoisted(() => vi.fn());
 vi.mock("../lib/bridge", () => ({
-  invoke: vi.fn().mockImplementation(async (cmd: string) => {
-    if (cmd === "init_default_tracks") return { tracks: [], markers: [] };
-    if (cmd === "get_snap_points") return [];
-    return null;
-  }),
+  invoke: mockInvoke,
   mediaUrl: (path: string) => `forgecut-media://${path}`,
 }));
 
@@ -22,6 +19,7 @@ import Timeline, {
   TIMELINE_ZOOM_MAX,
   TIMELINE_ZOOM_MIN,
   minimapViewport,
+  timelinePointerUs,
   timelineRulerInterval,
   zoomInLevel,
   zoomOutLevel,
@@ -37,9 +35,36 @@ describe("Timeline controls", () => {
     onSelectedClipChange: () => {},
     projectVersion: 0,
   };
+  const timelineWithVideo = {
+    tracks: [
+      {
+        id: "track-1",
+        kind: "Video",
+        items: [
+          {
+            VideoClip: {
+              id: "clip-1",
+              asset_id: "asset-1",
+              track_id: "track-1",
+              timeline_start_us: 0,
+              source_in_us: 0,
+              source_out_us: 12_000_000,
+            },
+          },
+        ],
+      },
+    ],
+    markers: [],
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === "init_default_tracks") return { tracks: [], markers: [] };
+      if (cmd === "get_snap_points") return [];
+      if (cmd === "get_clip_thumbnails") return [];
+      return null;
+    });
   });
 
   it("renders zoom percentage label", () => {
@@ -104,6 +129,51 @@ describe("Timeline controls", () => {
       leftPercent: 40,
       widthPercent: 20,
     });
+  });
+
+  it("calculates pointer seek time from live timeline scroll geometry", () => {
+    expect(timelinePointerUs(508, 100, 0, 90)).toBe(4_000_000);
+    expect(timelinePointerUs(188, 100, 500, 180)).toBe(3_000_000);
+  });
+
+  it("seeks on a plain clip click at the clicked offset across zoom levels", async () => {
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === "init_default_tracks") return timelineWithVideo;
+      if (cmd === "get_snap_points") return [];
+      if (cmd === "get_clip_thumbnails") return [];
+      return null;
+    });
+    const onPlayheadChange = vi.fn();
+    render(<Timeline {...defaultProps} onPlayheadChange={onPlayheadChange} />);
+    const clip = await screen.findByText("Video");
+    const timelineScroll = document.querySelector(".timeline-scroll") as HTMLDivElement;
+    timelineScroll.getBoundingClientRect = () =>
+      ({ left: 100, top: 0, width: 800, height: 240, right: 900, bottom: 240, x: 100, y: 0, toJSON: () => {} }) as DOMRect;
+    let scrollLeftValue = 0;
+    Object.defineProperty(timelineScroll, "scrollLeft", {
+      configurable: true,
+      get: () => scrollLeftValue,
+      set: (value) => {
+        scrollLeftValue = value;
+      },
+    });
+    Object.defineProperty(timelineScroll, "clientWidth", {
+      configurable: true,
+      get: () => 800,
+    });
+
+    for (const zoom of [25, 90, 180]) {
+      const slider = screen.getByRole("slider") as HTMLInputElement;
+      fireEvent.change(slider, { target: { value: String(zoom) } });
+      const clientX = 100 + 48 + 4 * zoom;
+
+      fireEvent.mouseDown(clip, { clientX, clientY: 80 });
+      fireEvent.mouseUp(window, { clientX, clientY: 80 });
+
+      await waitFor(() => {
+        expect(onPlayheadChange).toHaveBeenLastCalledWith(4_000_000);
+      });
+    }
   });
 
   it("renders control group buttons", () => {
