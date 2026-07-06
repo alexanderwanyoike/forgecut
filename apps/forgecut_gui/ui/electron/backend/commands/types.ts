@@ -23,4 +23,12 @@ export function optionalString(args: CommandArgs, key: string): string | undefin
   return typeof value === "string" ? value : undefined;
 }
 
+export function requiredStringArray(args: CommandArgs, key: string): string[] {
+  const value = args?.[key];
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+    throw new Error(`Missing required string array argument: ${key}`);
+  }
+  return value;
+}
+
 export type { CommandArgs, CommandContext, CommandHandler };
