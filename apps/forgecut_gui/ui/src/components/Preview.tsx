@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, invoke } from "../lib/bridge";
 import type { ClipAtPlayhead, OverlayData, PreviewProps } from "../lib/preview/types";
 import {
   sourceTimeToPlayheadUs,

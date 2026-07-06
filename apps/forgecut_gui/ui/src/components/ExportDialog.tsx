@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { save } from "@tauri-apps/plugin-dialog";
+import { invoke, listen, save } from "../lib/bridge";
 
 interface RenderProgress {
   percent: number;
