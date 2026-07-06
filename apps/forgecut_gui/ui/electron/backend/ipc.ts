@@ -1,6 +1,7 @@
 import type { IpcMainInvokeEvent, WebContents } from "electron";
 import type { AppState } from "./state.js";
 import { autosaveCommands } from "./commands/autosave.js";
+import { exportCommands } from "./commands/export.js";
 import { mediaCommands } from "./commands/media.js";
 import { projectCommands } from "./commands/project.js";
 import { timelineCommands } from "./commands/timeline.js";
@@ -22,6 +23,7 @@ const handlers: Record<string, CommandHandler> = {
   ...timelineCommands,
   ...mediaCommands,
   ...autosaveCommands,
+  ...exportCommands,
 };
 
 export async function dispatchCommand(
