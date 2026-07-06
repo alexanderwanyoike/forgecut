@@ -33,4 +33,5 @@ contextBridge.exposeInMainWorld("forgecut", {
       return Promise.resolve(() => window.removeEventListener("resize", callback));
     },
   },
+  mediaUrl: (path: string) => `forgecut-media://local/?path=${encodeURIComponent(path)}`,
 });

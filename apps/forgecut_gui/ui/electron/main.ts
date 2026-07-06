@@ -1,5 +1,6 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, net, protocol } from "electron";
 import { dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { fileURLToPath } from "node:url";
 import { AppState } from "./backend/state.js";
 import { dispatchCommand } from "./backend/ipc.js";
@@ -7,6 +8,18 @@ import { dispatchCommand } from "./backend/ipc.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const state = new AppState();
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "forgecut-media",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+    },
+  },
+]);
 
 app.commandLine.appendSwitch("remote-debugging-port", "9222");
 
@@ -48,6 +61,18 @@ ipcMain.handle("forgecut:dialog:save", async (_event, options = {}) => {
 });
 
 app.whenReady().then(() => {
+  protocol.handle("forgecut-media", (request) => {
+    const url = new URL(request.url);
+    const path = url.searchParams.get("path");
+    if (!path) return new Response("Missing media path", { status: 400 });
+    if (!state.project.assets.some((asset) => asset.path === path)) {
+      return new Response("Media path is not part of the current project", { status: 403 });
+    }
+    return net.fetch(pathToFileURL(path).toString(), {
+      headers: request.headers,
+    });
+  });
+
   createWindow();
 
   app.on("activate", () => {

@@ -23,6 +23,7 @@ type ForgeCutElectronApi = {
     onMoved: (callback: () => void) => Promise<UnlistenFn>;
     onResized: (callback: () => void) => Promise<UnlistenFn>;
   };
+  mediaUrl: (path: string) => string;
 };
 
 declare global {
@@ -70,4 +71,10 @@ export function getCurrentWindow() {
   const electron = electronApi();
   if (electron) return electron.window;
   return tauriGetCurrentWindow();
+}
+
+export function mediaUrl(path: string): string {
+  const electron = electronApi();
+  if (electron) return electron.mediaUrl(path);
+  return path;
 }
