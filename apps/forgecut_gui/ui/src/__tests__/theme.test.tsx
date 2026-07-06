@@ -7,11 +7,6 @@ vi.mock("@tauri-apps/api/core", () => ({
     if (cmd === "init_default_tracks") return { tracks: [], markers: [] };
     if (cmd === "get_clip_at_playhead") return null;
     if (cmd === "get_overlays_at_time") return [];
-    if (cmd === "mpv_start") return undefined;
-    if (cmd === "mpv_stop") return undefined;
-    if (cmd === "mpv_pause") return undefined;
-    if (cmd === "mpv_seek") return undefined;
-    if (cmd === "mpv_load_file") return undefined;
     if (cmd === "get_item_details") return null;
     return null;
   }),
@@ -26,12 +21,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 
 // Mock @tauri-apps/api/window
 vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({
-    scaleFactor: () => Promise.resolve(1.0),
-    innerPosition: () => Promise.resolve({ x: 0, y: 0 }),
-    onMoved: () => Promise.resolve(() => {}),
-    onResized: () => Promise.resolve(() => {}),
-  }),
+  getCurrentWindow: () => ({}),
 }));
 
 // Mock ResizeObserver
