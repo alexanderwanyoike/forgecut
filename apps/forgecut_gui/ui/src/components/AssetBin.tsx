@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { invoke, open } from "../lib/bridge";
 
 interface Asset {
   id: string;

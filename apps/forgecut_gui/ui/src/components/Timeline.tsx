@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../lib/bridge";
 
 /** Width of the track label column in pixels */
 const LABEL_W = 48;
