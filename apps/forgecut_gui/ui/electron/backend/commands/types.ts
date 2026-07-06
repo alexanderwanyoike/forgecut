@@ -10,4 +10,17 @@ export function requiredString(args: CommandArgs, key: string): string {
   return value;
 }
 
+export function requiredNumber(args: CommandArgs, key: string): number {
+  const value = args?.[key];
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`Missing required number argument: ${key}`);
+  }
+  return value;
+}
+
+export function optionalString(args: CommandArgs, key: string): string | undefined {
+  const value = args?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
 export type { CommandArgs, CommandContext, CommandHandler };
