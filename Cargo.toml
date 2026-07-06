@@ -2,8 +2,6 @@
 members = [
     "crates/forgecut_core",
     "crates/forgecut_render",
-    "crates/forgecut_preview",
-    "apps/forgecut_gui/src-tauri",
 ]
 resolver = "2"
 
