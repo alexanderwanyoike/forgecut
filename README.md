@@ -1,13 +1,13 @@
 # ForgeCut
 
-A lightweight, Linux-first timeline video editor built with Rust and Tauri. Trim, stitch, add overlays, and export — fast.
+A lightweight, Linux-first timeline video editor built with Electron and React. Trim, stitch, add overlays, and export fast.
 
 ![ForgeCut screenshot](docs/screenshot.png)
 
 ## Features
 
 - **Timeline editing** — Multi-track video and audio timeline with drag, trim, split, and move
-- **Real-time preview** — Embedded mpv player with frame-accurate scrubbing
+- **Real-time preview** — HTML5 video preview with frame-accurate scrubbing
 - **Asset bin** — Import video, audio, and image assets; drag directly onto the timeline
 - **Thumbnails & waveforms** — Visual clip previews and audio waveform rendering
 - **Text & image overlays** — Add titles and image overlays at any position
@@ -20,18 +20,18 @@ A lightweight, Linux-first timeline video editor built with Rust and Tauri. Trim
 
 ## Architecture
 
-ForgeCut is a [Tauri 2](https://tauri.app) application — a Rust backend exposed to a React frontend via typed IPC commands.
+ForgeCut is an Electron application with a React/Vite renderer and Node main-process backend exposed through a typed preload bridge.
 
 ```
 forgecut/
 ├── crates/
 │   ├── forgecut_core      # Data model, timeline editing, undo/redo, save/load
-│   ├── forgecut_render    # ffmpeg integration: probe, filter graph, export
-│   └── forgecut_preview   # mpv IPC: embedded playback, seek, frame sync
+│   └── forgecut_render    # Rust render reference implementation during migration
 └── apps/
     └── forgecut_gui/
-        ├── src-tauri/     # Tauri 2 backend — commands, app state
-        └── ui/            # React + Vite frontend
+        └── ui/
+            ├── electron/  # Electron main/preload and Node backend commands
+            └── src/       # React + Vite renderer
 ```
 
 ## Prerequisites
@@ -40,23 +40,16 @@ forgecut/
 
 ```bash
 # Ubuntu / Debian
-sudo apt-get install mpv ffmpeg
+sudo apt-get install ffmpeg
 
 # Fedora
-sudo dnf install mpv ffmpeg
+sudo dnf install ffmpeg
 ```
 
 **Build dependencies:**
 
-```bash
-sudo apt-get install \
-  libwebkit2gtk-4.1-dev libgtk-3-dev \
-  libayatana-appindicator3-dev librsvg2-dev \
-  libx11-dev libxext-dev patchelf
-```
-
-- [Rust](https://rustup.rs) (stable)
 - [Node.js](https://nodejs.org) ≥ 20 + Yarn (`corepack enable`)
+- [Rust](https://rustup.rs) (stable) for the remaining portable crates during migration
 
 ## Building
 
@@ -65,21 +58,19 @@ sudo apt-get install \
 yarn --cwd apps/forgecut_gui/ui install
 
 # Development (hot reload)
-cd apps/forgecut_gui/src-tauri
-cargo tauri dev
+yarn --cwd apps/forgecut_gui/ui dev
 
 # Production build
-cd apps/forgecut_gui/src-tauri
-cargo tauri build
+yarn --cwd apps/forgecut_gui/ui build
 ```
 
 ## Running Tests
 
 ```bash
-# Rust unit tests (107 tests)
+# Rust unit tests
 cargo test --workspace
 
-# Frontend tests (39 tests)
+# Frontend and Electron backend tests
 yarn --cwd apps/forgecut_gui/ui test
 ```
 
@@ -105,9 +96,7 @@ GitHub Actions runs on every push and pull request:
 |---|---|---|---|
 | Rust tests | Full workspace | Core + Render | Core + Render |
 | Frontend tests | Yes | Yes | Yes |
-| Tauri build | Yes | — | — |
-
-> macOS and Windows run the portable crates only. `forgecut_preview` uses X11/mpv which is Linux-specific.
+| Electron build | Yes | Yes | Yes |
 
 ## License
 

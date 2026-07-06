@@ -2,13 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import Preview from "../components/Preview";
 
-// Mock @tauri-apps/api/core
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-}));
-
-vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({}),
+const mockInvoke = vi.hoisted(() => vi.fn());
+vi.mock("../lib/bridge", () => ({
+  invoke: mockInvoke,
+  mediaUrl: (path: string) => `forgecut-media://${path}`,
 }));
 
 // Mock ResizeObserver
@@ -18,9 +15,6 @@ class MockResizeObserver {
   disconnect() {}
 }
 vi.stubGlobal("ResizeObserver", MockResizeObserver);
-
-import { invoke } from "@tauri-apps/api/core";
-const mockInvoke = vi.mocked(invoke);
 
 describe("Preview component", () => {
   beforeEach(() => {

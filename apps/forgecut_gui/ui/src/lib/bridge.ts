@@ -1,8 +1,3 @@
-import { invoke as tauriInvoke } from "@tauri-apps/api/core";
-import { listen as tauriListen } from "@tauri-apps/api/event";
-import { getCurrentWindow as tauriGetCurrentWindow } from "@tauri-apps/api/window";
-import { open as tauriOpen, save as tauriSave } from "@tauri-apps/plugin-dialog";
-
 type InvokeArgs = Record<string, unknown>;
 type UnlistenFn = () => void;
 
@@ -35,46 +30,42 @@ declare global {
 const electronApi = () =>
   typeof window === "undefined" ? undefined : window.forgecut;
 
+function requireElectronApi(): ForgeCutElectronApi {
+  const electron = electronApi();
+  if (!electron) {
+    throw new Error("ForgeCut Electron bridge is not available");
+  }
+  return electron;
+}
+
 export function invoke<T = unknown>(
   command: string,
   args?: InvokeArgs,
 ): Promise<T> {
-  const electron = electronApi();
-  if (electron) return electron.invoke<T>(command, args);
-  return tauriInvoke<T>(command, args);
+  return requireElectronApi().invoke<T>(command, args);
 }
 
 export function open<T = string | string[] | null>(
   options?: InvokeArgs,
 ): Promise<T> {
-  const electron = electronApi();
-  if (electron) return electron.dialog.open<T>(options);
-  return tauriOpen(options as Parameters<typeof tauriOpen>[0]) as Promise<T>;
+  return requireElectronApi().dialog.open<T>(options);
 }
 
 export function save<T = string | null>(options?: InvokeArgs): Promise<T> {
-  const electron = electronApi();
-  if (electron) return electron.dialog.save<T>(options);
-  return tauriSave(options as Parameters<typeof tauriSave>[0]) as Promise<T>;
+  return requireElectronApi().dialog.save<T>(options);
 }
 
 export function listen<T = unknown>(
   event: string,
   callback: (event: { event: string; payload: T }) => void,
 ): Promise<UnlistenFn> {
-  const electron = electronApi();
-  if (electron) return Promise.resolve(electron.events.listen(event, callback));
-  return tauriListen<T>(event, callback);
+  return Promise.resolve(requireElectronApi().events.listen(event, callback));
 }
 
 export function getCurrentWindow() {
-  const electron = electronApi();
-  if (electron) return electron.window;
-  return tauriGetCurrentWindow();
+  return requireElectronApi().window;
 }
 
 export function mediaUrl(path: string): string {
-  const electron = electronApi();
-  if (electron) return electron.mediaUrl(path);
-  return path;
+  return requireElectronApi().mediaUrl(path);
 }

@@ -28,7 +28,7 @@ function createWindow(): void {
     width: 1280,
     height: 800,
     title: "ForgeCut",
-    icon: join(__dirname, "../../src-tauri/icons/icon.png"),
+    icon: join(__dirname, "../assets/icon.png"),
     webPreferences: {
       preload: join(__dirname, "preload.js"),
       contextIsolation: true,

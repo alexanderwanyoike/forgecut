@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
-// Mock @tauri-apps/api/core
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("../lib/bridge", () => ({
   invoke: vi.fn().mockImplementation(async (cmd: string) => {
     if (cmd === "init_default_tracks") return { tracks: [], markers: [] };
     if (cmd === "get_clip_at_playhead") return null;
@@ -10,18 +9,9 @@ vi.mock("@tauri-apps/api/core", () => ({
     if (cmd === "get_item_details") return null;
     return null;
   }),
-  convertFileSrc: vi.fn((path: string) => `asset://${path}`),
-}));
-
-// Mock @tauri-apps/plugin-dialog
-vi.mock("@tauri-apps/plugin-dialog", () => ({
   save: vi.fn(),
   open: vi.fn(),
-}));
-
-// Mock @tauri-apps/api/window
-vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({}),
+  mediaUrl: (path: string) => `forgecut-media://${path}`,
 }));
 
 // Mock ResizeObserver
