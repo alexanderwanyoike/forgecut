@@ -1,3 +1,10 @@
+import type {
+  CommandArgsOf,
+  CommandName,
+  CommandResultOf,
+  EventPayloads,
+} from "../../electron/shared/ipc-contract";
+
 type InvokeArgs = Record<string, unknown>;
 type UnlistenFn = () => void;
 
@@ -38,11 +45,14 @@ function requireElectronApi(): ForgeCutElectronApi {
   return electron;
 }
 
-export function invoke<T = unknown>(
-  command: string,
-  args?: InvokeArgs,
-): Promise<T> {
-  return requireElectronApi().invoke<T>(command, args);
+export function invoke<K extends CommandName>(
+  command: K,
+  ...args: CommandArgsOf<K> extends undefined ? [] : [CommandArgsOf<K>]
+): Promise<CommandResultOf<K>> {
+  return requireElectronApi().invoke<CommandResultOf<K>>(
+    command,
+    args[0] as InvokeArgs | undefined,
+  );
 }
 
 export function open<T = string | string[] | null>(
@@ -55,9 +65,9 @@ export function save<T = string | null>(options?: InvokeArgs): Promise<T> {
   return requireElectronApi().dialog.save<T>(options);
 }
 
-export function listen<T = unknown>(
-  event: string,
-  callback: (event: { event: string; payload: T }) => void,
+export function listen<E extends keyof EventPayloads>(
+  event: E,
+  callback: (event: { event: string; payload: EventPayloads[E] }) => void,
 ): Promise<UnlistenFn> {
   return Promise.resolve(requireElectronApi().events.listen(event, callback));
 }

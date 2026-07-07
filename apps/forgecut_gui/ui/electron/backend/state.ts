@@ -3,100 +3,30 @@ import { extname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 
-export type TimeUs = number;
+import type { ClipItem, ImageOverlayItem, Project, TextOverlayItem, Timeline } from "../shared/ipc-contract.js";
 
-export type ProjectSettings = {
-  width: number;
-  height: number;
-  fps: number;
-  sample_rate: number;
-};
+// Domain types live in the shared IPC contract; re-export for backend modules.
+export type {
+  Asset,
+  AssetKind,
+  ClipItem,
+  ImageOverlayItem,
+  ProbeResult,
+  Project,
+  ProjectSettings,
+  TextOverlayItem,
+  TimeUs,
+  Timeline,
+  TimelineItem,
+  TimelineItemVariant,
+  Track,
+} from "../shared/ipc-contract.js";
 
-export type AssetKind = "Video" | "Audio" | "Image";
-
-export type Asset = {
-  id: string;
-  name: string;
-  path: string;
-  kind: AssetKind;
-  probe: ProbeResult | null;
-};
-
-export type ProbeResult = {
-  duration_us: TimeUs;
-  width: number;
-  height: number;
-  fps: number;
-  codec: string;
-  audio_channels: number;
-  audio_sample_rate: number;
-};
-
-export type Timeline = {
-  tracks: Track[];
-  markers: unknown[];
-};
-
-export type Track = {
-  id: string;
-  kind: "Video" | "Audio" | "OverlayImage" | "OverlayText";
-  items: TimelineItem[];
-};
-
-export type TimelineItem =
-  | { VideoClip: ClipItem }
-  | { AudioClip: ClipItem & { volume: number } }
-  | { ImageOverlay: ImageOverlayItem }
-  | { TextOverlay: TextOverlayItem };
-
-export type TimelineItemVariant = "VideoClip" | "AudioClip" | "ImageOverlay" | "TextOverlay";
 export type TimelineItemDetail =
   | ClipItem
   | (ClipItem & { volume: number })
   | ImageOverlayItem
   | TextOverlayItem;
-
-export type ClipItem = {
-  id: string;
-  asset_id: string;
-  track_id: string;
-  timeline_start_us: TimeUs;
-  source_in_us: TimeUs;
-  source_out_us: TimeUs;
-};
-
-export type ImageOverlayItem = {
-  id: string;
-  asset_id: string;
-  track_id: string;
-  timeline_start_us: TimeUs;
-  duration_us: TimeUs;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  opacity: number;
-};
-
-export type TextOverlayItem = {
-  id: string;
-  track_id: string;
-  timeline_start_us: TimeUs;
-  duration_us: TimeUs;
-  text: string;
-  font_size: number;
-  color: string;
-  x: number;
-  y: number;
-};
-
-export type Project = {
-  id: string;
-  name: string;
-  settings: ProjectSettings;
-  assets: Asset[];
-  timeline: Timeline;
-};
 
 type TimelineSnapshot = {
   before: Timeline;

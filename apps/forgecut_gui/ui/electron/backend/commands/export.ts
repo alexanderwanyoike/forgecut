@@ -1,7 +1,7 @@
 import { exportProject } from "../exporter.js";
 import { requiredString, type CommandRegistry } from "./types.js";
 
-export const exportCommands: CommandRegistry = {
+export const exportCommands = {
   export_project: async (args, { state, webContents }) => {
     const outputPath = requiredString(args, "outputPath");
 
@@ -13,4 +13,4 @@ export const exportCommands: CommandRegistry = {
 
     webContents.send("forgecut:event:export-complete", { output_path: outputPath });
   },
-};
+} satisfies CommandRegistry;

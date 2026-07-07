@@ -1,6 +1,6 @@
 import { requiredString, type CommandRegistry } from "./types.js";
 
-export const projectCommands: CommandRegistry = {
+export const projectCommands = {
   create_project: (_args, { state }) => JSON.stringify(state.createProject()),
 
   save_project: (args, { state }) =>
@@ -10,4 +10,4 @@ export const projectCommands: CommandRegistry = {
     JSON.stringify(await state.loadProject(requiredString(args, "path"))),
 
   get_project_settings: (_args, { state }) => state.project.settings,
-};
+} satisfies CommandRegistry;

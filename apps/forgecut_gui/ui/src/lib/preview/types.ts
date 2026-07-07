@@ -1,27 +1,14 @@
-export interface ClipAtPlayhead {
-  file_path: string;
-  seek_seconds: number;
-  clip_start_us: number;
-  clip_end_us: number;
-  source_in_us: number;
-}
+import type {
+  ImageOverlayItem,
+  TextOverlayItem,
+} from "../../../electron/shared/ipc-contract";
 
+export type { ClipAtPlayhead } from "../../../electron/shared/ipc-contract";
+
+/** Overlay shape as consumed by the preview surface (variant fields optional). */
 export interface OverlayData {
-  ImageOverlay?: {
-    file_path: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    opacity: number;
-  };
-  TextOverlay?: {
-    text: string;
-    font_size: number;
-    color: string;
-    x: number;
-    y: number;
-  };
+  ImageOverlay?: ImageOverlayItem & { file_path?: string };
+  TextOverlay?: TextOverlayItem;
 }
 
 export interface PreviewProps {

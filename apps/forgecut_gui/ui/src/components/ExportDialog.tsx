@@ -35,7 +35,7 @@ export default function ExportDialog(props: { onClose: () => void }) {
     setExporting(true);
     setError(null);
 
-    unlistenProgressRef.current = await listen<RenderProgress>("export-progress", (event) => {
+    unlistenProgressRef.current = await listen("export-progress", (event) => {
       setProgress(event.payload);
     });
 

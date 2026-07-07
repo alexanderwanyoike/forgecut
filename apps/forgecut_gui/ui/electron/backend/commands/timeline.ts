@@ -22,7 +22,7 @@ import {
   type CommandRegistry,
 } from "./types.js";
 
-export const timelineCommands: CommandRegistry = {
+export const timelineCommands = {
   get_timeline: (_args, { state }) => state.project.timeline,
   init_default_tracks: (_args, { state }) => state.initDefaultTracks(),
   add_clip_to_timeline: (args, { state }) =>
@@ -173,7 +173,7 @@ export const timelineCommands: CommandRegistry = {
         args?.value,
       );
     }),
-};
+} satisfies CommandRegistry;
 
 function createTimelineItem(
   asset: Asset,

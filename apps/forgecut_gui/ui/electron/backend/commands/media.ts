@@ -9,7 +9,7 @@ import {
   type CommandRegistry,
 } from "./types.js";
 
-export const mediaCommands: CommandRegistry = {
+export const mediaCommands = {
   import_assets: async (args, { state }) => {
     const imported = [];
     for (const path of requiredStringArray(args, "paths")) {
@@ -37,7 +37,7 @@ export const mediaCommands: CommandRegistry = {
     const asset = requireAsset(state.project.assets, requiredString(args, "assetId"));
     return extractWaveform(asset.path, asset.id, 256);
   },
-};
+} satisfies CommandRegistry;
 
 function requireAsset<T extends { id: string }>(assets: T[], assetId: string): T {
   const asset = assets.find((candidate) => candidate.id === assetId);

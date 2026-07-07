@@ -15,7 +15,8 @@ class MockResizeObserver {
 }
 vi.stubGlobal("ResizeObserver", MockResizeObserver);
 
-import Timeline, {
+import Timeline from "../components/Timeline";
+import {
   TIMELINE_ZOOM_MAX,
   TIMELINE_ZOOM_MIN,
   minimapViewport,
@@ -23,7 +24,7 @@ import Timeline, {
   timelineRulerInterval,
   zoomInLevel,
   zoomOutLevel,
-} from "../components/Timeline";
+} from "../lib/timeline/geometry";
 
 describe("Timeline controls", () => {
   const defaultProps = {
@@ -136,7 +137,7 @@ describe("Timeline controls", () => {
     expect(timelinePointerUs(188, 100, 500, 180)).toBe(3_000_000);
   });
 
-  it("seeks on a plain clip click at the clicked offset across zoom levels", async () => {
+  it("selects on a plain clip click without moving the playhead", async () => {
     mockInvoke.mockImplementation(async (cmd: string) => {
       if (cmd === "init_default_tracks") return timelineWithVideo;
       if (cmd === "get_snap_points") return [];
@@ -144,23 +145,15 @@ describe("Timeline controls", () => {
       return null;
     });
     const onPlayheadChange = vi.fn();
-    render(<Timeline {...defaultProps} onPlayheadChange={onPlayheadChange} />);
+    const onSelectedClipChange = vi.fn();
+    render(
+      <Timeline
+        {...defaultProps}
+        onPlayheadChange={onPlayheadChange}
+        onSelectedClipChange={onSelectedClipChange}
+      />
+    );
     const clip = await screen.findByText("Video");
-    const timelineScroll = document.querySelector(".timeline-scroll") as HTMLDivElement;
-    timelineScroll.getBoundingClientRect = () =>
-      ({ left: 100, top: 0, width: 800, height: 240, right: 900, bottom: 240, x: 100, y: 0, toJSON: () => {} }) as DOMRect;
-    let scrollLeftValue = 0;
-    Object.defineProperty(timelineScroll, "scrollLeft", {
-      configurable: true,
-      get: () => scrollLeftValue,
-      set: (value) => {
-        scrollLeftValue = value;
-      },
-    });
-    Object.defineProperty(timelineScroll, "clientWidth", {
-      configurable: true,
-      get: () => 800,
-    });
 
     for (const zoom of [25, 90, 180]) {
       const slider = screen.getByRole("slider") as HTMLInputElement;
@@ -171,8 +164,9 @@ describe("Timeline controls", () => {
       fireEvent.mouseUp(window, { clientX, clientY: 80 });
 
       await waitFor(() => {
-        expect(onPlayheadChange).toHaveBeenLastCalledWith(4_000_000);
+        expect(onSelectedClipChange).toHaveBeenLastCalledWith("clip-1");
       });
+      expect(onPlayheadChange).not.toHaveBeenCalled();
     }
   });
 

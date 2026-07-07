@@ -1,4 +1,5 @@
 import type { IpcMainInvokeEvent, WebContents } from "electron";
+import type { CommandName } from "../shared/ipc-contract.js";
 import type { AppState } from "./state.js";
 import { autosaveCommands } from "./commands/autosave.js";
 import { exportCommands } from "./commands/export.js";
@@ -18,7 +19,10 @@ export type CommandHandler = (
   context: CommandContext,
 ) => Promise<unknown> | unknown;
 
-const handlers: Record<string, CommandHandler> = {
+// Record<CommandName, ...> makes a contract command without a handler a
+// compile error. Handler args stay untyped here because IPC input is
+// untrusted; each handler validates at runtime.
+const handlers: Record<CommandName, CommandHandler> = {
   ...projectCommands,
   ...timelineCommands,
   ...mediaCommands,
@@ -32,9 +36,9 @@ export async function dispatchCommand(
   command: string,
   args: CommandArgs = {},
 ): Promise<unknown> {
-  const handler = handlers[command];
+  const handler = handlers[command as CommandName];
   if (!handler) {
-    throw new Error(`Electron command not ported yet: ${command}`);
+    throw new Error(`Unknown Electron command: ${command}`);
   }
 
   return handler(args, {
