@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
-// Mock @tauri-apps/api/core
-const mockInvoke = vi.fn();
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: (...args: any[]) => mockInvoke(...args),
+const mockInvoke = vi.hoisted(() => vi.fn());
+vi.mock("../lib/bridge", () => ({
+  invoke: mockInvoke,
+  mediaUrl: (path: string) => `forgecut-media://${path}`,
 }));
 
 // Mock ResizeObserver

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../lib/bridge";
 
 interface ProjectSettings {
   width: number;
@@ -21,7 +21,7 @@ export default function Inspector(props: InspectorProps) {
   useEffect(() => {
     (async () => {
       try {
-        const s = await invoke<ProjectSettings>("get_project_settings");
+        const s = await invoke("get_project_settings");
         setSettings(s);
       } catch {
         // ignore
@@ -39,7 +39,7 @@ export default function Inspector(props: InspectorProps) {
     }
     (async () => {
       try {
-        const details = await invoke<any>("get_item_details", { itemId: id });
+        const details = await invoke("get_item_details", { itemId: id }) as Record<string, unknown>;
         const variant = Object.keys(details)[0];
         setItemType(variant);
         setItemData(details[variant]);
@@ -60,7 +60,7 @@ export default function Inspector(props: InspectorProps) {
         value,
       });
       // Refresh item data
-      const details = await invoke<any>("get_item_details", { itemId: id });
+      const details = await invoke("get_item_details", { itemId: id }) as Record<string, unknown>;
       const variant = Object.keys(details)[0];
       setItemType(variant);
       setItemData(details[variant]);

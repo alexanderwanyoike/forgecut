@@ -1,15 +1,9 @@
-# Rust
-/target/
-**/*.rs.bk
-
 # Node
 ui/node_modules/
 ui/dist/
 apps/**/ui/node_modules/
 apps/**/ui/dist/
-
-# Tauri
-apps/**/src-tauri/target/
+apps/**/ui/electron/dist/
 
 # IDE
 .idea/

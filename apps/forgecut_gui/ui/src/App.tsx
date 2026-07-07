@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { save, open } from "@tauri-apps/plugin-dialog";
+import { invoke, open, save } from "./lib/bridge";
 import AssetBin from "./components/AssetBin";
 import ExportDialog from "./components/ExportDialog";
 import Inspector from "./components/Inspector";
@@ -51,10 +50,11 @@ export default function App() {
       multiple: false,
     });
     if (!filePath) return;
+    const path = Array.isArray(filePath) ? filePath[0] : filePath;
     try {
-      await invoke("load_project", { path: filePath });
+      await invoke("load_project", { path });
       setProjectName(
-        (filePath as string).split("/").pop()?.replace(".forgecut", "") || "Project"
+        path.split("/").pop()?.replace(".forgecut", "") || "Project"
       );
       setPlayheadUs(0);
       setPlaying(false);

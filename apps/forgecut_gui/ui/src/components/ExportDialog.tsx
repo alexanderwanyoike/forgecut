@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { save } from "@tauri-apps/plugin-dialog";
+import { invoke, listen, save } from "../lib/bridge";
 
 interface RenderProgress {
   percent: number;
@@ -20,14 +18,6 @@ export default function ExportDialog(props: { onClose: () => void }) {
   const unlistenProgressRef = useRef<(() => void) | null>(null);
   const unlistenCompleteRef = useRef<(() => void) | null>(null);
 
-  // Hide mpv X11 window on mount so it doesn't render above this dialog
-  useEffect(() => {
-    invoke("mpv_hide").catch(() => {});
-    return () => {
-      invoke("mpv_show").catch(() => {});
-    };
-  }, []);
-
   useEffect(() => {
     return () => {
       unlistenProgressRef.current?.();
@@ -45,7 +35,7 @@ export default function ExportDialog(props: { onClose: () => void }) {
     setExporting(true);
     setError(null);
 
-    unlistenProgressRef.current = await listen<RenderProgress>("export-progress", (event) => {
+    unlistenProgressRef.current = await listen("export-progress", (event) => {
       setProgress(event.payload);
     });
 

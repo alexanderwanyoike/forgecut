@@ -7,63 +7,7 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
-  # ─────────────────────────────────────────────
-  # Rust tests — Linux (full workspace)
-  # ─────────────────────────────────────────────
-  test-rust-linux:
-    name: Rust tests (Linux)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            libx11-dev \
-            libxext-dev \
-            patchelf
-
-      - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-
-      - name: Run tests (full workspace)
-        run: cargo test --workspace
-
-  # ─────────────────────────────────────────────
-  # Rust tests — Windows & macOS (portable crates only)
-  # forgecut_preview uses x11-dl (Linux/X11 only)
-  # ─────────────────────────────────────────────
-  test-rust-cross:
-    name: Rust tests (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-
-      - name: Run tests (core + render only)
-        run: cargo test -p forgecut_core -p forgecut_render
-
   # ─────────────────────────────────────────────
   # Frontend tests — all platforms
   # ─────────────────────────────────────────────
@@ -80,7 +24,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Enable Corepack (yarn)
         run: corepack enable
@@ -95,39 +39,24 @@ jobs:
         run: yarn --cwd apps/forgecut_gui/ui build
 
   # ─────────────────────────────────────────────
-  # Tauri build — Linux only
+  # Electron build — Linux only
   # ─────────────────────────────────────────────
-  build-tauri-linux:
-    name: Tauri build (Linux)
+  build-electron-linux:
+    name: Electron build (Linux)
     runs-on: ubuntu-latest
-    needs: [test-rust-linux, test-frontend]
-    permissions:
-      contents: write
+    needs: [test-frontend]
     steps:
       - uses: actions/checkout@v4
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            libx11-dev \
-            libxext-dev \
-            patchelf
-
-      - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+          sudo apt-get install -y xvfb
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Enable Corepack (yarn)
         run: corepack enable
@@ -135,27 +64,10 @@ jobs:
       - name: Install frontend dependencies
         run: yarn --cwd apps/forgecut_gui/ui install --frozen-lockfile
 
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2" --locked
+      - name: Build renderer and Electron main
+        run: yarn --cwd apps/forgecut_gui/ui build
 
-      - name: Build Tauri app
-        run: cargo tauri build --ci
-        working-directory: apps/forgecut_gui/src-tauri
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: forgecut-linux
-          path: |
-            target/release/bundle/deb/*.deb
-            target/release/bundle/rpm/*.rpm
-            target/release/bundle/appimage/*.AppImage
-
-      - name: Upload release assets
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            target/release/bundle/deb/*.deb
-            target/release/bundle/rpm/*.rpm
-            target/release/bundle/appimage/*.AppImage
+      - name: Verify Electron startup
+        run: xvfb-run --auto-servernum yarn --cwd apps/forgecut_gui/ui verify:electron
+        env:
+          ELECTRON_DISABLE_SANDBOX: "1"

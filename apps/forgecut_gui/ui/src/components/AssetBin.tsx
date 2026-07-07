@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { invoke, open } from "../lib/bridge";
 
 interface Asset {
   id: string;
@@ -26,7 +25,7 @@ export default function AssetBin({ projectVersion }: AssetBinProps) {
   useEffect(() => {
     (async () => {
       try {
-        const list = await invoke<Asset[]>("get_assets");
+        const list = await invoke("get_assets");
         setAssets(list ?? []);
       } catch (_) {}
     })();
@@ -48,7 +47,7 @@ export default function AssetBin({ projectVersion }: AssetBinProps) {
     });
     if (selected) {
       const paths = Array.isArray(selected) ? selected : [selected];
-      const imported = await invoke<Asset[]>("import_assets", { paths });
+      const imported = await invoke("import_assets", { paths });
       setAssets((prev) => [...prev, ...imported]);
     }
   };
