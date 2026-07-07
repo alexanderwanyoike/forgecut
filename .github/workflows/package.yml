@@ -1,0 +1,77 @@
+name: Package
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to attach installers to"
+        required: true
+
+jobs:
+  package:
+    name: Package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    permissions:
+      contents: write
+    env:
+      # No signing certificates in CI; ship unsigned builds
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack (yarn)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn --cwd apps/forgecut_gui/ui install --frozen-lockfile
+
+      - name: Install rpm tooling
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+
+      - name: Build installers (Linux)
+        if: runner.os == 'Linux'
+        run: yarn --cwd apps/forgecut_gui/ui package:linux
+
+      - name: Build installers (macOS)
+        if: runner.os == 'macOS'
+        run: yarn --cwd apps/forgecut_gui/ui package:mac
+
+      - name: Build installers (Windows)
+        if: runner.os == 'Windows'
+        run: yarn --cwd apps/forgecut_gui/ui package:win
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: forgecut-${{ matrix.os }}
+          path: |
+            apps/forgecut_gui/ui/dist-installers/forgecut-*.AppImage
+            apps/forgecut_gui/ui/dist-installers/forgecut-*.deb
+            apps/forgecut_gui/ui/dist-installers/forgecut-*.rpm
+            apps/forgecut_gui/ui/dist-installers/forgecut-*.dmg
+            apps/forgecut_gui/ui/dist-installers/forgecut-*.exe
+
+      - name: Attach installers to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          files: |
+            apps/forgecut_gui/ui/dist-installers/forgecut-*.AppImage
+            apps/forgecut_gui/ui/dist-installers/forgecut-*.deb
+            apps/forgecut_gui/ui/dist-installers/forgecut-*.rpm
+            apps/forgecut_gui/ui/dist-installers/forgecut-*.dmg
+            apps/forgecut_gui/ui/dist-installers/forgecut-*.exe
