@@ -66,6 +66,8 @@ const electron = spawnChecked(electronPath, ["electron/dist/main.js"], {
   env: {
     ...process.env,
     ELECTRON_RENDERER_URL: rendererUrl,
+    ELECTRON_REMOTE_DEBUGGING_PORT:
+      process.env.ELECTRON_REMOTE_DEBUGGING_PORT ?? "9222",
   },
 });
 

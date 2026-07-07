@@ -24,16 +24,20 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
-app.commandLine.appendSwitch(
-  "remote-debugging-port",
-  process.env.ELECTRON_REMOTE_DEBUGGING_PORT ?? "9222",
-);
+// Dev-only: never open a debug port in packaged builds
+if (process.env.ELECTRON_REMOTE_DEBUGGING_PORT) {
+  app.commandLine.appendSwitch(
+    "remote-debugging-port",
+    process.env.ELECTRON_REMOTE_DEBUGGING_PORT,
+  );
+}
 
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
     title: "ForgeCut",
+    autoHideMenuBar: true,
     icon: join(__dirname, "../assets/icon.png"),
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
