@@ -20,19 +20,40 @@ A lightweight, Linux-first timeline video editor built with Electron and React. 
 
 ## Architecture
 
-ForgeCut is an Electron application with a React/Vite renderer and Node main-process backend exposed through a typed preload bridge.
+ForgeCut is a pure Electron/TypeScript application: a React/Vite renderer talks to a Node backend in the Electron main process over a typed IPC bridge.
 
 ```
-forgecut/
-├── crates/
-│   ├── forgecut_core      # Data model, timeline editing, undo/redo, save/load
-│   └── forgecut_render    # Rust render reference implementation during migration
-└── apps/
-    └── forgecut_gui/
-        └── ui/
-            ├── electron/  # Electron main/preload and Node backend commands
-            └── src/       # React + Vite renderer
+apps/forgecut_gui/ui/
+├── electron/
+│   ├── main.ts               # App entry: window, IPC wiring, media protocol
+│   ├── preload.cts           # contextBridge exposing window.forgecut
+│   ├── shared/
+│   │   └── ipc-contract.ts   # Single source of truth: domain types + CommandMap
+│   └── backend/
+│       ├── ipc.ts            # Command dispatch (checked against the contract)
+│       ├── commands/         # IPC command handlers by domain
+│       ├── state.ts          # Project state + snapshot-based undo/redo
+│       ├── timeline-ops.ts   # Pure timeline mutations
+│       ├── exporter.ts       # ffmpeg filter-graph compiler + runner
+│       ├── media-probe.ts    # ffprobe asset import
+│       ├── media-derived.ts  # Thumbnails and waveforms
+│       └── media-protocol.ts # Range-aware forgecut-media:// serving
+└── src/
+    ├── components/           # Thin views (Timeline, TimelineClip, Preview, ...)
+    ├── hooks/                # Behavior: interactions, shortcuts, media, playback
+    └── lib/
+        ├── bridge.ts         # Typed invoke()/listen() over window.forgecut
+        ├── timeline/         # Pure geometry and item math
+        └── preview/          # Playback time utils and video element helpers
 ```
+
+Key design points:
+
+- **Typed IPC contract** — `electron/shared/ipc-contract.ts` declares every command's args and result. The backend dispatch table fails to compile if a command lacks a handler; the renderer's `invoke()` type-checks command names, args, and results.
+- **Range-aware media serving** — the `forgecut-media://` protocol answers HTTP Range requests with 206 responses so the HTML5 preview can seek and scrub frame-accurately.
+- **Snapshot undo/redo** — every timeline edit captures before/after snapshots server-side; undo/redo is a stack swap.
+- **ffmpeg/ffprobe as child processes** — never linked, always spawned; export compiles the timeline into a single ffmpeg filter graph.
+- **Scrubbing lives on the ruler** — clicking a clip selects it; only the ruler moves the playhead.
 
 ## Prerequisites
 
@@ -49,7 +70,6 @@ sudo dnf install ffmpeg
 **Build dependencies:**
 
 - [Node.js](https://nodejs.org) ≥ 20 + Yarn (`corepack enable`)
-- [Rust](https://rustup.rs) (stable) for the remaining portable crates during migration
 
 ## Building
 
@@ -67,9 +87,6 @@ yarn --cwd apps/forgecut_gui/ui build
 ## Running Tests
 
 ```bash
-# Rust unit tests
-cargo test --workspace
-
 # Frontend and Electron backend tests
 yarn --cwd apps/forgecut_gui/ui test
 ```
@@ -94,10 +111,9 @@ GitHub Actions runs on every push and pull request:
 
 | Job | Linux | macOS | Windows |
 |---|---|---|---|
-| Rust tests | Full workspace | Core + Render | Core + Render |
 | Frontend tests | Yes | Yes | Yes |
-| Electron build | Yes | Yes | Yes |
+| Electron build + startup check | Yes | No | No |
 
 ## License
 
-MIT — see [Cargo.toml](Cargo.toml)
+MIT — see [LICENSE](apps/forgecut_gui/ui/LICENSE)
