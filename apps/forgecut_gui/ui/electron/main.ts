@@ -1,9 +1,12 @@
-import { app, BrowserWindow, dialog, ipcMain, net, protocol } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, protocol } from "electron";
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { AppState } from "./backend/state.js";
 import { dispatchCommand } from "./backend/ipc.js";
+import { mediaResponseInit } from "./backend/media-protocol.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -64,16 +67,32 @@ ipcMain.handle("forgecut:dialog:save", async (_event, options = {}) => {
 });
 
 app.whenReady().then(() => {
-  protocol.handle("forgecut-media", (request) => {
+  protocol.handle("forgecut-media", async (request) => {
     const url = new URL(request.url);
     const path = url.searchParams.get("path");
     if (!path) return new Response("Missing media path", { status: 400 });
     if (!state.project.assets.some((asset) => asset.path === path)) {
       return new Response("Media path is not part of the current project", { status: 403 });
     }
-    return net.fetch(pathToFileURL(path).toString(), {
-      headers: request.headers,
-    });
+
+    let size: number;
+    try {
+      size = (await stat(path)).size;
+    } catch {
+      return new Response("Media not found", { status: 404 });
+    }
+
+    // Serve Range requests ourselves: <video> seeking needs 206 responses,
+    // which net.fetch(file://) does not produce.
+    const init = mediaResponseInit(request.headers.get("range"), size, path);
+    if (init.status === 416) {
+      return new Response(null, init);
+    }
+    const stream = createReadStream(
+      path,
+      init.range ? { start: init.range.start, end: init.range.end } : {},
+    );
+    return new Response(Readable.toWeb(stream) as unknown as ReadableStream, init);
   });
 
   createWindow();
