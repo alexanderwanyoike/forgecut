@@ -71,6 +71,10 @@ sudo dnf install ffmpeg
 
 - [Node.js](https://nodejs.org) ≥ 20 + Yarn (`corepack enable`)
 
+## Installing
+
+Download the installer for your platform from the [latest release](https://github.com/alexanderwanyoike/forgecut/releases/latest): `.AppImage`, `.deb`, or `.rpm` on Linux, `.dmg` on macOS, or the `.exe` installer on Windows. `ffmpeg` must be installed and on your `PATH` (the deb/rpm packages declare it as a dependency).
+
 ## Building
 
 ```bash
@@ -82,6 +86,9 @@ yarn --cwd apps/forgecut_gui/ui dev
 
 # Production build
 yarn --cwd apps/forgecut_gui/ui build
+
+# Build installers for the current platform
+yarn --cwd apps/forgecut_gui/ui package
 ```
 
 ## Running Tests

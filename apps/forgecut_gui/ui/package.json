@@ -2,7 +2,13 @@
   "name": "forgecut-ui",
   "private": true,
   "version": "1.0.0",
+  "author": {
+    "name": "Alex Wanyoike",
+    "email": "alex.m.wanyoike@gmail.com"
+  },
+  "homepage": "https://github.com/alexanderwanyoike/forgecut",
   "type": "module",
+  "main": "electron/dist/main.js",
   "scripts": {
     "dev": "node electron/scripts/dev.mjs",
     "dev:web": "vite",
@@ -11,6 +17,10 @@
     "build:renderer": "tsc && vite build",
     "build": "yarn build:renderer && yarn build:electron",
     "verify:electron": "node electron/scripts/verify-startup.mjs",
+    "package": "yarn build && electron-builder --publish never",
+    "package:linux": "yarn build && electron-builder --linux --publish never",
+    "package:mac": "yarn build && electron-builder --mac --publish never",
+    "package:win": "yarn build && electron-builder --win --publish never",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -28,6 +38,7 @@
     "@vitejs/plugin-react": "^4.3.0",
     "@vitest/coverage-v8": "^4.0.18",
     "electron": "^33.2.1",
+    "electron-builder": "^26.15.3",
     "jsdom": "^28.1.0",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",

@@ -1,0 +1,49 @@
+appId: dev.forgecut.app
+productName: ForgeCut
+copyright: MIT License
+
+directories:
+  output: dist-installers
+  buildResources: electron/assets
+
+files:
+  - dist/**
+  - electron/dist/**
+  - electron/assets/**
+  - package.json
+
+npmRebuild: false
+
+linux:
+  target:
+    - AppImage
+    - deb
+    - rpm
+  icon: electron/assets/icon.png
+  category: AudioVideo
+  synopsis: Lightweight Linux-first timeline video editor
+  artifactName: forgecut-${version}-linux-${arch}.${ext}
+
+deb:
+  depends:
+    - ffmpeg
+
+rpm:
+  depends:
+    - ffmpeg
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: electron/assets/icon.png
+  category: public.app-category.video
+  artifactName: forgecut-${version}-mac-${arch}.${ext}
+
+win:
+  target:
+    - nsis
+  icon: electron/assets/icon.png
+  artifactName: forgecut-${version}-win-${arch}.${ext}

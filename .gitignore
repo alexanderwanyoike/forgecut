@@ -4,6 +4,7 @@ ui/dist/
 apps/**/ui/node_modules/
 apps/**/ui/dist/
 apps/**/ui/electron/dist/
+apps/**/ui/dist-installers/
 
 # IDE
 .idea/
