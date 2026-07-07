@@ -22,9 +22,10 @@ export async function extractThumbnailsBase64(
   assetId: string,
   durationSeconds: number,
   intervalSeconds = 2,
-  thumbWidth = 160,
+  thumbWidth = 320,
 ): Promise<Thumbnail[]> {
-  const assetDir = join(tmpdir(), "forgecut-thumbnails", assetId);
+  // Cache per width so quality changes don't serve stale small thumbnails
+  const assetDir = join(tmpdir(), "forgecut-thumbnails", `${assetId}-w${thumbWidth}`);
   await mkdir(assetDir, { recursive: true });
 
   const results: Thumbnail[] = [];
@@ -130,7 +131,7 @@ async function extractThumbnail(
       "-vf",
       `scale=${width}:-1`,
       "-q:v",
-      "5",
+      "3",
       outputPath,
     ]);
   } catch {
