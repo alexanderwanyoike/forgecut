@@ -3,11 +3,12 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { app, BrowserWindow, protocol } from 'electron';
+import { verifyPackagedRuntime } from './packaged-check.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const dist = resolve(root, 'dist');
 const results = process.env.FORGECUT_CHECK_RESULTS ?? resolve(root, 'results');
-protocol.registerSchemesAsPrivileged([{ scheme: 'forgecut-check', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
+protocol.registerSchemesAsPrivileged(['forgecut-check', 'forgecut-code'].map((scheme) => ({ scheme, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } })));
 app.commandLine.appendSwitch('disable-gpu');
 
 async function main() {
@@ -44,13 +45,19 @@ async function main() {
     return { h264AacMkv: await check('check-source.mkv'), h264AacMp4: await check('check-source.mp4') };
   })()`);
   assert.equal(media.h264AacMp4, true, 'MP4 playback failed');
-  clearTimeout(timeout);
   assert.deepEqual(errors, [], 'Renderer errors');
   const image = await win.webContents.capturePage();
   await writeFile(resolve(results, 'preview.png'), image.toPNG());
   const report = { ...result, ...media, builtAssets: true, developmentServer: false, appPackaged: app.isPackaged, electronWorkingSetKiB: app.getAppMetrics().reduce((sum, metric) => sum + metric.memory.workingSetSize, 0) };
   await writeFile(resolve(results, 'electron.json'), `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify(report));
+  if (process.argv.includes('--phase0')) {
+    clearTimeout(timeout);
+    const phaseTimeout = setTimeout(() => { console.error('Packaged checks timed out'); app.exit(1); }, 120_000);
+    await verifyPackagedRuntime({ results, dist, editor: win });
+    clearTimeout(phaseTimeout);
+  }
+  clearTimeout(timeout);
   win.destroy();
   app.exit(0);
 }

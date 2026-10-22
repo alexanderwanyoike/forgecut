@@ -6,7 +6,11 @@ directories:
 files:
   - dist/**
   - main.mjs
+  - packaged-check.mjs
   - package.json
+extraResources:
+  - from: results/runtime
+    to: runtime
 asar: true
 npmRebuild: false
 linux:
