@@ -2,7 +2,7 @@
 
 Date: 22 October 2026.
 
-Status: accepted direction for implementation, with the remaining Phase 0 gates below.
+Status: accepted; Phase 0 technical feasibility checks complete on Linux x64. Public release requirements are recorded below.
 
 ## Context
 
@@ -24,6 +24,14 @@ Use a secure standard application origin for the future code/graphics surface in
 
 Keep heavy jobs serial initially and enforce a process-tree resource budget. Render concurrency was one; the FFmpeg fixture explicitly limits codec/filter threads. A production policy must also cover children, cancellation and cleanup. The nonminified evaluation build stays separate from the product's build configuration; Monaco needs lazy loading and a deliberate worker/bundle strategy before adoption.
 
+Package the Remotion worker as a Node-compatible bundle and ship executable dependencies beside the ASAR using Electron extra resources. Use the packaged Electron executable's Node runtime for the worker, a pinned prepared Chromium, explicit Remotion `binariesDirectory`, and a separately shipped esbuild executable. Preserve `import.meta.url` semantics when bundling into CommonJS. Build-time preparation records binary hashes, dependency metadata and notices. Render jobs make no browser downloads and use no host Chrome or source-checkout modules.
+
+Retain system FFmpeg for timeline assembly. Remotion's bundled FFmpeg can encode the graphic but its filter set omits `overlay`, so it cannot replace ForgeCut's declared FFmpeg dependency. The packaged suite renders with the included Remotion binaries, then composites with `/usr/bin/ffmpeg` inside the same job namespace.
+
+Use a separate sandboxed Electron renderer/session for component previews, with no preload bridge or Node integration, restricted resource serving, CSP, denied network/file requests, denied permissions and blocked navigation/window creation. Compile source without executing it in Node. Execute transformed components in that renderer or in the browser inside a Bubblewrap render namespace. Bubblewrap follows the namespace/mount pattern used by Flatpak, with an explicit read-only system/runtime view, a clean environment, separate networking and writable job/temp directories. A child process or JavaScript evaluator alone is insufficient isolation.
+
+The Linux execution boundary fails closed if Bubblewrap/user namespaces are unavailable. macOS/Windows user-source execution requires an equivalent platform boundary and validation before it is enabled. This is an implementation decision, rather than a claim that this small fixture provides a comprehensive security audit.
+
 ## Verified results
 
 The existing editor baseline passed all 92 tests, its production build and its Electron startup script. Existing React act warnings and media-method messages appear in the tests. The startup script succeeded but emitted GPU/shutdown diagnostics under Xvfb, so its exit status alone does not establish a clean production shutdown.
@@ -37,6 +45,10 @@ The integration fixture passed these checks:
 - Playback of synthetic H.264/AAC media in MKV and MP4 containers.
 - Transparent PNG/ProRes output and a one-second, 30-frame, 640 by 360 FFmpeg composite, with alpha and pixel checks.
 - MCP STDIO discovery and a fixture tool call using the pinned official SDK.
+- Packaged render worker, compiler, Chromium 157.0.8080.0, compositor and graphics assets launched from an unrelated temporary working directory.
+- TSX compilation and custom component rendering inside the job namespace, with a real host sentinel file, environment secret and local host service remaining inaccessible.
+- Compiled custom preview execution with Node imports, the editor bridge, host network and file reads blocked.
+- Unsupported import rejection, a preview renderer terminated after an infinite loop while the editor remained responsive, and an export process tree killed on deadline followed by a successful render.
 
 The real Octane recording was inspected with ffprobe and contains 1920 by 1080 H.264 at 60 fps and AAC audio. The playback probe used generated media with matching codec/container families; it does not establish long-recording seek accuracy or support for every MKV encoding. Derive playback proxies only when probing/playback shows they are needed, retaining original media for export.
 
@@ -47,15 +59,19 @@ Measured cgroup v2 process-tree peaks on this host:
 | Evaluation asset build, without minification | 2036727808 | 1942 |
 | Packaged preview, workers and media check | 387096576 | 369 |
 | Remotion render and FFmpeg composite | 806027264 | 769 |
+| Complete packaged rendering and isolation suite, final run | 774443008 | 739 |
 
-Each measured check had a 3221225472-byte memory maximum, a 2147483648-byte soft threshold, a 256 MiB swap limit and a CPU quota of 150000 per 100000 microseconds. Build and render Node heaps were limited to 1536 MiB. These are small-fixture measurements, not a production capacity guarantee.
+Each measured check had a 3221225472-byte memory maximum, a 2147483648-byte soft threshold, a 256 MiB swap limit and a CPU quota of 150000 per 100000 microseconds. Build and render Node heaps were limited to 1536 MiB. An earlier successful complete-suite run peaked at 1281540096 bytes, about 1222 MiB. These are small-fixture measurements, not a production capacity guarantee.
 
-## Remaining Phase 0 gates
+## Phase 0 completion and release requirements
 
-- Package and exercise the separate Remotion rendering worker, including its compiler, browser/compositor binaries and local assets, rather than relying on the development workspace or a host Chrome installation.
-- Verify the chosen isolation boundary for compiled project components before enabling user-source execution. The current preview executes a bundled, authored fixture; it is not a custom-code isolation test.
-- Resolve applicable Remotion distribution terms and prepare complete pinned-dependency notices before public release. Keep evaluation dependencies separate until that decision is recorded.
-- Record packaged render-worker results and the browser/binary delivery decision before declaring Phase 0 complete.
+The local evaluation satisfies Phase 0's packaged-preview, compiler, render-worker, media-compatibility and process-budget acceptance checks. The recorded implementation choices are the Linux baseline for later phases. The production editor and its dependencies are unchanged.
+
+The licence investigation establishes distinct terms for Remotion, Monaco, the MCP SDK, Chromium and native FFmpeg. Generated notices retain available upstream texts and the font's installed licence. Remotion is source-available under its own terms; its FAQ distinguishes generated-code services from arbitrary-project rendering services. The selected product architecture remains a local desktop editor. A hosted rendering service would require a separate architecture and licence review.
+
+Public distribution requires a release review of the applicable Remotion terms, complete Chromium/native third-party notices, and the exact corresponding-source/build materials for the distributed GPL FFmpeg libraries. The upstream FFmpeg source/build repository is [rust-ffmpeg-splitter](https://github.com/remotion-dev/rust-ffmpeg-splitter). The evaluation artifacts stay local and outside Git; production distribution clearance is not claimed by Phase 0.
+
+Later phases must integrate the tested process boundaries with real job cancellation, asset grants, project revisions, source promotion and large recordings. Semantic React/Remotion type checking, Windows/macOS execution boundaries and a broader security review remain production implementation work. The namespace exposes read-only system libraries and fonts; it is not a dependency-free Linux container.
 
 ## Patterns and licences
 
@@ -64,3 +80,5 @@ Each measured check had a 3221225472-byte memory maximum, a 2147483648-byte soft
 [Remotion parameterised videos](https://www.remotion.dev/docs/parameterized-rendering), [Player](https://www.remotion.dev/docs/player/player) and [Elements](https://www.remotion.dev/docs/elements) inform shared rendering inputs and exposed layers. Remotion uses its own [licence](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md); it is not covered by ForgeCut's MIT licence.
 
 [Monaco](https://github.com/microsoft/monaco-editor) informs the embedded editor/worker setup and is MIT licensed. Preserve its bundled third-party notices when distributing compiled assets. The fixture's system font is an evaluation input; portable projects must collect font files and applicable notices explicitly.
+
+[Electron security guidance](https://www.electronjs.org/docs/latest/tutorial/security) and [Bubblewrap](https://github.com/containers/bubblewrap) inform preview and render isolation. The host test used Bubblewrap 0.9.0 as a system executable. Remotion's [binaries directory](https://www.remotion.dev/docs/options/binaries-directory) and [ensureBrowser](https://www.remotion.dev/docs/renderer/ensure-browser) APIs inform packaging. Its [licence FAQ](https://www.remotion.dev/docs/license/faq) and [FFmpeg licensing notes](https://www.remotion.dev/docs/miscellaneous/ffmpeg-license) inform the release requirements above.

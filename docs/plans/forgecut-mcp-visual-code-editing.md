@@ -1,6 +1,6 @@
 # ForgeCut MCP and graphics editing implementation plan
 
-Status: agreed implementation plan; Phase 0 in progress, 22 October 2026.
+Status: agreed implementation plan; Phase 0 technical feasibility complete on Linux x64, 22 October 2026. Phase 1 is next.
 
 ForgeCut will become the shared editing workspace for videos assembled with Codex. Codex stays in its existing chat and operates the running editor through MCP. The user can change footage, text, images, fonts, colours, positioning and timing directly, then ask Codex to continue from the current project.
 
@@ -83,7 +83,7 @@ Implement in this order. Phase 2 proves the live editing loop early, but a produ
 
 **Outcome:** resolve the expensive integration questions before designing the full graphics editor.
 
-Progress: the [integration harness](../../tools/integration-check/README.md) passes the Linux packaged preview/Monaco checks, MCP STDIO discovery/tool execution, and a separate transparent Remotion render composited with FFmpeg. The editor baseline passes 92 tests and its build. [ADR 0001](../adr/0001-local-editing-integrations.md) records pinned versions, upstream patterns, resource measurements and remaining gates. Packaging the separate rendering worker and verifying custom-code isolation remain open; Phase 0 is not complete.
+Completed: the [integration harness](../../tools/integration-check/README.md) passes Linux packaged preview/Monaco checks, MCP STDIO discovery/tool execution, and a packaged transparent Remotion render composited with system FFmpeg. Custom source compiles and runs within the tested Electron preview and Bubblewrap export boundaries. Host resource denial, runaway-code termination and subsequent recovery checks pass. The editor baseline passes 92 tests and its build. [ADR 0001](../adr/0001-local-editing-integrations.md) records pinned versions, upstream patterns, resource measurements and public-release requirements. Production integration and other operating systems remain scoped to later phases.
 
 Work:
 
