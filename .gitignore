@@ -28,3 +28,9 @@ Thumbs.db
 *.thumbnails/
 *.waveforms/
 *.autosave/
+
+# Integration feasibility harness
+tools/integration-check/node_modules/
+tools/integration-check/dist/
+tools/integration-check/public/
+tools/integration-check/results/

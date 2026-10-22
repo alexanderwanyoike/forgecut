@@ -1,0 +1,14 @@
+appId: dev.forgecut.integration-check
+productName: ForgeCut Integration Check
+electronVersion: 33.4.11
+directories:
+  output: results/package
+files:
+  - dist/**
+  - main.mjs
+  - package.json
+asar: true
+npmRebuild: false
+linux:
+  executableName: forgecut-integration-check
+  target: dir
