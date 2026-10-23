@@ -8,6 +8,7 @@ import { chmod, lstat, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
+import { dispatchLocal } from "./dispatch.js";
 import type { EditingService } from "../backend/editing-service.js";
 import {
   MAX_MESSAGE_BYTES,
@@ -91,35 +92,14 @@ export async function startLocalBridge(
       chunks.push(buffer);
     }
     const input: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-    if (
-      req.method !== "POST" ||
-      req.url !== "/tools" ||
-      !input ||
-      typeof input !== "object" ||
-      !("action" in input) ||
-      input.action !== "summary"
-    ) {
+    if (req.method !== "POST" || req.url !== "/tools") {
       send(res, {
         ok: false,
         error: { code: "INVALID_INPUT", message: "Unknown local operation." },
       });
       return;
     }
-    const { state } = service;
-    send(res, {
-      ok: true,
-      value: {
-        projectId: state.project.id,
-        sessionId: state.sessionId,
-        revision: state.revision,
-        name: state.project.name,
-        settings: state.project.settings,
-        assetCount: state.project.assets.length,
-        trackCount: state.project.timeline.tracks.length,
-        canUndo: state.snapshot().canUndo,
-        canRedo: state.snapshot().canRedo,
-      },
-    });
+    send(res, await dispatchLocal(service, input));
   };
   const server = createServer((req, res) => {
     void serve(req, res).catch(() =>

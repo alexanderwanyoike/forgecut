@@ -108,6 +108,7 @@ export type ProjectSnapshot = {
   canUndo: boolean;
   canRedo: boolean;
   missingMedia: string[];
+  changedItemIds?: string[];
 };
 
 export type EditErrorCode =
