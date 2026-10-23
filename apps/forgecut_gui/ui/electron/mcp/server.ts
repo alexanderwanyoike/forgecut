@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { editingCapabilities } from "./capabilities.js";
 import { editRequestSchema } from "../backend/command-schema.js";
 import { idSchema, timeSchema } from "../backend/project-schema.js";
 import { pageFields } from "./dispatch.js";
@@ -15,7 +16,23 @@ function toolResult(result: BridgeResult) {
 }
 
 export function createMcpServer(directory = sessionDirectory()): McpServer {
-  const server = new McpServer({ name: "forgecut", version: "1.0.0" });
+  const server = new McpServer(
+    { name: "forgecut", version: "1.0.0" },
+    {
+      instructions:
+        "List sessions and attach to an explicitly selected instance before reading or editing. Read project identity and revision, then use stable item IDs and integer microseconds. Call get_capabilities for supported edit arguments. Apply labelled batches with the expected revision and a unique request ID. On CONFLICT reread and reconsider; retry uncertain results with the identical request ID and input. Never infer an editing target from another instance or an old selection.",
+    },
+  );
+  server.registerTool(
+    "get_capabilities",
+    {
+      description:
+        "Read supported edit argument schemas, time units and bounded request limits. Requires no project attachment.",
+      inputSchema: z.strictObject({}),
+      annotations: { readOnlyHint: true },
+    },
+    () => toolResult({ ok: true, value: editingCapabilities }),
+  );
   let selected: LocalSession | undefined;
   const call = async (input: unknown) =>
     toolResult(
