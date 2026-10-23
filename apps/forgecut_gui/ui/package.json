@@ -28,7 +28,8 @@
     "format:check": "prettier --ignore-path ../../../.prettierignore --check ../../..",
     "analyze": "fallow",
     "analyze:architecture": "fallow architecture",
-    "analyze:health": "fallow health"
+    "analyze:health": "fallow health",
+    "lint": "eslint src electron --ext .ts,.tsx,.cts"
   },
   "dependencies": {
     "react": "^18.3.0",
@@ -41,10 +42,17 @@
     "@types/node": "^22.10.2",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "8.46.1",
+    "@typescript-eslint/parser": "8.46.1",
     "@vitejs/plugin-react": "^4.3.0",
     "@vitest/coverage-v8": "^4.0.18",
     "electron": "^33.2.1",
     "electron-builder": "^26.15.3",
+    "eslint": "8.57.1",
+    "eslint-config-airbnb-base": "15.0.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-import-resolver-typescript": "3.10.1",
+    "eslint-plugin-import": "2.32.0",
     "fallow": "3.35.0",
     "jsdom": "^28.1.0",
     "prettier": "3.9.10",
