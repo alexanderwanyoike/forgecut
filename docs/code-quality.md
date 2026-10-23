@@ -68,3 +68,13 @@ Formatting did not change the number of complexity findings or clone groups. It 
 The scan uses syntactic analysis and static test reachability estimates, not measured coverage or production execution evidence. An A grade does not establish correctness, low runtime coupling, good domain boundaries or adequate test assertions. Zero policy findings do not mean policy checks passed: no policy rule packs are configured. Git churn rankings are influenced by the repository's short history and broad historical commits.
 
 Validation for this change: all 120 tests across 16 files pass; renderer and Electron TypeScript builds pass; Electron startup and shared editing verification pass under Xvfb. Existing React `act` and jsdom media warnings remain. The headless GPU diagnostic also remains while startup verification succeeds. All 55 reformatted files were checked against exact Prettier output from their prior contents. A temporary renderer-to-backend import was correctly rejected by Fallow and then removed. No new application behaviour or regression tests were added for formatting.
+
+## TypeScript linting
+
+Run `yarn --cwd apps/forgecut_gui/ui lint`. Production renderer, Electron and shared TypeScript are checked with Airbnb's base rules, TypeScript-aware recommended type checking and Prettier compatibility. Strict TypeScript compilation remains required. Explicit `any` and unsafe assignment, argument, call, member access and return rules are errors. Tests and generated build output are outside this production lint scope.
+
+The [Airbnb configuration](https://github.com/airbnb/javascript/tree/master/packages/eslint-config-airbnb-base) (MIT) informs this setup. ESLint 8.57.1 matches that configuration's published peer range; it is a compatibility pin on an unsupported ESLint release and should be upgraded when migrating the Airbnb configuration. [TypeScript ESLint](https://typescript-eslint.io/getting-started/typed-linting/) (MIT) provides typed rules; the TypeScript import resolver understands NodeNext `.js` imports and renderer extensionless imports.
+
+Project-specific choices retain named exports, serialized snake_case fields, guarded `continue` loops, sequential subprocess work and mutations of private transaction drafts. TypeScript handles type references and hoisted functions. Electron is a build-time dependency; its entry points may import it. React async event attributes are accepted, while floating promises and unsafe value operations remain checked. Empty callback sinks and already-handled catch blocks are allowed. These choices are explicit configuration rather than per-line suppression comments.
+
+CI now runs on every pull request target, including stacked branches, and checks lint, formatting, tests and builds.
