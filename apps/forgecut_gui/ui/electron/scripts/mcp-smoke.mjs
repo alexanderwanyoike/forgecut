@@ -1,3 +1,4 @@
+import { tmpdir } from "node:os";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { fileURLToPath } from "node:url";
@@ -6,7 +7,8 @@ export async function verifyMcp(directory, send) {
   const client = new Client({ name: "forgecut-smoke", version: "1" });
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [fileURLToPath(new URL("../dist/mcp/stdio.js", import.meta.url))],
+    cwd: tmpdir(),
+    args: [fileURLToPath(new URL("../dist/mcp-adapter.cjs", import.meta.url))],
     env: { ...process.env, FORGECUT_MCP_DIR: directory },
   });
   try {
