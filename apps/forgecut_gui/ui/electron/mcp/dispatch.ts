@@ -11,17 +11,17 @@ import {
 import { EditingError } from "../backend/editing-error.js";
 import type { BridgeResult } from "./contract.js";
 
-const page = {
+export const pageFields = {
   sessionId: idSchema,
   offset: timeSchema.default(0),
   limit: z.number().int().min(1).max(100).default(50),
 };
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("summary") }),
-  z.strictObject({ action: z.literal("assets"), ...page }),
+  z.strictObject({ action: z.literal("assets"), ...pageFields }),
   z.strictObject({
     action: z.literal("timeline"),
-    ...page,
+    ...pageFields,
     startUs: timeSchema,
     endUs: timeSchema,
   }),
@@ -50,13 +50,11 @@ function summary(source: SummarySource) {
     settings: source.project.settings,
     assetCount: source.project.assets.length,
     trackCount: source.project.timeline.tracks.length,
-    tracks: source.project.timeline.tracks
-      .slice(0, 100)
-      .map((track) => ({
-        id: track.id,
-        kind: track.kind,
-        itemCount: track.items.length,
-      })),
+    tracks: source.project.timeline.tracks.slice(0, 100).map((track) => ({
+      id: track.id,
+      kind: track.kind,
+      itemCount: track.items.length,
+    })),
     canUndo: source.canUndo,
     canRedo: source.canRedo,
   };
