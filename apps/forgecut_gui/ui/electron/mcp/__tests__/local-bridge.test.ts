@@ -97,6 +97,7 @@ it("commits guarded batches to the UI owner and reports created item IDs on retr
     ).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
     const timeline = await callBridge(bridge.session, {
       action: "timeline",
+      sessionId: state.sessionId,
       offset: 0,
       limit: 1,
       startUs: 0,
