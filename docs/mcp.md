@@ -30,6 +30,15 @@ If an instance disappears, tools return `UNAVAILABLE`. List sessions and explici
 
 Packaging copies `mcp-adapter.cjs` and `mcp-notices.txt` into the installation's resources directory, beside `app.asar`. The standalone CommonJS adapter contains its JavaScript dependencies. Start it with Node 22, passing the absolute path to `resources/mcp-adapter.cjs`; its working directory does not need to contain the source checkout. Build dependencies are not duplicated in the installed application's Node modules.
 
+The packaged Electron executable can also run the adapter using its included Node runtime, avoiding a separate Node installation. This path was verified with the Linux unpacked build:
+
+```toml
+[mcp_servers.forgecut]
+command = "/absolute/path/to/installation/forgecut"
+args = ["/absolute/path/to/installation/resources/mcp-adapter.cjs"]
+env = { ELECTRON_RUN_AS_NODE = "1" }
+```
+
 The default registry is `$XDG_CONFIG_HOME/forgecut/mcp-sessions`, falling back to `~/.config/forgecut/mcp-sessions`. `FORGECUT_MCP_DIR` overrides it for both application and adapter, including isolated tests. The application publishes owner-only descriptors and a private socket directory. Windows uses a named pipe. A per-instance random secret authenticates local requests. Only supported editing operations are exposed.
 
 ## Scope and verification
