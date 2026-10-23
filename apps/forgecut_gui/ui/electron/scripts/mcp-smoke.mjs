@@ -1,14 +1,22 @@
+import { cp, mkdtemp, rm } from "node:fs/promises";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { fileURLToPath } from "node:url";
 
 export async function verifyMcp(directory, send) {
+  const isolated = await mkdtemp(join(tmpdir(), "forgecut-adapter-"));
+  const adapter = join(isolated, "adapter.cjs");
+  await cp(
+    fileURLToPath(new URL("../dist/mcp-adapter.cjs", import.meta.url)),
+    adapter,
+  );
   const client = new Client({ name: "forgecut-smoke", version: "1" });
   const transport = new StdioClientTransport({
     command: process.execPath,
     cwd: tmpdir(),
-    args: [fileURLToPath(new URL("../dist/mcp-adapter.cjs", import.meta.url))],
+    args: [adapter],
     env: { ...process.env, FORGECUT_MCP_DIR: directory },
   });
   try {
@@ -56,5 +64,6 @@ export async function verifyMcp(directory, send) {
   } finally {
     await client.close();
     await transport.close();
+    await rm(isolated, { recursive: true, force: true });
   }
 }
