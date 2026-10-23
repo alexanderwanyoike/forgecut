@@ -75,8 +75,9 @@ export class AppState {
 
   executeTimelineChange(mutator: (timeline: Timeline) => void): Timeline {
     const before = cloneTimeline(this.project.timeline);
-    mutator(this.project.timeline);
-    const after = cloneTimeline(this.project.timeline);
+    const after = cloneTimeline(before);
+    mutator(after);
+    this.project.timeline = after;
 
     this.redoStack = [];
     this.undoStack.push({ before, after });
