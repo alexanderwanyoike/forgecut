@@ -13,6 +13,7 @@ import { EditingError } from "./editing-error.js";
 import {
   commandSchemas,
   editRequestSchema,
+  historyRequestSchema,
   editSchemas,
   metadataSchema,
 } from "./command-schema.js";
@@ -28,7 +29,10 @@ import type {
 } from "./commands/types.js";
 
 const handlers: Record<
-  Exclude<CommandName, "get_project_snapshot" | "apply_edits">,
+  Exclude<
+    CommandName,
+    "get_project_snapshot" | "apply_edits" | "apply_history"
+  >,
   CommandHandler
 > = {
   ...projectCommands,
@@ -65,8 +69,11 @@ export class EditingService {
         input,
       ) as CommandArgs;
       let value: unknown;
-      if (command === "apply_edits") {
-        const snapshot = this.applyEdits(args as EditRequest);
+      if (command === "apply_edits" || command === "apply_history") {
+        const snapshot =
+          command === "apply_edits"
+            ? this.applyEdits(args as EditRequest)
+            : this.applyHistory(args);
         return {
           ok: true,
           value: snapshot,
@@ -184,6 +191,51 @@ export class EditingService {
       request.operations as EditOperation[],
       request.editGroup,
     );
+    const snapshot = {
+      ...this.state.snapshot(),
+      changedItemIds: changedItemIds(before, this.state.project),
+    };
+    this.requests.set(key, {
+      fingerprint,
+      snapshot,
+      bytes: Buffer.byteLength(JSON.stringify(snapshot)),
+    });
+    let bytes = [...this.requests.values()].reduce(
+      (sum, entry) => sum + entry.bytes,
+      0,
+    );
+    while (this.requests.size > 128 || bytes > 8 * 1024 * 1024) {
+      const oldest = this.requests.keys().next().value!;
+      bytes -= this.requests.get(oldest)!.bytes;
+      this.requests.delete(oldest);
+    }
+    return structuredClone(snapshot);
+  }
+
+  private applyHistory(input: unknown): ProjectSnapshot {
+    const request = historyRequestSchema.parse(input);
+    this.state.assertSession(request.sessionId);
+    const key = `${request.sessionId}:${request.requestId}`;
+    const fingerprint = createHash("sha256")
+      .update(JSON.stringify(request))
+      .digest("hex");
+    const cached = this.requests.get(key);
+    if (cached) {
+      if (cached.fingerprint !== fingerprint)
+        throw new EditingError(
+          "REQUEST_REUSED",
+          "This request ID was already used for a different operation.",
+        );
+      return structuredClone(cached.snapshot);
+    }
+    if (request.expectedRevision !== this.state.revision)
+      throw new EditingError(
+        "CONFLICT",
+        "The project has changed. Read its latest revision and retry.",
+      );
+    const before = this.state.project;
+    if (request.direction === "undo") this.state.undo();
+    else this.state.redo();
     const snapshot = {
       ...this.state.snapshot(),
       changedItemIds: changedItemIds(before, this.state.project),
