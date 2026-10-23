@@ -50,17 +50,27 @@ type HistoryLimits = { count?: number; bytes?: number };
 
 export class AppState {
   private currentProject = freezeProject(createProject("Untitled"));
+
   get project(): Project {
     return this.currentProject;
   }
+
   sessionId = randomUUID();
+
   revision = 0;
+
   private undoStack: ProjectSnapshotEntry[] = [];
+
   private redoStack: ProjectSnapshotEntry[] = [];
+
   private listeners = new Set<(snapshot: ProjectSnapshot) => void>();
+
   private missingMedia = new Set<string>();
+
   private saveQueue: Promise<void> = Promise.resolve();
+
   private readonly maxHistorySize: number;
+
   private readonly maxHistoryBytes: number;
 
   constructor(limits: HistoryLimits = {}, initialProject?: Project) {
@@ -123,8 +133,8 @@ export class AppState {
   }
 
   async loadProject(path: string, recovery = false): Promise<Project> {
-    const sessionId = this.sessionId;
-    const revision = this.revision;
+    const { sessionId } = this;
+    const { revision } = this;
     const content = await readFile(
       recovery ? `${ensureForgeCutExtension(path)}.bak` : path,
       "utf8",

@@ -126,11 +126,9 @@ export function compileExportPlan(project: Project): RenderPlan {
   const hasImageOverlay = imageOverlays.length > 0;
   const hasPip = pipClips.length > 0;
   const videoAudioOut = hasAudioOverlay ? "concat_a" : "outa";
-  const concatVideoLabel = hasPip
-    ? "concatv"
-    : hasImageOverlay
-      ? "basev"
-      : "outv";
+  let concatVideoLabel = "outv";
+  if (hasPip) concatVideoLabel = "concatv";
+  else if (hasImageOverlay) concatVideoLabel = "basev";
   const concatInputs = videoClips
     .map((_, index) => `[v${index}][a${index}]`)
     .join("");

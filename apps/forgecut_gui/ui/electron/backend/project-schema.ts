@@ -141,12 +141,9 @@ export function validateProject(input: unknown): Project {
         const asset = assets.get(data.asset_id);
         if (!asset)
           throw new Error(`Missing asset reference: ${data.asset_id}`);
-        const expected =
-          "ImageOverlay" in item
-            ? "Image"
-            : "AudioClip" in item
-              ? "Audio"
-              : "Video";
+        let expected = "Video";
+        if ("ImageOverlay" in item) expected = "Image";
+        else if ("AudioClip" in item) expected = "Audio";
         if (asset.kind !== expected)
           throw new Error(`Incompatible asset for item ${data.id}`);
         if (
@@ -162,7 +159,7 @@ export function validateProject(input: unknown): Project {
     const sorted = [...track.items].sort(
       (a, b) => timelineStartUs(a) - timelineStartUs(b),
     );
-    for (let i = 1; i < sorted.length; i++) {
+    for (let i = 1; i < sorted.length; i += 1) {
       if (timelineStartUs(sorted[i]) < timelineEndUs(sorted[i - 1]))
         throw new Error("Overlap detected");
     }

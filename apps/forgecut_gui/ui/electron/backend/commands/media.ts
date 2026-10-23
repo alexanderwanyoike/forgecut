@@ -10,7 +10,7 @@ import {
 
 export const mediaCommands = {
   import_assets: async (args, { state }) => {
-    const sessionId = state.sessionId;
+    const { sessionId } = state;
     const imported: Asset[] = [];
     for (const path of requiredStringArray(args, "paths")) {
       try {
@@ -38,8 +38,8 @@ export const mediaCommands = {
     });
   },
   relink_asset: async (args, { state }) => {
-    const sessionId = state.sessionId;
-    const revision = state.revision;
+    const { sessionId } = state;
+    const { revision } = state;
     const id = requiredString(args, "id");
     requireAsset(state.project.assets, id);
     const replacement = await importAsset(requiredString(args, "path"));

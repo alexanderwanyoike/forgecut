@@ -17,7 +17,9 @@ export interface TimelineShortcutOptions {
  * The handler is kept in a ref reassigned each render to avoid stale closures.
  */
 export function useTimelineShortcuts(options: TimelineShortcutOptions) {
-  const handleKeyDownRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  const handleKeyDownRef = useRef<(e: KeyboardEvent) => void | Promise<void>>(
+    () => {},
+  );
   handleKeyDownRef.current = async (e: KeyboardEvent) => {
     if (
       e.target instanceof HTMLElement &&
@@ -29,7 +31,7 @@ export function useTimelineShortcuts(options: TimelineShortcutOptions) {
       e.preventDefault();
       try {
         options.setTimeline(await invoke("undo"));
-      } catch (_) {}
+      } catch {}
       return;
     }
 
@@ -41,7 +43,7 @@ export function useTimelineShortcuts(options: TimelineShortcutOptions) {
       e.preventDefault();
       try {
         options.setTimeline(await invoke("redo"));
-      } catch (_) {}
+      } catch {}
       return;
     }
 
@@ -90,12 +92,13 @@ export function useTimelineShortcuts(options: TimelineShortcutOptions) {
       } catch (err) {
         console.error("split_clip failed:", err);
       }
-      return;
     }
   };
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => handleKeyDownRef.current(e);
+    const handler = (e: KeyboardEvent) => {
+      void handleKeyDownRef.current(e);
+    };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);

@@ -31,13 +31,13 @@ export default function AssetBin({
   const assets = projectAssets ?? localAssets;
 
   useEffect(() => {
-    if (projectAssets) return;
+    if (projectAssets) return undefined;
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const list = await invoke("get_assets");
         if (!cancelled) setAssets(list ?? []);
-      } catch (_) {}
+      } catch {}
     })();
     return () => {
       cancelled = true;
@@ -132,7 +132,7 @@ export default function AssetBin({
             }}
             onContextMenu={(e) => {
               e.preventDefault();
-              handleRemove(asset.id);
+              void handleRemove(asset.id);
             }}
           >
             <span className="asset-icon">{kindIcon(asset.kind)}</span>

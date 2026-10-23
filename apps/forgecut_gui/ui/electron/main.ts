@@ -63,22 +63,33 @@ function createWindow(): void {
   }
 }
 
-ipcMain.handle("forgecut:invoke", (event, command: string, args, metadata) => {
-  return dispatchCommand(event, editing, command, args, metadata);
-});
+ipcMain.handle(
+  "forgecut:invoke",
+  (event, command: string, args: unknown, metadata: unknown) =>
+    dispatchCommand(event, editing, command, args, metadata),
+);
 
-ipcMain.handle("forgecut:dialog:open", async (_event, options = {}) => {
-  const result = await dialog.showOpenDialog(options);
-  if (result.canceled) return null;
-  return options?.multiple ? result.filePaths : (result.filePaths[0] ?? null);
-});
+ipcMain.handle(
+  "forgecut:dialog:open",
+  async (
+    _event,
+    options: Electron.OpenDialogOptions & { multiple?: boolean } = {},
+  ) => {
+    const result = await dialog.showOpenDialog(options);
+    if (result.canceled) return null;
+    return options?.multiple ? result.filePaths : (result.filePaths[0] ?? null);
+  },
+);
 
-ipcMain.handle("forgecut:dialog:save", async (_event, options = {}) => {
-  const result = await dialog.showSaveDialog(options);
-  return result.canceled ? null : (result.filePath ?? null);
-});
+ipcMain.handle(
+  "forgecut:dialog:save",
+  async (_event, options: Electron.SaveDialogOptions = {}) => {
+    const result = await dialog.showSaveDialog(options);
+    return result.canceled ? null : (result.filePath ?? null);
+  },
+);
 
-app.whenReady().then(() => {
+void app.whenReady().then(() => {
   protocol.handle("forgecut-media", async (request) => {
     const url = new URL(request.url);
     const path = url.searchParams.get("path");
