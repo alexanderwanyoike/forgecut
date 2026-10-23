@@ -10,7 +10,7 @@ vi.mock("node:fs/promises", async (original) => {
   return { ...fs, rename: vi.fn(fs.rename) };
 });
 
-afterEach(() => vi.mocked(rename).mockReset());
+afterEach(() => { vi.mocked(rename).mockReset(); });
 
 describe("project transactions and history", () => {
   it("commits settings, assets and timeline together and undoes the whole edit", () => {
@@ -35,6 +35,7 @@ describe("project transactions and history", () => {
     const detached = state.snapshot();
     detached.project.name = "Do not mutate the owner";
     expect(state.project.name).toBe("Film");
+    expect(() => state.project.assets.push(state.project.assets[0])).toThrow();
   });
 
   it("rejects invalid drafts without discarding redo or notifying listeners", () => {
@@ -76,6 +77,21 @@ describe("project transactions and history", () => {
 });
 
 describe("versioned project persistence", () => {
+  it("does not let a late file load replace newer edits or a newly opened session", async () => {
+    const state = new AppState();
+    const path = join(await mkdtemp(join(tmpdir(), "forgecut-load-race-")), "film.forgecut");
+    await writeFile(path, JSON.stringify(state.project));
+    const loading = state.loadProject(path);
+    state.executeProjectChange((project) => { project.name = "Newer edit"; });
+    await expect(loading).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(state.project.name).toBe("Newer edit");
+    const oldLoad = state.loadProject(path);
+    state.createProject();
+    const fresh = state.snapshot();
+    await expect(oldLoad).rejects.toMatchObject({ code: "PROJECT_CHANGED" });
+    expect(state.snapshot()).toEqual(fresh);
+  });
+
   it("migrates unversioned files, reports missing media, and rejects future or corrupt projects without replacing the open project", async () => {
     const state = new AppState();
     const dir = await mkdtemp(join(tmpdir(), "forgecut-schema-"));
@@ -87,6 +103,11 @@ describe("versioned project persistence", () => {
     await state.loadProject(path);
     expect(state.project.schema_version).toBe(1);
     expect(state.snapshot().missingMedia).toEqual(["missing"]);
+    const migrated = join(dir, "migrated.forgecut");
+    await state.saveProject(migrated);
+    const reopened = new AppState();
+    await reopened.loadProject(migrated);
+    expect(reopened.project).toEqual(state.project);
     const before = state.snapshot();
     for (const invalid of [{ ...legacy, schema_version: 999 }, { ...legacy, settings: { ...legacy.settings, fps: -1 } }, {}]) {
       await writeFile(path, JSON.stringify(invalid));

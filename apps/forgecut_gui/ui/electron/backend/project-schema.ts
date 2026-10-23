@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Project } from "../shared/ipc-contract.js";
 import { durationUs, itemData, itemVariant, timelineEndUs, timelineStartUs } from "./timeline-ops.js";
 
-export const idSchema = z.string().trim().min(1).max(256);
+export const idSchema = z.string().min(1).max(256).regex(/^[a-z\d][a-z\d_.:-]*$/i);
 export const timeSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const positive = z.number().positive();
 export const settingsSchema = z.strictObject({

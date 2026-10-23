@@ -11,7 +11,7 @@ import { AppState, type Asset, type Timeline } from "../state";
 import type { CommandContext } from "../ipc";
 
 function context(state = new AppState()): CommandContext {
-  return { state, webContents: {} as CommandContext["webContents"] };
+  return { state, emit: () => {} };
 }
 
 function videoAsset(overrides: Partial<Asset> = {}): Asset {
@@ -79,7 +79,7 @@ describe("Electron timeline commands", () => {
 
   it("adds, trims, undoes, and redoes a video clip", () => {
     const state = new AppState();
-    state.project.assets.push(videoAsset());
+    state.executeProjectChange((project) => { project.assets.push(videoAsset()); });
     const ctx = context(state);
     const timeline = timelineFrom(timelineCommands.init_default_tracks(undefined, ctx));
     const videoTrackId = timeline.tracks[0].id;
@@ -112,7 +112,7 @@ describe("Electron timeline commands", () => {
 
   it("rejects overlapping moves and preserves the original item position", () => {
     const state = new AppState();
-    state.project.assets.push(videoAsset());
+    state.executeProjectChange((project) => { project.assets.push(videoAsset()); });
     const ctx = context(state);
     const timeline = timelineFrom(timelineCommands.init_default_tracks(undefined, ctx));
     const videoTrackId = timeline.tracks[0].id;
@@ -140,7 +140,7 @@ describe("Electron timeline commands", () => {
 
   it("leaves the project and undo history unchanged when a trim overlaps", () => {
     const state = new AppState();
-    state.project.assets.push(videoAsset());
+    state.executeProjectChange((project) => { project.assets.push(videoAsset()); });
     const ctx = context(state);
     const trackId = state.initDefaultTracks().tracks[0].id;
     timelineCommands.add_clip_to_timeline(
@@ -165,7 +165,7 @@ describe("Electron timeline commands", () => {
 
   it("collects snap points while excluding the dragged item", () => {
     const state = new AppState();
-    state.project.assets.push(videoAsset({ probe: { ...videoAsset().probe!, duration_us: 3_000_000 } }));
+    state.executeProjectChange((project) => { project.assets.push(videoAsset({ probe: { ...videoAsset().probe!, duration_us: 3_000_000 } })); });
     const ctx = context(state);
     const timeline = timelineFrom(timelineCommands.init_default_tracks(undefined, ctx));
     const trackId = timeline.tracks[0].id;
@@ -189,7 +189,7 @@ describe("Electron timeline commands", () => {
 
   it("finds the active clip and source seek position at the playhead", () => {
     const state = new AppState();
-    state.project.assets.push(videoAsset());
+    state.executeProjectChange((project) => { project.assets.push(videoAsset()); });
     const ctx = context(state);
     const timeline = timelineFrom(timelineCommands.init_default_tracks(undefined, ctx));
     const trackId = timeline.tracks[0].id;

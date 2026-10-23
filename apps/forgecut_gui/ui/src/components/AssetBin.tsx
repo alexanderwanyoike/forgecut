@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke, open } from "../lib/bridge";
+import type { Asset as ProjectAsset } from "../../electron/shared/ipc-contract";
 
 interface Asset {
   id: string;
@@ -17,19 +18,25 @@ interface Asset {
 
 interface AssetBinProps {
   projectVersion: number;
+  projectAssets?: ProjectAsset[];
+  missingMedia?: string[];
 }
 
-export default function AssetBin({ projectVersion }: AssetBinProps) {
-  const [assets, setAssets] = useState<Asset[]>([]);
+export default function AssetBin({ projectVersion, projectAssets, missingMedia = [] }: AssetBinProps) {
+  const [localAssets, setAssets] = useState<Asset[]>([]);
+  const assets = projectAssets ?? localAssets;
 
   useEffect(() => {
+    if (projectAssets) return;
+    let cancelled = false;
     (async () => {
       try {
         const list = await invoke("get_assets");
-        setAssets(list ?? []);
+        if (!cancelled) setAssets(list ?? []);
       } catch (_) {}
     })();
-  }, [projectVersion]);
+    return () => { cancelled = true; };
+  }, [projectVersion, projectAssets]);
 
   const handleImport = async () => {
     const selected = await open({
@@ -47,14 +54,25 @@ export default function AssetBin({ projectVersion }: AssetBinProps) {
     });
     if (selected) {
       const paths = Array.isArray(selected) ? selected : [selected];
-      const imported = await invoke("import_assets", { paths });
-      setAssets((prev) => [...prev, ...imported]);
+      try {
+        const imported = await invoke("import_assets", { paths });
+        if (!projectAssets) setAssets((prev) => [...prev, ...imported]);
+      } catch {}
     }
   };
 
   const handleRemove = async (id: string) => {
-    await invoke("remove_asset", { id });
-    setAssets((prev) => prev.filter((a) => a.id !== id));
+    try {
+      await invoke("remove_asset", { id });
+      if (!projectAssets) setAssets((prev) => prev.filter((a) => a.id !== id));
+    } catch {}
+  };
+
+  const handleRelink = async (id: string) => {
+    const selected = await open<string | null>({ multiple: false });
+    if (selected) {
+      try { await invoke("relink_asset", { id, path: selected }); } catch {}
+    }
   };
 
   const formatDuration = (us: number): string => {
@@ -94,6 +112,7 @@ export default function AssetBin({ projectVersion }: AssetBinProps) {
             <span className="asset-icon">{kindIcon(asset.kind)}</span>
             <div className="asset-info">
               <div className="asset-name">{asset.name}</div>
+              {missingMedia.includes(asset.id) && <div className="asset-meta">Media missing <button onClick={() => handleRelink(asset.id)}>Relink</button></div>}
               <div className="asset-meta">
                 {asset.probe && (
                   <>

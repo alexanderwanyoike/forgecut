@@ -33,6 +33,7 @@ export interface TimelineInteractionOptions {
   onPlayingChange: (playing: boolean) => void;
   onPlayheadChange: (us: number) => void;
   onSelectClip: (id: string | null) => void;
+  projectVersion?: number;
 }
 
 /**
@@ -65,6 +66,19 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
   const trimStateRef = useRef<TrimState | null>(null);
   const rulerDraggingRef = useRef(false);
   const snapPointsCacheRef = useRef<number[] | null>(null);
+  const generation = useRef(0);
+
+  useEffect(() => {
+    generation.current += 1;
+    dragStateRef.current = null;
+    trimStateRef.current = null;
+    rulerDraggingRef.current = false;
+    snapPointsCacheRef.current = null;
+    setDragState(null);
+    setTrimState(null);
+    setDragTargetTrackId(null);
+    setSnapLineUs(null);
+  }, [options.projectVersion]);
 
   const setDragStateValue = useCallback((next: DragState | null) => {
     dragStateRef.current = next;
@@ -103,6 +117,7 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
   // --- Global mouse up: commit drag or trim ---
   const handleGlobalMouseUpRef = useRef<(e: MouseEvent) => void>(() => {});
   handleGlobalMouseUpRef.current = async (e: MouseEvent) => {
+    const epoch = generation.current;
     const ds = dragStateRef.current;
     const ts = trimStateRef.current;
 
@@ -122,6 +137,7 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
           const snapPoints = await invoke("get_snap_points", {
             excludeItemId: ds.itemId,
           });
+          if (epoch !== generation.current) return;
           const thresholdUs = Math.round(pixelsToUs(5, pixelsPerSecond));
           newStartUs = nearestSnapPoint(newStartUs, snapPoints, thresholdUs) ?? newStartUs;
         } catch (_) {}

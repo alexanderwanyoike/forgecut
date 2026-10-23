@@ -1,8 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("forgecut", {
-  invoke: (command: string, args?: Record<string, unknown>) =>
-    ipcRenderer.invoke("forgecut:invoke", command, args),
+  invoke: (command: string, args?: Record<string, unknown>, metadata?: Record<string, unknown>) =>
+    ipcRenderer.invoke("forgecut:invoke", command, args, metadata),
   dialog: {
     open: (options?: Record<string, unknown>) =>
       ipcRenderer.invoke("forgecut:dialog:open", options),

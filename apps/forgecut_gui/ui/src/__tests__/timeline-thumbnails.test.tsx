@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 
 const mockInvoke = vi.hoisted(() => vi.fn());
 vi.mock("../lib/bridge", () => ({
@@ -83,6 +83,28 @@ describe("Timeline thumbnails", () => {
       const imgs = document.querySelectorAll(".clip-thumbnail");
       expect(imgs.length).toBeGreaterThan(0);
     });
+  });
+
+  it("ignores a thumbnail response from a previous project", async () => {
+    let finishOld!: (value: unknown) => void;
+    const standard = mockInvoke.getMockImplementation()!;
+    let first = true;
+    mockInvoke.mockImplementation((command: string, ...args: unknown[]) => {
+      if (command === "get_clip_thumbnails") {
+        if (first) {
+          first = false;
+          return new Promise((resolve) => { finishOld = resolve; });
+        }
+        return Promise.resolve([{ time_seconds: 0, data_uri: "data:image/jpeg;base64,new" }]);
+      }
+      return standard(command, ...args);
+    });
+    const { rerender } = render(<Timeline {...defaultProps} />);
+    await waitFor(() => expect(finishOld).toBeTypeOf("function"));
+    rerender(<Timeline {...defaultProps} projectVersion={1} />);
+    await waitFor(() => expect(document.querySelector(".clip-thumbnail")?.getAttribute("src")).toBe("data:image/jpeg;base64,new"));
+    await act(async () => { finishOld([{ time_seconds: 0, data_uri: "data:image/jpeg;base64,old" }]); });
+    expect(document.querySelector(".clip-thumbnail")?.getAttribute("src")).toBe("data:image/jpeg;base64,new");
   });
 
   it("caches thumbnails and does not re-fetch", async () => {

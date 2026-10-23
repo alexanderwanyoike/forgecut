@@ -1,7 +1,7 @@
 import { access, mkdir, readFile, readdir, rm } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { tmpdir } from "node:os";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { atomicWrite, readIfPresent } from "./atomic-file.js";
 import { validateProject } from "./project-schema.js";
@@ -38,11 +38,12 @@ type ProjectSnapshotEntry = {
   bytes: number;
 };
 
-type ChangeOptions = { group?: string };
+type ChangeOptions = { group?: string; availablePaths?: string[] };
 type HistoryLimits = { count?: number; bytes?: number };
 
 export class AppState {
-  project = createProject("Untitled");
+  private currentProject = freezeProject(createProject("Untitled"));
+  get project(): Project { return this.currentProject; }
   sessionId = randomUUID();
   revision = 0;
   private undoStack: ProjectSnapshotEntry[] = [];
@@ -53,7 +54,8 @@ export class AppState {
   private readonly maxHistorySize: number;
   private readonly maxHistoryBytes: number;
 
-  constructor(limits: HistoryLimits = {}) {
+  constructor(limits: HistoryLimits = {}, initialProject?: Project) {
+    if (initialProject) this.currentProject = freezeProject(validateProject(initialProject));
     this.maxHistorySize = limits.count ?? 100;
     this.maxHistoryBytes = limits.bytes ?? 32 * 1024 * 1024;
   }
@@ -76,6 +78,7 @@ export class AppState {
   }
 
   createProject(): Project {
+    this.missingMedia.clear();
     this.replaceProject(createProject("Untitled"));
     return this.project;
   }
@@ -128,7 +131,14 @@ export class AppState {
     const draft = structuredClone(before);
     mutator(draft);
     const after = validateProject(draft);
-    if (JSON.stringify(before) === JSON.stringify(after)) return this.project;
+    const mediaRestored = options.availablePaths?.some((path) => this.missingMedia.has(path));
+    if (JSON.stringify(before) === JSON.stringify(after)) {
+      if (mediaRestored) {
+        options.availablePaths?.forEach((path) => this.missingMedia.delete(path));
+        this.changed();
+      }
+      return this.project;
+    }
     const previous = this.undoStack.at(-1);
     const entryBefore = options.group && previous?.group === options.group && this.redoStack.length === 0
       ? previous.before : before;
@@ -139,7 +149,8 @@ export class AppState {
     if (entryBefore !== before) this.undoStack.pop();
     this.undoStack.push(entry);
     this.redoStack = [];
-    this.project = after;
+    this.currentProject = freezeProject(after);
+    options.availablePaths?.forEach((path) => this.missingMedia.delete(path));
     this.trimHistory();
     this.changed();
     return this.project;
@@ -153,7 +164,7 @@ export class AppState {
   undo(): Timeline {
     const entry = this.undoStack.pop();
     if (!entry) throw new EditingError("NOTHING_TO_UNDO", "Nothing to undo");
-    this.project = structuredClone(entry.before);
+    this.currentProject = freezeProject(structuredClone(entry.before));
     this.redoStack.push({ ...entry, group: undefined });
     this.changed();
     return this.project.timeline;
@@ -162,7 +173,7 @@ export class AppState {
   redo(): Timeline {
     const entry = this.redoStack.pop();
     if (!entry) throw new EditingError("NOTHING_TO_UNDO", "Nothing to redo");
-    this.project = structuredClone(entry.after);
+    this.currentProject = freezeProject(structuredClone(entry.after));
     this.undoStack.push({ ...entry, group: undefined });
     this.changed();
     return this.project.timeline;
@@ -171,14 +182,14 @@ export class AppState {
   async autosave(): Promise<void> {
     const autosaveDir = join(tmpdir(), "forgecut-autosave");
     await mkdir(autosaveDir, { recursive: true });
-    const prefix = `autosave-${this.project.id}-`;
+    const prefix = `autosave-${createHash("sha256").update(this.project.id).digest("hex")}-`;
     await this.saveProject(join(autosaveDir, `${prefix}${Date.now()}-${randomUUID()}.forgecut`));
     const entries = (await readdir(autosaveDir)).filter((entry) => entry.startsWith(prefix) && entry.endsWith(".forgecut")).sort().reverse();
     await Promise.all(entries.slice(5).map((entry) => rm(join(autosaveDir, entry), { force: true })));
   }
 
   private replaceProject(project: Project): void {
-    this.project = project;
+    this.currentProject = freezeProject(project);
     this.sessionId = randomUUID();
     this.undoStack = [];
     this.redoStack = [];
@@ -223,4 +234,12 @@ function createProject(name: string): Project {
 
 function ensureForgeCutExtension(path: string): string {
   return extname(path) === ".forgecut" ? path : `${path}.forgecut`;
+}
+
+function freezeProject<T>(value: T): T {
+  if (value && typeof value === "object") {
+    Object.values(value).forEach(freezeProject);
+    Object.freeze(value);
+  }
+  return value;
 }

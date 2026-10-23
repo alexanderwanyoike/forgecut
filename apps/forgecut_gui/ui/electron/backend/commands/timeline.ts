@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Asset, TimelineItem, Track } from "../state.js";
+import type { ItemPatch } from "../../shared/ipc-contract.js";
 import {
   addItem,
   assetIdOf,
@@ -40,8 +41,10 @@ export const timelineCommands = {
       const newUs = requiredNumber(args, "newUs");
       if (trimType === "in") {
         trimIn(timeline, itemId, newUs);
-      } else {
+      } else if (trimType === "out") {
         trimOut(timeline, itemId, newUs);
+      } else {
+        throw new Error("Unknown trim type");
       }
     }),
   split_clip: (args, { state }) =>
@@ -87,7 +90,7 @@ export const timelineCommands = {
     state.executeTimelineChange((timeline) => {
       const trackId = requiredString(args, "trackId");
       ensureTrack(timeline.tracks, trackId, "OverlayText");
-      const overlayTrack = timeline.tracks.find((track) => track.kind === "OverlayText");
+      const overlayTrack = timeline.tracks.find((track) => track.id === trackId && track.kind === "OverlayText");
       if (!overlayTrack) throw new Error("OverlayText track not found");
 
       addItem(timeline, overlayTrack.id, {
@@ -149,7 +152,7 @@ export const timelineCommands = {
     state.executeTimelineChange((timeline) => {
       const item = findItem(timeline, requiredString(args, "itemId"));
       const data = itemData(item);
-      if (!("volume" in data)) return;
+      if (!("volume" in data)) throw new Error("Volume requires an audio clip");
       data.volume = requiredNumber(args, "volume");
     }),
   get_item_details: (args, { state }) => {
@@ -164,14 +167,13 @@ export const timelineCommands = {
     }
     return item;
   },
-  update_item_property: (args, { state }) =>
+  update_item: (args, { state }) =>
     state.executeTimelineChange((timeline) => {
       const item = findItem(timeline, requiredString(args, "itemId"));
-      updateItemProperty(
-        item,
-        requiredString(args, "property"),
-        args?.value,
-      );
+      const patch = args?.patch as ItemPatch;
+      const data = patch && patch.kind in item ? itemData(item) : undefined;
+      if (!data) throw new Error("Patch kind does not match the selected item");
+      Object.assign(data, patch.changes);
     }),
 } satisfies CommandRegistry;
 
@@ -229,7 +231,7 @@ function requireAsset(assets: Asset[], assetId: string): Asset {
 }
 
 function ensureTrack(tracks: Track[], trackId: string, kind: Track["kind"]): void {
-  if (!tracks.some((track) => track.kind === kind)) {
+  if (!tracks.some((track) => track.id === trackId)) {
     tracks.push({ id: trackId, kind, items: [] });
   }
 }
@@ -270,32 +272,4 @@ function withOverlayAssetPath(item: TimelineItem, assets: Asset[]): TimelineItem
   const data = itemData(clone);
   (data as typeof data & { file_path?: string }).file_path = asset.path;
   return clone;
-}
-
-function updateItemProperty(item: TimelineItem, property: string, value: unknown): void {
-  if ("VideoClip" in item) return;
-  if ("AudioClip" in item) {
-    if (property !== "volume" || typeof value !== "number") {
-      throw new Error(`Unknown property: ${property}`);
-    }
-    item.AudioClip.volume = value;
-    return;
-  }
-
-  if ("TextOverlay" in item) {
-    if (property === "text" && typeof value === "string") item.TextOverlay.text = value;
-    else if (property === "font_size" && typeof value === "number") item.TextOverlay.font_size = value;
-    else if (property === "color" && typeof value === "string") item.TextOverlay.color = value;
-    else if (property === "x" && typeof value === "number") item.TextOverlay.x = value;
-    else if (property === "y" && typeof value === "number") item.TextOverlay.y = value;
-    else throw new Error(`Unknown property: ${property}`);
-    return;
-  }
-
-  if (property === "x" && typeof value === "number") item.ImageOverlay.x = value;
-  else if (property === "y" && typeof value === "number") item.ImageOverlay.y = value;
-  else if (property === "width" && typeof value === "number") item.ImageOverlay.width = value;
-  else if (property === "height" && typeof value === "number") item.ImageOverlay.height = value;
-  else if (property === "opacity" && typeof value === "number") item.ImageOverlay.opacity = value;
-  else throw new Error(`Unknown property: ${property}`);
 }
