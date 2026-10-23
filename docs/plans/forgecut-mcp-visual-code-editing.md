@@ -83,7 +83,9 @@ Implement in this order. Phase 2 proves the live editing loop early, but a produ
 
 **Outcome:** resolve the expensive integration questions before designing the full graphics editor.
 
-Completed: the [integration harness](../../tools/integration-check/README.md) passes Linux packaged preview/Monaco checks, MCP STDIO discovery/tool execution, and a packaged transparent Remotion render composited with system FFmpeg. Custom source compiles and runs within the tested Electron preview and Bubblewrap export boundaries. Host resource denial, runaway-code termination and subsequent recovery checks pass. The editor baseline passes 92 tests and its build. [ADR 0001](../adr/0001-local-editing-integrations.md) records pinned versions, upstream patterns, resource measurements and public-release requirements. Production integration and other operating systems remain scoped to later phases.
+Completed: a temporary prototype passed Linux packaged preview/Monaco checks, MCP STDIO discovery/tool execution, and a packaged transparent Remotion render composited with system FFmpeg. Custom source compiled and ran within the tested Electron preview and Bubblewrap export boundaries. Host resource denial, runaway-code termination and subsequent recovery checks passed. The editor baseline passed 92 tests and its build. [ADR 0001](../adr/0001-local-editing-integrations.md) records pinned versions, upstream patterns, resource measurements and public-release requirements. Production integration and other operating systems remain scoped to later phases.
+
+The prototype and its standalone dependencies were removed before merging. Phase 0 retains the decisions and plan, with the minimalism rule in `AGENTS.md`. Later phases add maintained integration tests alongside production features; the historical feasibility checks are not the editor's current test suite.
 
 Work:
 
