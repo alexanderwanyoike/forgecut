@@ -1,6 +1,6 @@
 # ForgeCut MCP and graphics editing implementation plan
 
-Status: agreed implementation plan; Phase 0 technical feasibility complete on Linux x64, 22 October 2026. Phase 1 is next.
+Status: Phase 0 feasibility and Phase 1 shared editing state are implemented and verified on Linux x64. Phase 1 changes the production editor, 23 October 2026. Phase 2 is next.
 
 ForgeCut will become the shared editing workspace for videos assembled with Codex. Codex stays in its existing chat and operates the running editor through MCP. The user can change footage, text, images, fonts, colours, positioning and timing directly, then ask Codex to continue from the current project.
 
@@ -101,6 +101,10 @@ Remotion Studio's `Interactive` APIs are useful references for exposed layers, b
 Acceptance: the packaged app previews and exports the sample correctly, the Monaco worker runs, required runtime assets resolve without the development server, and the architecture decisions include measured results and licence handling. If a chosen dependency fails these checks, resolve that specific choice before proceeding with dependent work.
 
 ## Phase 1 Reliable shared project state
+
+Status: implemented in the production editor. See the [shared-state decision](../adr/0002-shared-editing-state.md) and [editing service contract](../editing-service.md). Validation includes transaction rollback, complete-project history, revision conflicts/retries, idempotent batches, async import/load races, legacy migration, invalid/future files, failed file replacement, stale thumbnails and live panel synchronization. The Electron smoke check exercises the real IPC path, title preview, undo/redo, retry deduplication and stale-revision rejection.
+
+Verification on 23 October 2026: all 120 tests across 16 files pass; `yarn build` passes; `xvfb-run -a yarn verify:electron` passes with the actual Electron bridge and editor. Existing React act/media mock warnings remain in the suite, and the headless Electron run still reports a GPU initialization diagnostic. MCP is not connected to the production editor yet.
 
 **Outcome:** any project change is validated, observable, reversible and persistable.
 
