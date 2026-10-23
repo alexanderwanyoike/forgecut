@@ -20,6 +20,22 @@ it("requires explicit attachment and edits the live owner through the official M
   try {
     await server.connect(serverTransport);
     await client.connect(clientTransport);
+    const capabilities = await client.callTool({
+      name: "get_capabilities",
+      arguments: {},
+    });
+    expect(capabilities.structuredContent).toMatchObject({
+      ok: true,
+      value: {
+        timeUnit: "microseconds",
+        operations: {
+          trim_clip: {
+            type: "object",
+            properties: { newUs: { type: "integer" } },
+          },
+        },
+      },
+    });
     expect(
       (await client.callTool({ name: "read_project", arguments: {} })).isError,
     ).toBe(true);
