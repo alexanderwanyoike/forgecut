@@ -39,3 +39,78 @@ it("discovers an explicit local session and authenticates reads of the real owne
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+it("commits guarded batches to the UI owner and reports created item IDs on retries", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "forgecut-edits-"));
+  const state = new AppState();
+  const bridge = await startLocalBridge(new EditingService(state), directory);
+  try {
+    const request = {
+      sessionId: state.sessionId,
+      expectedRevision: state.revision,
+      requestId: "create-title",
+      operations: [
+        {
+          command: "add_text_overlay",
+          args: {
+            trackId: "titles",
+            timelineStartUs: 0,
+            durationUs: 1000000,
+            text: "First",
+            fontSize: 48,
+            color: "#ffffff",
+            x: 0,
+            y: 0,
+          },
+        },
+      ],
+    };
+    const first = await callBridge(bridge.session, {
+      action: "apply",
+      label: "Add title",
+      request,
+    });
+    const item = state.project.timeline.tracks[0]?.items[0];
+    expect(item && "TextOverlay" in item).toBe(true);
+    if (!item || !("TextOverlay" in item))
+      throw new Error("Title was not committed");
+    expect(first).toMatchObject({
+      ok: true,
+      value: { revision: 1, changedItemIds: [item.TextOverlay.id] },
+    });
+    await new EditingService(state).execute("update_project", {
+      name: "Manual edit",
+    });
+    expect(
+      await callBridge(bridge.session, {
+        action: "apply",
+        label: "Add title",
+        request,
+      }),
+    ).toEqual(first);
+    expect(
+      await callBridge(bridge.session, {
+        action: "apply",
+        label: "Stale edit",
+        request: { ...request, requestId: "different" },
+      }),
+    ).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    const timeline = await callBridge(bridge.session, {
+      action: "timeline",
+      offset: 0,
+      limit: 1,
+      startUs: 0,
+      endUs: 1000000,
+    });
+    expect(timeline).toMatchObject({
+      ok: true,
+      value: { revision: 2, total: 1, items: [item] },
+    });
+    state.undo();
+    state.undo();
+    expect(state.project.timeline.tracks).toEqual([]);
+  } finally {
+    await bridge.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
