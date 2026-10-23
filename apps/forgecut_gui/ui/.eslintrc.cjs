@@ -44,8 +44,11 @@ module.exports = {
     ],
     "@typescript-eslint/no-empty-function": [
       "error",
-      { allow: ["parameter-properties"] },
+      { allow: ["arrowFunctions", "methods"] },
     ],
+    "no-continue": "off",
+    "default-param-last": "off",
+    "@typescript-eslint/default-param-last": "error",
     "no-empty-function": "off",
     "no-shadow": "off",
     "@typescript-eslint/no-shadow": "error",
