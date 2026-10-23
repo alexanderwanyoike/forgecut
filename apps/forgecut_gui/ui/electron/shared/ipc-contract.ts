@@ -92,12 +92,29 @@ export type Timeline = {
 };
 
 export type Project = {
+  schema_version?: 1;
   id: string;
   name: string;
   settings: ProjectSettings;
   assets: Asset[];
   timeline: Timeline;
 };
+
+export type ProjectSnapshot = {
+  project: Project;
+  sessionId: string;
+  revision: number;
+  canUndo: boolean;
+  canRedo: boolean;
+  missingMedia: string[];
+};
+
+export type EditErrorCode = "INVALID_INPUT" | "CONFLICT" | "PROJECT_CHANGED" | "NOT_FOUND" | "IO_ERROR" | "NOTHING_TO_UNDO" | "REQUEST_REUSED";
+export type CommandResponse<T = unknown> =
+  | { ok: true; value: T }
+  | { ok: false; error: { code: EditErrorCode; message: string } };
+
+export type CommandMetadata = { sessionId?: string; editGroup?: string };
 
 export type ClipAtPlayhead = {
   file_path: string;
