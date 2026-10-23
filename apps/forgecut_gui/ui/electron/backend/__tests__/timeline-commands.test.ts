@@ -138,6 +138,31 @@ describe("Electron timeline commands", () => {
     expect(state.project.timeline.tracks[0].items[1].VideoClip.timeline_start_us).toBe(10_000_000);
   });
 
+  it("leaves the project and undo history unchanged when a trim overlaps", () => {
+    const state = new AppState();
+    state.project.assets.push(videoAsset());
+    const ctx = context(state);
+    const trackId = state.initDefaultTracks().tracks[0].id;
+    timelineCommands.add_clip_to_timeline(
+      { assetId: "asset-video", trackId, timelineStartUs: 0 }, ctx,
+    );
+    const first = state.project.timeline.tracks[0].items[0].VideoClip.id;
+    timelineCommands.trim_clip({ itemId: first, trimType: "out", newUs: 5_000_000 }, ctx);
+    timelineCommands.add_clip_to_timeline(
+      { assetId: "asset-video", trackId, timelineStartUs: 5_000_000 }, ctx,
+    );
+    const before = structuredClone(state.project);
+
+    expect(() => timelineCommands.trim_clip(
+      { itemId: first, trimType: "out", newUs: 7_000_000 }, ctx,
+    )).toThrow("Overlap detected");
+    expect(state.project).toEqual(before);
+    timelineCommands.undo(undefined, ctx);
+    expect(state.project.timeline.tracks[0].items).toHaveLength(1);
+    timelineCommands.redo(undefined, ctx);
+    expect(state.project).toEqual(before);
+  });
+
   it("collects snap points while excluding the dragged item", () => {
     const state = new AppState();
     state.project.assets.push(videoAsset({ probe: { ...videoAsset().probe!, duration_us: 3_000_000 } }));
