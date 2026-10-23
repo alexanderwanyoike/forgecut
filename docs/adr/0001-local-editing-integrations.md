@@ -2,13 +2,15 @@
 
 Date: 22 October 2026.
 
-Status: accepted; Phase 0 technical feasibility checks complete on Linux x64. Public release requirements are recorded below.
+Status: accepted; Phase 0 technical feasibility checks completed on Linux x64. The temporary prototype was removed on 23 October 2026. Public release requirements are recorded below.
 
 ## Context
 
 ForgeCut needs one project that can be edited through its UI and through Codex MCP tools. Titles and other graphics need both visual property editing and access to their Remotion source. The existing application uses Electron 33, React 18, Vite and FFmpeg child processes.
 
-An isolated [integration harness](../../tools/integration-check/README.md) evaluates these integrations without adding dependencies to the editor's production package. Exact evaluation versions are Remotion, Player, bundler and renderer 4.0.537; Monaco 0.57.0; MCP client/server 2.3.1; Electron 33.4.11; React/React DOM 18.3.1; and Vite 6.4.1. The Node evaluation runtime was 22.19.0.
+A temporary integration prototype evaluated these integrations without adding dependencies to the editor's production package. It was removed before merging because it was neither production code nor maintained tests of the editor. Its [source remains in Git history](https://github.com/alexanderwanyoike/forgecut/tree/d84010cf540500813ca52691cf1e7f5405732edf/tools/integration-check). The results below are historical feasibility evidence, not checks of the current editor. Later phases must add maintained tests alongside their production integrations.
+
+Exact evaluation versions were Remotion, Player, bundler and renderer 4.0.537; Monaco 0.57.0; MCP client/server 2.3.1; Electron 33.4.11; React/React DOM 18.3.1; and Vite 6.4.1. The Node evaluation runtime was 22.19.0.
 
 ## Decisions
 
@@ -16,13 +18,13 @@ Keep Electron main as the sole project owner. Use the official MCP SDK's STDIO t
 
 Use Remotion components with declared editable properties and stable layer IDs. Store instance values separately from source. Remotion's parameterised component pattern supplies the input model; its Player and renderer can share a component. Studio's Interactive features inform the design, but are not assumed to be an editing SDK that can be dropped into Player. Canvas interaction remains ForgeCut functionality.
 
-Retain the hybrid rendering baseline: FFmpeg assembles footage and audio, and a separate worker renders Remotion graphics. The fixture exports transparent PNG and ProRes 4444 graphics and successfully composites them over footage. This supports the existing FFmpeg architecture. A second complete sequence renderer adds another timing/audio implementation without evidence of a benefit at this stage.
+Retain the hybrid rendering baseline: FFmpeg assembles footage and audio, and a separate worker renders Remotion graphics. The fixture exported transparent PNG and ProRes 4444 graphics and successfully composited them over footage. This supports the existing FFmpeg architecture. A second complete sequence renderer adds another timing/audio implementation without evidence of a benefit at this stage.
 
-Use Monaco for the code tab, loaded on demand. The fixture uses the pinned package's ESM exports, explicit TypeScript language registration and a dedicated TypeScript worker. Language activation loads asynchronously; callers must wait for worker readiness before compilation. The probe validates TSX emit and syntax diagnostics. React/Remotion type resolution and source promotion remain Phase 6 work.
+Use Monaco for the code tab, loaded on demand. The fixture used the pinned package's ESM exports, explicit TypeScript language registration and a dedicated TypeScript worker. Language activation loads asynchronously; callers must wait for worker readiness before compilation. The probe validated TSX emit and syntax diagnostics. React/Remotion type resolution and source promotion remain Phase 6 work.
 
 Use a secure standard application origin for the future code/graphics surface instead of depending on worker behaviour under `file://`. A custom protocol served the fixture's built assets and worker chunks successfully from an ASAR. Production integration must retain resource path validation, correct MIME types, restricted capabilities and media Range responses. It must not copy the fixture's small-file media handler into the long-recording playback path.
 
-Keep heavy jobs serial initially and enforce a process-tree resource budget. Render concurrency was one; the FFmpeg fixture explicitly limits codec/filter threads. A production policy must also cover children, cancellation and cleanup. The nonminified evaluation build stays separate from the product's build configuration; Monaco needs lazy loading and a deliberate worker/bundle strategy before adoption.
+Keep heavy jobs serial initially and enforce a process-tree resource budget. Render concurrency was one; the FFmpeg fixture explicitly limited codec/filter threads. A production policy must also cover children, cancellation and cleanup. The nonminified evaluation build did not change the product's build configuration; Monaco needs lazy loading and a deliberate worker/bundle strategy before adoption.
 
 Package the Remotion worker as a Node-compatible bundle and ship executable dependencies beside the ASAR using Electron extra resources. Use the packaged Electron executable's Node runtime for the worker, a pinned prepared Chromium, explicit Remotion `binariesDirectory`, and a separately shipped esbuild executable. Preserve `import.meta.url` semantics when bundling into CommonJS. Build-time preparation records binary hashes, dependency metadata and notices. Render jobs make no browser downloads and use no host Chrome or source-checkout modules.
 
@@ -65,9 +67,9 @@ Each measured check had a 3221225472-byte memory maximum, a 2147483648-byte soft
 
 ## Phase 0 completion and release requirements
 
-The local evaluation satisfies Phase 0's packaged-preview, compiler, render-worker, media-compatibility and process-budget acceptance checks. The recorded implementation choices are the Linux baseline for later phases. The production editor and its dependencies are unchanged.
+The local evaluation satisfied Phase 0's packaged-preview, compiler, render-worker, media-compatibility and process-budget acceptance checks. The recorded implementation choices are the Linux baseline for later phases. Phase 0 retains only documentation and agent instructions; it changes neither the production editor nor its dependencies.
 
-The licence investigation establishes distinct terms for Remotion, Monaco, the MCP SDK, Chromium and native FFmpeg. Generated notices retain available upstream texts and the font's installed licence. Remotion is source-available under its own terms; its FAQ distinguishes generated-code services from arbitrary-project rendering services. The selected product architecture remains a local desktop editor. A hosted rendering service would require a separate architecture and licence review.
+The licence investigation establishes distinct terms for Remotion, Monaco, the MCP SDK, Chromium and native FFmpeg. The prototype's generated notices retained available upstream texts and the font's installed licence. Remotion is source-available under its own terms; its FAQ distinguishes generated-code services from arbitrary-project rendering services. The selected product architecture remains a local desktop editor. A hosted rendering service would require a separate architecture and licence review.
 
 Public distribution requires a release review of the applicable Remotion terms, complete Chromium/native third-party notices, and the exact corresponding-source/build materials for the distributed GPL FFmpeg libraries. The upstream FFmpeg source/build repository is [rust-ffmpeg-splitter](https://github.com/remotion-dev/rust-ffmpeg-splitter). The evaluation artifacts stay local and outside Git; production distribution clearance is not claimed by Phase 0.
 
