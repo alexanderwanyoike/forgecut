@@ -41,7 +41,7 @@
       },
       {
         "name": "tooling",
-        "patterns": ["vite.config.ts", "vitest.config.ts"]
+        "patterns": ["vite.config.ts", "vitest.config.ts", ".eslintrc.cjs"]
       }
     ],
     "rules": [
