@@ -29,7 +29,8 @@
     "analyze": "fallow",
     "analyze:architecture": "fallow architecture",
     "analyze:health": "fallow health",
-    "lint": "eslint src electron --ext .ts,.tsx,.cts"
+    "lint": "eslint src electron --ext .ts,.tsx,.cts",
+    "mcp": "node electron/dist/mcp/stdio.js"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.4.0",

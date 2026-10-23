@@ -4,6 +4,7 @@ import { stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
+import { startLocalBridge } from "./mcp/local-bridge.js";
 import { AppState } from "./backend/state.js";
 import { EditingService } from "./backend/editing-service.js";
 import { dispatchCommand } from "./backend/ipc.js";
@@ -13,6 +14,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const state = new AppState();
 const editing = new EditingService(state);
+let localBridge: Awaited<ReturnType<typeof startLocalBridge>> | undefined;
+let quitting = false;
+app.on("before-quit", (event) => {
+  if (!localBridge || quitting) return;
+  event.preventDefault();
+  quitting = true;
+  void localBridge
+    .close()
+    .catch((error: unknown) => console.error(error))
+    .finally(() => app.quit());
+});
 state.subscribe((snapshot) => {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.webContents.isDestroyed())
@@ -89,7 +101,12 @@ ipcMain.handle(
   },
 );
 
-void app.whenReady().then(() => {
+void app.whenReady().then(async () => {
+  try {
+    localBridge = await startLocalBridge(editing);
+  } catch (error) {
+    console.warn("MCP connection unavailable:", error);
+  }
   protocol.handle("forgecut-media", async (request) => {
     const url = new URL(request.url);
     const path = url.searchParams.get("path");
