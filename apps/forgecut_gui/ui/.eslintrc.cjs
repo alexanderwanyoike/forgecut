@@ -36,7 +36,14 @@ module.exports = {
     "no-underscore-dangle": ["error", { allow: ["__filename", "__dirname"] }],
     "import/no-extraneous-dependencies": [
       "error",
-      { devDependencies: ["electron/main.ts", "electron/preload.cts"] },
+      {
+        devDependencies: [
+          "electron/main.ts",
+          "electron/preload.cts",
+          "electron/mcp/server.ts",
+          "electron/mcp/stdio.ts",
+        ],
+      },
     ],
     "@typescript-eslint/no-misused-promises": [
       "error",
