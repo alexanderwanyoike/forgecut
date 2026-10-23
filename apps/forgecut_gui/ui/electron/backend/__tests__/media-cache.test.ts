@@ -8,7 +8,9 @@ import { extractThumbnailsBase64, extractWaveform } from "../media-derived";
 
 const { mockExecute } = vi.hoisted(() => ({ mockExecute: vi.fn() }));
 vi.mock("node:child_process", () => ({
-  execFile: Object.assign(mockExecute, { [Symbol.for("nodejs.util.promisify.custom")]: mockExecute }),
+  execFile: Object.assign(mockExecute, {
+    [Symbol.for("nodejs.util.promisify.custom")]: mockExecute,
+  }),
 }));
 
 it("refreshes cached thumbnails and waveforms when the same asset is relinked or its file changes", async () => {
@@ -23,7 +25,8 @@ it("refreshes cached thumbnails and waveforms when the same asset is relinked or
     const content = await readFile(source, "utf8");
     if (args.includes("-vframes")) await writeFile(args.at(-1)!, content);
     const pcm = Buffer.alloc(8);
-    for (let offset = 0; offset < pcm.length; offset += 2) pcm.writeInt16LE(Number(content), offset);
+    for (let offset = 0; offset < pcm.length; offset += 2)
+      pcm.writeInt16LE(Number(content), offset);
     return { stdout: pcm };
   });
   const first = await extractThumbnailsBase64(firstPath, assetId, 1);
@@ -32,7 +35,11 @@ it("refreshes cached thumbnails and waveforms when the same asset is relinked or
   const wave = await extractWaveform(firstPath, assetId, 2);
   const replacement = await extractThumbnailsBase64(secondPath, assetId, 1);
   expect(replacement[0].data_uri).not.toBe(first[0].data_uri);
-  expect((await extractWaveform(secondPath, assetId, 2)).peaks).not.toEqual(wave.peaks);
+  expect((await extractWaveform(secondPath, assetId, 2)).peaks).not.toEqual(
+    wave.peaks,
+  );
   await writeFile(secondPath, "3000");
-  expect((await extractThumbnailsBase64(secondPath, assetId, 1))[0].data_uri).not.toBe(replacement[0].data_uri);
+  expect(
+    (await extractThumbnailsBase64(secondPath, assetId, 1))[0].data_uri,
+  ).not.toBe(replacement[0].data_uri);
 });

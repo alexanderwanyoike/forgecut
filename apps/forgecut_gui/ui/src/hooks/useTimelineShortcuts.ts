@@ -19,7 +19,11 @@ export interface TimelineShortcutOptions {
 export function useTimelineShortcuts(options: TimelineShortcutOptions) {
   const handleKeyDownRef = useRef<(e: KeyboardEvent) => void>(() => {});
   handleKeyDownRef.current = async (e: KeyboardEvent) => {
-    if (e.target instanceof HTMLElement && e.target.closest("input, textarea, select, [contenteditable=true]")) return;
+    if (
+      e.target instanceof HTMLElement &&
+      e.target.closest("input, textarea, select, [contenteditable=true]")
+    )
+      return;
     // Undo: Ctrl+Z
     if (e.key === "z" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
       e.preventDefault();
@@ -30,7 +34,10 @@ export function useTimelineShortcuts(options: TimelineShortcutOptions) {
     }
 
     // Redo: Ctrl+Shift+Z
-    if ((e.key === "Z" && e.shiftKey || e.key.toLowerCase() === "y") && (e.ctrlKey || e.metaKey)) {
+    if (
+      ((e.key === "Z" && e.shiftKey) || e.key.toLowerCase() === "y") &&
+      (e.ctrlKey || e.metaKey)
+    ) {
       e.preventDefault();
       try {
         options.setTimeline(await invoke("redo"));
@@ -75,7 +82,10 @@ export function useTimelineShortcuts(options: TimelineShortcutOptions) {
       e.preventDefault();
       try {
         options.setTimeline(
-          await invoke("split_clip", { itemId: sel, splitTimeUs: options.playheadUs }),
+          await invoke("split_clip", {
+            itemId: sel,
+            splitTimeUs: options.playheadUs,
+          }),
         );
       } catch (err) {
         console.error("split_clip failed:", err);

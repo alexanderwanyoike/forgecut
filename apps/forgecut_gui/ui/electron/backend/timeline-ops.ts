@@ -10,7 +10,11 @@ import type {
 
 export type ItemDetails = TimelineItemDetail;
 
-export function addItem(timeline: Timeline, trackId: string, item: TimelineItem): void {
+export function addItem(
+  timeline: Timeline,
+  trackId: string,
+  item: TimelineItem,
+): void {
   const track = findTrack(timeline, trackId);
   for (const existing of track.items) {
     if (itemsOverlap(existing, item)) {
@@ -30,7 +34,11 @@ export function removeItem(timeline: Timeline, itemId: string): TimelineItem {
   throw new Error(`Item not found: ${itemId}`);
 }
 
-export function moveItem(timeline: Timeline, itemId: string, newStartUs: TimeUs): void {
+export function moveItem(
+  timeline: Timeline,
+  itemId: string,
+  newStartUs: TimeUs,
+): void {
   const { track, item, index } = findItemLocation(timeline, itemId);
   track.items.splice(index, 1);
   const originalStart = timelineStartUs(item);
@@ -80,7 +88,11 @@ export function moveItemToTrack(
   }
 }
 
-export function trimIn(timeline: Timeline, itemId: string, newInUs: TimeUs): void {
+export function trimIn(
+  timeline: Timeline,
+  itemId: string,
+  newInUs: TimeUs,
+): void {
   const { track, item, index } = findItemLocation(timeline, itemId);
   const end = timelineEndUs(item);
   const data = itemData(item);
@@ -102,7 +114,11 @@ export function trimIn(timeline: Timeline, itemId: string, newInUs: TimeUs): voi
   assertNoOverlap(track, item, index);
 }
 
-export function trimOut(timeline: Timeline, itemId: string, newOutUs: TimeUs): void {
+export function trimOut(
+  timeline: Timeline,
+  itemId: string,
+  newOutUs: TimeUs,
+): void {
   const { track, item, index } = findItemLocation(timeline, itemId);
   const data = itemData(item);
 
@@ -122,12 +138,18 @@ export function trimOut(timeline: Timeline, itemId: string, newOutUs: TimeUs): v
   assertNoOverlap(track, item, index);
 }
 
-export function splitAt(timeline: Timeline, itemId: string, splitTimeUs: TimeUs): void {
+export function splitAt(
+  timeline: Timeline,
+  itemId: string,
+  splitTimeUs: TimeUs,
+): void {
   const { track, item, index } = findItemLocation(timeline, itemId);
   const start = timelineStartUs(item);
   const end = timelineEndUs(item);
   if (splitTimeUs <= start || splitTimeUs >= end) {
-    throw new Error("split position must be strictly between item start and end");
+    throw new Error(
+      "split position must be strictly between item start and end",
+    );
   }
 
   const variant = itemVariant(item);
@@ -136,7 +158,8 @@ export function splitAt(timeline: Timeline, itemId: string, splitTimeUs: TimeUs)
 
   if (variant === "VideoClip" || variant === "AudioClip") {
     const clip = data as Extract<ItemDetails, { source_in_us: number }>;
-    const splitSource = clip.source_in_us + (splitTimeUs - clip.timeline_start_us);
+    const splitSource =
+      clip.source_in_us + (splitTimeUs - clip.timeline_start_us);
     const right = structuredClone(item);
     const rightData = itemData(right) as typeof clip;
     clip.source_out_us = splitSource;
@@ -157,7 +180,10 @@ export function splitAt(timeline: Timeline, itemId: string, splitTimeUs: TimeUs)
   track.items.splice(index + 1, 0, right);
 }
 
-export function collectSnapPoints(timeline: Timeline, excludeItemId?: string): TimeUs[] {
+export function collectSnapPoints(
+  timeline: Timeline,
+  excludeItemId?: string,
+): TimeUs[] {
   const points = new Set<TimeUs>([0]);
   for (const track of timeline.tracks) {
     for (const item of track.items) {
@@ -176,7 +202,10 @@ export function findItem(timeline: Timeline, itemId: string): TimelineItem {
   return findItemLocation(timeline, itemId).item;
 }
 
-export function findItemLocation(timeline: Timeline, itemId: string): {
+export function findItemLocation(
+  timeline: Timeline,
+  itemId: string,
+): {
   track: Track;
   item: TimelineItem;
   index: number;
@@ -247,7 +276,11 @@ function setTrackId(item: TimelineItem, newTrackId: string): void {
   itemData(item).track_id = newTrackId;
 }
 
-function assertNoOverlap(track: Track, item: TimelineItem, selfIndex?: number): void {
+function assertNoOverlap(
+  track: Track,
+  item: TimelineItem,
+  selfIndex?: number,
+): void {
   for (const [index, existing] of track.items.entries()) {
     if (index === selfIndex) continue;
     if (itemsOverlap(existing, item)) {
@@ -257,5 +290,8 @@ function assertNoOverlap(track: Track, item: TimelineItem, selfIndex?: number): 
 }
 
 function itemsOverlap(a: TimelineItem, b: TimelineItem): boolean {
-  return timelineStartUs(a) < timelineEndUs(b) && timelineStartUs(b) < timelineEndUs(a);
+  return (
+    timelineStartUs(a) < timelineEndUs(b) &&
+    timelineStartUs(b) < timelineEndUs(a)
+  );
 }

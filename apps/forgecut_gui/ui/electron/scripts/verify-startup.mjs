@@ -60,10 +60,20 @@ async function connectCdp(webSocketDebuggerUrl) {
       return;
     }
     if (message.method === "Runtime.exceptionThrown") {
-      errors.push(message.params.exceptionDetails?.exception?.description ?? message.params);
+      errors.push(
+        message.params.exceptionDetails?.exception?.description ??
+          message.params,
+      );
     }
-    if (message.method === "Runtime.consoleAPICalled" && message.params.type === "error") {
-      errors.push(message.params.args.map((arg) => arg.description ?? arg.value).join(" "));
+    if (
+      message.method === "Runtime.consoleAPICalled" &&
+      message.params.type === "error"
+    ) {
+      errors.push(
+        message.params.args
+          .map((arg) => arg.description ?? arg.value)
+          .join(" "),
+      );
     }
   });
 
@@ -148,7 +158,9 @@ async function main() {
     awaitPromise: true,
   });
   if (!editing.result?.result?.value?.sharedEditing) {
-    throw new Error(`Shared editing smoke check failed: ${JSON.stringify(editing.result)}`);
+    throw new Error(
+      `Shared editing smoke check failed: ${JSON.stringify(editing.result)}`,
+    );
   }
   ws.close();
 

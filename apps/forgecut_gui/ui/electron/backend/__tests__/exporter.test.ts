@@ -32,7 +32,10 @@ function videoAsset(overrides: Partial<Asset> = {}): Asset {
   };
 }
 
-function baseProject(tracks: Track[], assets: Asset[] = [videoAsset()]): Project {
+function baseProject(
+  tracks: Track[],
+  assets: Asset[] = [videoAsset()],
+): Project {
   return {
     id: "project",
     name: "Test",
@@ -79,7 +82,9 @@ describe("Electron export planner", () => {
     expect(plan.filterGraph).toContain(
       "[0:a]atrim=start=1:end=5,asetpts=PTS-STARTPTS[a0]",
     );
-    expect(plan.filterGraph).toContain("[v0][a0]concat=n=1:v=1:a=1[outv][outa]");
+    expect(plan.filterGraph).toContain(
+      "[v0][a0]concat=n=1:v=1:a=1[outv][outa]",
+    );
   });
 
   it("deduplicates repeated assets while preserving concat order", () => {
@@ -88,7 +93,11 @@ describe("Electron export planner", () => {
         id: videoTrackId,
         kind: "Video",
         items: [
-          videoClip({ id: "clip-a", source_in_us: 0, source_out_us: 3_000_000 }),
+          videoClip({
+            id: "clip-a",
+            source_in_us: 0,
+            source_out_us: 3_000_000,
+          }),
           videoClip({
             id: "clip-b",
             timeline_start_us: 3_000_000,

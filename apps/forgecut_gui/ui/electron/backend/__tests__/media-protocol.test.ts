@@ -11,15 +11,24 @@ describe("parseByteRange", () => {
   });
 
   it("parses a bounded range", () => {
-    expect(parseByteRange("bytes=100-199", 1000)).toEqual({ start: 100, end: 199 });
+    expect(parseByteRange("bytes=100-199", 1000)).toEqual({
+      start: 100,
+      end: 199,
+    });
   });
 
   it("parses an open-ended range", () => {
-    expect(parseByteRange("bytes=900-", 1000)).toEqual({ start: 900, end: 999 });
+    expect(parseByteRange("bytes=900-", 1000)).toEqual({
+      start: 900,
+      end: 999,
+    });
   });
 
   it("parses a suffix range", () => {
-    expect(parseByteRange("bytes=-100", 1000)).toEqual({ start: 900, end: 999 });
+    expect(parseByteRange("bytes=-100", 1000)).toEqual({
+      start: 900,
+      end: 999,
+    });
   });
 
   it("clamps a suffix range larger than the file", () => {
@@ -27,7 +36,10 @@ describe("parseByteRange", () => {
   });
 
   it("clamps end to the file size", () => {
-    expect(parseByteRange("bytes=0-99999", 1000)).toEqual({ start: 0, end: 999 });
+    expect(parseByteRange("bytes=0-99999", 1000)).toEqual({
+      start: 0,
+      end: 999,
+    });
   });
 
   it("uses the first range of a multi-range request", () => {

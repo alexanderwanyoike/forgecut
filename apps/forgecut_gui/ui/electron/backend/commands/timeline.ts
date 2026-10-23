@@ -32,7 +32,11 @@ export const timelineCommands = {
       const trackId = requiredString(args, "trackId");
       const timelineStartUs = requiredNumber(args, "timelineStartUs");
       const asset = requireAsset(state.project.assets, assetId);
-      addItem(timeline, trackId, createTimelineItem(asset, trackId, timelineStartUs));
+      addItem(
+        timeline,
+        trackId,
+        createTimelineItem(asset, trackId, timelineStartUs),
+      );
     }),
   trim_clip: (args, { state }) =>
     state.executeTimelineChange((timeline) => {
@@ -90,7 +94,9 @@ export const timelineCommands = {
     state.executeTimelineChange((timeline) => {
       const trackId = requiredString(args, "trackId");
       ensureTrack(timeline.tracks, trackId, "OverlayText");
-      const overlayTrack = timeline.tracks.find((track) => track.id === trackId && track.kind === "OverlayText");
+      const overlayTrack = timeline.tracks.find(
+        (track) => track.id === trackId && track.kind === "OverlayText",
+      );
       if (!overlayTrack) throw new Error("OverlayText track not found");
 
       addItem(timeline, overlayTrack.id, {
@@ -111,7 +117,9 @@ export const timelineCommands = {
     state.executeTimelineChange((timeline) => {
       const assetId = requiredString(args, "assetId");
       requireAsset(state.project.assets, assetId);
-      let track = timeline.tracks.find((candidate) => candidate.kind === "OverlayImage");
+      let track = timeline.tracks.find(
+        (candidate) => candidate.kind === "OverlayImage",
+      );
       if (!track) {
         track = { id: randomUUID(), kind: "OverlayImage", items: [] };
         timeline.tracks.push(track);
@@ -138,14 +146,25 @@ export const timelineCommands = {
     ),
   get_clip_at_playhead: (args, { state }) => {
     const playheadUs = requiredNumber(args, "playheadUs");
-    return findClipAtPlayhead(state.project.assets, state.project.timeline.tracks, playheadUs);
+    return findClipAtPlayhead(
+      state.project.assets,
+      state.project.timeline.tracks,
+      playheadUs,
+    );
   },
   get_overlays_at_time: (args, { state }) => {
     const playheadUs = requiredNumber(args, "playheadUs");
     return state.project.timeline.tracks
-      .filter((track) => track.kind === "OverlayImage" || track.kind === "OverlayText")
+      .filter(
+        (track) =>
+          track.kind === "OverlayImage" || track.kind === "OverlayText",
+      )
       .flatMap((track) => track.items)
-      .filter((item) => playheadUs >= timelineStartUs(item) && playheadUs < timelineEndUs(item))
+      .filter(
+        (item) =>
+          playheadUs >= timelineStartUs(item) &&
+          playheadUs < timelineEndUs(item),
+      )
       .map((item) => withOverlayAssetPath(item, state.project.assets));
   },
   set_clip_volume: (args, { state }) =>
@@ -156,11 +175,15 @@ export const timelineCommands = {
       data.volume = requiredNumber(args, "volume");
     }),
   get_item_details: (args, { state }) => {
-    const item = structuredClone(findItem(state.project.timeline, requiredString(args, "itemId")));
+    const item = structuredClone(
+      findItem(state.project.timeline, requiredString(args, "itemId")),
+    );
     const data = itemData(item);
     const assetId = assetIdOf(item);
     if (assetId) {
-      const asset = state.project.assets.find((candidate) => candidate.id === assetId);
+      const asset = state.project.assets.find(
+        (candidate) => candidate.id === assetId,
+      );
       if (asset) {
         (data as typeof data & { asset_name?: string }).asset_name = asset.name;
       }
@@ -230,16 +253,27 @@ function requireAsset(assets: Asset[], assetId: string): Asset {
   return asset;
 }
 
-function ensureTrack(tracks: Track[], trackId: string, kind: Track["kind"]): void {
+function ensureTrack(
+  tracks: Track[],
+  trackId: string,
+  kind: Track["kind"],
+): void {
   if (!tracks.some((track) => track.id === trackId)) {
     tracks.push({ id: trackId, kind, items: [] });
   }
 }
 
-function findClipAtPlayhead(assets: Asset[], tracks: Track[], playheadUs: number) {
+function findClipAtPlayhead(
+  assets: Asset[],
+  tracks: Track[],
+  playheadUs: number,
+) {
   for (const track of tracks) {
     for (const item of track.items) {
-      if (playheadUs < timelineStartUs(item) || playheadUs >= timelineEndUs(item)) {
+      if (
+        playheadUs < timelineStartUs(item) ||
+        playheadUs >= timelineEndUs(item)
+      ) {
         continue;
       }
 
@@ -263,7 +297,10 @@ function findClipAtPlayhead(assets: Asset[], tracks: Track[], playheadUs: number
   return null;
 }
 
-function withOverlayAssetPath(item: TimelineItem, assets: Asset[]): TimelineItem {
+function withOverlayAssetPath(
+  item: TimelineItem,
+  assets: Asset[],
+): TimelineItem {
   const clone = structuredClone(item);
   const assetId = assetIdOf(clone);
   if (!assetId) return clone;

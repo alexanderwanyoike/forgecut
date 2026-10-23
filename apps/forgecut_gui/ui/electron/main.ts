@@ -15,7 +15,8 @@ const state = new AppState();
 const editing = new EditingService(state);
 state.subscribe((snapshot) => {
   for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.webContents.isDestroyed()) win.webContents.send("forgecut:event:project-changed", snapshot);
+    if (!win.webContents.isDestroyed())
+      win.webContents.send("forgecut:event:project-changed", snapshot);
   }
 });
 
@@ -69,12 +70,12 @@ ipcMain.handle("forgecut:invoke", (event, command: string, args, metadata) => {
 ipcMain.handle("forgecut:dialog:open", async (_event, options = {}) => {
   const result = await dialog.showOpenDialog(options);
   if (result.canceled) return null;
-  return options?.multiple ? result.filePaths : result.filePaths[0] ?? null;
+  return options?.multiple ? result.filePaths : (result.filePaths[0] ?? null);
 });
 
 ipcMain.handle("forgecut:dialog:save", async (_event, options = {}) => {
   const result = await dialog.showSaveDialog(options);
-  return result.canceled ? null : result.filePath ?? null;
+  return result.canceled ? null : (result.filePath ?? null);
 });
 
 app.whenReady().then(() => {
@@ -83,7 +84,9 @@ app.whenReady().then(() => {
     const path = url.searchParams.get("path");
     if (!path) return new Response("Missing media path", { status: 400 });
     if (!state.project.assets.some((asset) => asset.path === path)) {
-      return new Response("Media path is not part of the current project", { status: 403 });
+      return new Response("Media path is not part of the current project", {
+        status: 403,
+      });
     }
 
     let size: number;
@@ -103,7 +106,10 @@ app.whenReady().then(() => {
       path,
       init.range ? { start: init.range.start, end: init.range.end } : {},
     );
-    return new Response(Readable.toWeb(stream) as unknown as ReadableStream, init);
+    return new Response(
+      Readable.toWeb(stream) as unknown as ReadableStream,
+      init,
+    );
   });
 
   createWindow();

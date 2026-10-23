@@ -70,7 +70,7 @@ describe("Timeline thumbnails", () => {
     render(<Timeline {...defaultProps} />);
     await waitFor(() => {
       const calls = mockInvoke.mock.calls.filter(
-        (c: any) => c[0] === "get_clip_thumbnails"
+        (c: any) => c[0] === "get_clip_thumbnails",
       );
       expect(calls.length).toBeGreaterThan(0);
       expect(calls[0][1]).toEqual({ assetId: "asset-1" });
@@ -93,25 +93,37 @@ describe("Timeline thumbnails", () => {
       if (command === "get_clip_thumbnails") {
         if (first) {
           first = false;
-          return new Promise((resolve) => { finishOld = resolve; });
+          return new Promise((resolve) => {
+            finishOld = resolve;
+          });
         }
-        return Promise.resolve([{ time_seconds: 0, data_uri: "data:image/jpeg;base64,new" }]);
+        return Promise.resolve([
+          { time_seconds: 0, data_uri: "data:image/jpeg;base64,new" },
+        ]);
       }
       return standard(command, ...args);
     });
     const { rerender } = render(<Timeline {...defaultProps} />);
     await waitFor(() => expect(finishOld).toBeTypeOf("function"));
     rerender(<Timeline {...defaultProps} projectVersion={1} />);
-    await waitFor(() => expect(document.querySelector(".clip-thumbnail")?.getAttribute("src")).toBe("data:image/jpeg;base64,new"));
-    await act(async () => { finishOld([{ time_seconds: 0, data_uri: "data:image/jpeg;base64,old" }]); });
-    expect(document.querySelector(".clip-thumbnail")?.getAttribute("src")).toBe("data:image/jpeg;base64,new");
+    await waitFor(() =>
+      expect(
+        document.querySelector(".clip-thumbnail")?.getAttribute("src"),
+      ).toBe("data:image/jpeg;base64,new"),
+    );
+    await act(async () => {
+      finishOld([{ time_seconds: 0, data_uri: "data:image/jpeg;base64,old" }]);
+    });
+    expect(document.querySelector(".clip-thumbnail")?.getAttribute("src")).toBe(
+      "data:image/jpeg;base64,new",
+    );
   });
 
   it("caches thumbnails and does not re-fetch", async () => {
     render(<Timeline {...defaultProps} />);
     await waitFor(() => {
       const calls = mockInvoke.mock.calls.filter(
-        (c: any) => c[0] === "get_clip_thumbnails"
+        (c: any) => c[0] === "get_clip_thumbnails",
       );
       expect(calls.length).toBe(1);
     });

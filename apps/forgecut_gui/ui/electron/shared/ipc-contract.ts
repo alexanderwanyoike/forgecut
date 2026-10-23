@@ -78,7 +78,8 @@ export type TimelineItem =
   | { ImageOverlay: ImageOverlayItem }
   | { TextOverlay: TextOverlayItem };
 
-export type TimelineItemVariant = "VideoClip" | "AudioClip" | "ImageOverlay" | "TextOverlay";
+export type TimelineItemVariant =
+  "VideoClip" | "AudioClip" | "ImageOverlay" | "TextOverlay";
 
 export type Track = {
   id: string;
@@ -109,7 +110,14 @@ export type ProjectSnapshot = {
   missingMedia: string[];
 };
 
-export type EditErrorCode = "INVALID_INPUT" | "CONFLICT" | "PROJECT_CHANGED" | "NOT_FOUND" | "IO_ERROR" | "NOTHING_TO_UNDO" | "REQUEST_REUSED";
+export type EditErrorCode =
+  | "INVALID_INPUT"
+  | "CONFLICT"
+  | "PROJECT_CHANGED"
+  | "NOT_FOUND"
+  | "IO_ERROR"
+  | "NOTHING_TO_UNDO"
+  | "REQUEST_REUSED";
 export type CommandResponse<T = unknown> =
   | { ok: true; value: T; sessionId: string; revision: number }
   | { ok: false; error: { code: EditErrorCode; message: string } };
@@ -117,15 +125,43 @@ export type CommandResponse<T = unknown> =
 export type CommandMetadata = { sessionId?: string; editGroup?: string };
 
 export type ItemPatch =
-  | { kind: "AudioClip"; changes: Partial<Pick<ClipItem & { volume: number }, "volume">> }
-  | { kind: "TextOverlay"; changes: Partial<Pick<TextOverlayItem, "text" | "font_size" | "color" | "x" | "y">> }
-  | { kind: "ImageOverlay"; changes: Partial<Pick<ImageOverlayItem, "asset_id" | "x" | "y" | "width" | "height" | "opacity">> };
+  | {
+      kind: "AudioClip";
+      changes: Partial<Pick<ClipItem & { volume: number }, "volume">>;
+    }
+  | {
+      kind: "TextOverlay";
+      changes: Partial<
+        Pick<TextOverlayItem, "text" | "font_size" | "color" | "x" | "y">
+      >;
+    }
+  | {
+      kind: "ImageOverlay";
+      changes: Partial<
+        Pick<
+          ImageOverlayItem,
+          "asset_id" | "x" | "y" | "width" | "height" | "opacity"
+        >
+      >;
+    };
 
 export type EditCommandName =
-  | "add_clip_to_timeline" | "trim_clip" | "split_clip" | "delete_clip" | "move_clip"
-  | "move_clip_to_track" | "add_track" | "add_text_overlay" | "add_image_overlay"
-  | "set_clip_volume" | "update_item" | "remove_asset" | "update_project";
-export type EditOperation = { [K in EditCommandName]: { command: K; args: CommandMap[K]["args"] } }[EditCommandName];
+  | "add_clip_to_timeline"
+  | "trim_clip"
+  | "split_clip"
+  | "delete_clip"
+  | "move_clip"
+  | "move_clip_to_track"
+  | "add_track"
+  | "add_text_overlay"
+  | "add_image_overlay"
+  | "set_clip_volume"
+  | "update_item"
+  | "remove_asset"
+  | "update_project";
+export type EditOperation = {
+  [K in EditCommandName]: { command: K; args: CommandMap[K]["args"] };
+}[EditCommandName];
 export type EditRequest = {
   sessionId: string;
   expectedRevision: number;
@@ -178,7 +214,10 @@ export type CommandMap = {
   get_project_settings: { args: undefined; result: ProjectSettings };
   get_project_snapshot: { args: undefined; result: ProjectSnapshot };
   apply_edits: { args: EditRequest; result: ProjectSnapshot };
-  update_project: { args: { name?: string; settings?: Partial<ProjectSettings> }; result: Project };
+  update_project: {
+    args: { name?: string; settings?: Partial<ProjectSettings> };
+    result: Project;
+  };
   recover_project: { args: { path: string }; result: string };
   autosave: { args: undefined; result: void };
 
@@ -193,7 +232,10 @@ export type CommandMap = {
     args: { itemId: string; trimType: "in" | "out"; newUs: TimeUs };
     result: Timeline;
   };
-  split_clip: { args: { itemId: string; splitTimeUs: TimeUs }; result: Timeline };
+  split_clip: {
+    args: { itemId: string; splitTimeUs: TimeUs };
+    result: Timeline;
+  };
   delete_clip: { args: { itemId: string }; result: Timeline };
   move_clip: { args: { itemId: string; newStartUs: TimeUs }; result: Timeline };
   move_clip_to_track: {
@@ -230,9 +272,18 @@ export type CommandMap = {
     result: Timeline;
   };
   get_snap_points: { args: { excludeItemId?: string }; result: TimeUs[] };
-  get_clip_at_playhead: { args: { playheadUs: TimeUs }; result: ClipAtPlayhead | null };
-  get_overlays_at_time: { args: { playheadUs: TimeUs }; result: OverlayAtTime[] };
-  set_clip_volume: { args: { itemId: string; volume: number }; result: Timeline };
+  get_clip_at_playhead: {
+    args: { playheadUs: TimeUs };
+    result: ClipAtPlayhead | null;
+  };
+  get_overlays_at_time: {
+    args: { playheadUs: TimeUs };
+    result: OverlayAtTime[];
+  };
+  set_clip_volume: {
+    args: { itemId: string; volume: number };
+    result: Timeline;
+  };
   get_item_details: { args: { itemId: string }; result: TimelineItem };
   update_item: {
     args: { itemId: string; patch: ItemPatch };

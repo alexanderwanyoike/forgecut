@@ -3,7 +3,8 @@
   --accent-hover: #7c6ef7;
 }
 
-[data-theme="dark"], :root {
+[data-theme="dark"],
+:root {
   --bg-primary: #1e1e1e;
   --bg-secondary: #252526;
   --bg-panel: #1e1e1e;
@@ -27,13 +28,16 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   width: 100%;
   overflow: hidden;
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
 }
 
@@ -255,7 +259,6 @@ html, body, #root {
   color: var(--text-secondary);
   font-size: 14px;
 }
-
 
 /* Inspector */
 .inspector {
@@ -698,18 +701,27 @@ html, body, #root {
 }
 
 .clip-loading-thumbs::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
   animation: shimmer 1.5s infinite;
   z-index: 0;
   pointer-events: none;
 }
 
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 /* Cross-track drag drop target */
@@ -873,4 +885,6 @@ html, body, #root {
   border: 1px solid var(--border-color, #666);
   border-radius: 4px;
 }
-.project-notice button { margin-left: 12px; }
+.project-notice button {
+  margin-left: 12px;
+}

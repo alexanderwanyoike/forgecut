@@ -2,7 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke, mediaUrl } from "../lib/bridge";
 import type { ClipAtPlayhead, OverlayData } from "../lib/preview/types";
 import { sourceTimeToPlayheadUs } from "../lib/preview/time-utils";
-import { loadVideo, seekVideo, waitForMetadata } from "../lib/preview/video-element";
+import {
+  loadVideo,
+  seekVideo,
+  waitForMetadata,
+} from "../lib/preview/video-element";
 
 const POLL_INTERVAL_MS = 30;
 
@@ -23,7 +27,9 @@ export function usePlayback(options: PlaybackOptions) {
   const { playheadUs, playing, onPlayingChange, onPlayheadChange } = options;
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [statusMsg, setStatusMsg] = useState("Import a clip and drag it to the timeline");
+  const [statusMsg, setStatusMsg] = useState(
+    "Import a clip and drag it to the timeline",
+  );
   const [overlays, setOverlays] = useState<OverlayData[]>([]);
 
   const pb = useRef({
@@ -51,16 +57,19 @@ export function usePlayback(options: PlaybackOptions) {
   }, [playheadUs, playing]);
 
   /** Point the element at a clip's file and seek to the clip-relative time. */
-  const showClip = useCallback(async (video: HTMLVideoElement, clip: ClipAtPlayhead) => {
-    pb.current.currentClip = clip;
-    if (clip.file_path !== pb.current.currentFilePath) {
-      video.src = mediaUrl(clip.file_path);
-      loadVideo(video);
-      pb.current.currentFilePath = clip.file_path;
-      await waitForMetadata(video);
-    }
-    await seekVideo(video, clip.seek_seconds);
-  }, []);
+  const showClip = useCallback(
+    async (video: HTMLVideoElement, clip: ClipAtPlayhead) => {
+      pb.current.currentClip = clip;
+      if (clip.file_path !== pb.current.currentFilePath) {
+        video.src = mediaUrl(clip.file_path);
+        loadVideo(video);
+        pb.current.currentFilePath = clip.file_path;
+        await waitForMetadata(video);
+      }
+      await seekVideo(video, clip.seek_seconds);
+    },
+    [],
+  );
 
   // --- Seek effect: when paused, load clip + seek video ---
   useEffect(() => {
@@ -106,10 +115,16 @@ export function usePlayback(options: PlaybackOptions) {
     })();
 
     invoke("get_overlays_at_time", { playheadUs })
-      .then((r) => { if (!cancelled) setOverlays(r); })
-      .catch(() => { if (!cancelled) setOverlays([]); });
+      .then((r) => {
+        if (!cancelled) setOverlays(r);
+      })
+      .catch(() => {
+        if (!cancelled) setOverlays([]);
+      });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [playing, playheadUs, stopPolling, options.projectVersion]);
 
   // --- Polling: sync playhead to video position during playback ---
@@ -122,7 +137,9 @@ export function usePlayback(options: PlaybackOptions) {
 
       try {
         const timelineUs = sourceTimeToPlayheadUs(
-          video.currentTime, clip.clip_start_us, clip.source_in_us
+          video.currentTime,
+          clip.clip_start_us,
+          clip.source_in_us,
         );
 
         if (timelineUs >= clip.clip_end_us) {
@@ -180,7 +197,14 @@ export function usePlayback(options: PlaybackOptions) {
       setStatusMsg(`Play error: ${e}`);
       onPlayingChange(false);
     }
-  }, [playing, playheadUs, onPlayingChange, stopPolling, startPolling, showClip]);
+  }, [
+    playing,
+    playheadUs,
+    onPlayingChange,
+    stopPolling,
+    startPolling,
+    showClip,
+  ]);
 
   const handleEnded = useCallback(() => {
     stopPolling();

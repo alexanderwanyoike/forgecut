@@ -17,7 +17,7 @@ export function secondsToUs(s: number): number {
 export function computeSeekSeconds(
   playheadUs: number,
   clipStartUs: number,
-  sourceInUs: number
+  sourceInUs: number,
 ): number {
   const offsetUs = playheadUs - clipStartUs;
   return usToSeconds(sourceInUs + offsetUs);
@@ -30,7 +30,7 @@ export function computeSeekSeconds(
 export function sourceTimeToPlayheadUs(
   currentTimeSec: number,
   clipStartUs: number,
-  sourceInUs: number
+  sourceInUs: number,
 ): number {
   const sourceUs = secondsToUs(currentTimeSec);
   const offsetUs = sourceUs - sourceInUs;
