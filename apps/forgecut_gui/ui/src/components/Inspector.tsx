@@ -8,6 +8,7 @@ import type {
   TimelineItem,
 } from "../../electron/shared/ipc-contract";
 import PropertyInput from "./PropertyInput";
+import ClipAudioProperties from "./ClipAudioProperties";
 
 interface InspectorProps {
   selectedClipId: string | null;
@@ -97,7 +98,13 @@ export default function Inspector({
   );
   const text = item && "TextOverlay" in item ? item.TextOverlay : null;
   const image = item && "ImageOverlay" in item ? item.ImageOverlay : null;
-  const audio = item && "AudioClip" in item ? item.AudioClip : null;
+  const clipAudio =
+    item &&
+    ("VideoClip" in item
+      ? { kind: "VideoClip" as const, settings: item.VideoClip }
+      : "AudioClip" in item
+        ? { kind: "AudioClip" as const, settings: item.AudioClip }
+        : null);
   const data = item
     ? (Object.values(item)[0] as {
         timeline_start_us: number;
@@ -278,24 +285,8 @@ export default function Inspector({
                 </label>
               </>
             )}
-            {audio && (
-              <label className="inspector-row">
-                <span className="inspector-label">Volume</span>
-                <input
-                  type="range"
-                  className="inspector-slider"
-                  min="0"
-                  max="4"
-                  step="0.01"
-                  value={audio.volume}
-                  onChange={(event) =>
-                    update({
-                      kind: "AudioClip",
-                      changes: { volume: Number(event.currentTarget.value) },
-                    })
-                  }
-                />
-              </label>
+            {clipAudio && (
+              <ClipAudioProperties {...clipAudio} update={update} />
             )}
           </div>
         ) : (
