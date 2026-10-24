@@ -5,6 +5,14 @@ import { componentVersion } from "./graphic-component.js";
 export function validateProjectGraphics(project: Project): void {
   const versions = new Set<string>();
   for (const component of project.components ?? []) {
+    for (const [ids, kind] of [
+      [component.dependencies.assets, "image"],
+      [component.dependencies.fonts, "font"],
+    ] as const)
+      for (const id of ids) {
+        if (!id) throw new Error("Declared resource IDs cannot be empty");
+        requireResource(project, id, kind);
+      }
     const key = `${component.id}:${component.version}`;
     if (versions.has(key)) throw new Error("Duplicate component version");
     versions.add(key);

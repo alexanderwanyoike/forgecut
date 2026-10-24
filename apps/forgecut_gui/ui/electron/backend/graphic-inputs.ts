@@ -11,20 +11,36 @@ export async function graphicResourceInputs(
 ): Promise<Result<Record<string, GraphicResourceInput>>> {
   const inputs: Record<string, GraphicResourceInput> = {};
   let size = 0;
-  for (const [key, property] of Object.entries(component.properties)) {
-    if ((property.type !== "font" && property.type !== "image") || !values[key])
-      continue;
+  const references = Object.entries(component.properties).flatMap(
+    ([key, property]) =>
+      (property.type === "font" || property.type === "image") && values[key]
+        ? [{ id: values[key], kind: property.type, label: property.label }]
+        : [],
+  );
+  references.push(
+    ...component.dependencies.assets.map((id) => ({
+      id,
+      kind: "image" as const,
+      label: "declared artwork",
+    })),
+    ...component.dependencies.fonts.map((id) => ({
+      id,
+      kind: "font" as const,
+      label: "declared font",
+    })),
+  );
+  for (const reference of references) {
     const resource = project.resources?.find(
       (candidate) =>
-        candidate.id === values[key] &&
-        candidate.kind.toLowerCase() === property.type,
+        candidate.id === reference.id &&
+        candidate.kind.toLowerCase() === reference.kind,
     );
     if (!resource)
       return {
         ok: false,
         error: {
           code: "MISSING_RESOURCE",
-          message: `Missing resource for ${property.label}`,
+          message: `Missing resource for ${reference.label}`,
         },
       };
     if (inputs[resource.id]) continue;
