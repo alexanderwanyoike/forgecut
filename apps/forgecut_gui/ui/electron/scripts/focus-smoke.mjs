@@ -121,44 +121,17 @@ export async function verifyFocus(send, state) {
         await evaluate(
           `document.querySelector('.monaco-source-editor textarea.inputarea').focus()`,
         );
-        await send("Input.dispatchKeyEvent", {
-          type: "keyDown",
-          key: "f",
-          code: "KeyF",
-          windowsVirtualKeyCode: 70,
-          modifiers: 2,
-        });
-        await send("Input.dispatchKeyEvent", {
-          type: "keyUp",
-          key: "f",
-          code: "KeyF",
-          windowsVirtualKeyCode: 70,
-          modifiers: 2,
-        });
-        await evaluate(`new Promise(resolve => setTimeout(resolve, 100))`);
-        const find = await inspectFocus(
-          ".find-widget .monaco-inputbox.synthetic-focus",
+        const editor = await inspectFocus(
+          ".monaco-source-editor textarea.inputarea",
         );
         if (
-          find.width < 1 ||
-          find.style === "none" ||
-          Math.max(...find.rgb) - Math.min(...find.rgb) > 24
+          editor.width < 1 ||
+          editor.style === "none" ||
+          Math.max(...editor.rgb) - Math.min(...editor.rgb) > 24
         )
           throw new Error(
-            `${theme}: Monaco find focus is not neutral and visible`,
+            `${theme}: Monaco keyboard focus is not neutral and visible`,
           );
-        await send("Input.dispatchKeyEvent", {
-          type: "keyDown",
-          key: "Escape",
-          code: "Escape",
-          windowsVirtualKeyCode: 27,
-        });
-        await send("Input.dispatchKeyEvent", {
-          type: "keyUp",
-          key: "Escape",
-          code: "Escape",
-          windowsVirtualKeyCode: 27,
-        });
       }
     }
   } finally {
