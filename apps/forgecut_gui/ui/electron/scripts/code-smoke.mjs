@@ -1,4 +1,5 @@
 import { writeFile } from "node:fs/promises";
+import { verifyCanvas } from "./canvas-smoke.mjs";
 
 export async function verifyCode(send) {
   const evaluate = async (expression) => {
@@ -38,6 +39,7 @@ export async function verifyCode(send) {
   const draft = () =>
     `(async()=>{const result=await window.forgecut.invoke('get_graphic_draft',{itemId:${JSON.stringify(item.id)}});if(!result.ok)throw new Error(result.error.message);return result.value;})()`;
   const replace = async (code) => {
+    await send("Page.bringToFront");
     await evaluate(
       `document.querySelector('.monaco-source-editor textarea').focus()`,
     );
@@ -55,7 +57,9 @@ export async function verifyCode(send) {
       modifiers: 2,
       windowsVirtualKeyCode: 65,
     });
-    await send("Input.insertText", { text: code });
+    await evaluate(
+      `(()=>{const transfer=new DataTransfer();transfer.setData('text/plain',${JSON.stringify(code)});document.querySelector('.monaco-source-editor textarea').dispatchEvent(new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData:transfer}));})()`,
+    );
     await wait(
       `(async()=>{const value=await ${draft()};return value.component.source.files[${JSON.stringify(component.source.entry)}]===${JSON.stringify(code)};})()`,
       "source autosave",
@@ -72,12 +76,65 @@ export async function verifyCode(send) {
     "theme preserves editor",
   );
   await evaluate(`document.querySelector('.theme-toggle').click()`);
+  const working = await evaluate(draft());
+  working.component.source.files["helpers.ts"] =
+    "export function word(value: string){return value}";
+  await evaluate(
+    `(async()=>{const result=await window.forgecut.invoke('save_graphic_draft',${JSON.stringify({ itemId: item.id, sessionId: snapshot.sessionId, expectedDraftRevision: working.revision, baseVersion: working.baseVersion, component: working.component })});if(!result.ok)throw new Error(result.error.message);})()`,
+  );
+  await wait(
+    `!!document.querySelector('select[aria-label="Source file"] option[value="helpers.ts"]')`,
+    "agent workspace file update",
+  );
+  await replace(
+    "import { word } from './helpers';\nexport default function Card({values}:ForgeCut.Props){return <div>{word(values.title)}</div>}",
+  );
+  const key = async (name, code, virtual, modifiers = 0) => {
+    await send("Input.dispatchKeyEvent", {
+      type: "keyDown",
+      key: name,
+      code,
+      windowsVirtualKeyCode: virtual,
+      modifiers,
+    });
+    await send("Input.dispatchKeyEvent", {
+      type: "keyUp",
+      key: name,
+      code,
+      windowsVirtualKeyCode: virtual,
+      modifiers,
+    });
+  };
+  await key("Home", "Home", 36, 2);
+  for (let index = 0; index < 10; index += 1)
+    await key("ArrowRight", "ArrowRight", 39);
+  await key("F12", "F12", 123);
+  await wait(
+    `document.querySelector('select[aria-label="Source file"]').value==='helpers.ts'`,
+    "local source navigation",
+  );
+  await evaluate(
+    `(()=>{const select=document.querySelector('select[aria-label="Source file"]');select.value=${JSON.stringify(component.source.entry)};select.dispatchEvent(new Event('change',{bubbles:true}));})()`,
+  );
+  await replace(
+    "export default function Card({values}:ForgeCut.Props){return values.",
+  );
+  await key(" ", "Space", 32, 2);
+  await wait(
+    `document.querySelector('.suggest-widget.visible')?.textContent.includes('title')`,
+    "schema completion",
+  );
+  await key("Escape", "Escape", 27);
   await replace(
     "export default function Card({values}: ForgeCut.Props){const bad:number=values.title;return <div>{bad}</div>}",
   );
   await wait(
     `document.querySelector('.code-diagnostics')?.textContent.includes('not assignable to type')`,
     "live TypeScript diagnostics",
+  );
+  await wait(
+    `!document.querySelector('.code-diagnostics')?.textContent.includes("Cannot find module")`,
+    "approved package types",
   );
   const original = component.source.files[component.source.entry];
   const edited = original.replace("(1 - entrance) * 20", "(1 - entrance) * 32");
@@ -140,6 +197,26 @@ export async function verifyCode(send) {
   const saved = await evaluate(draft());
   if (saved.baseVersion !== appliedItem.component_version)
     throw new Error("Applied source draft base did not advance");
+  await evaluate(
+    `document.querySelector('.monaco-source-editor textarea').focus()`,
+  );
+  await key("z", "KeyZ", 90, 2);
+  await wait(
+    `(async()=>{const value=await ${draft()};return value.component.source.files[${JSON.stringify(component.source.entry)}]!==${JSON.stringify(edited)};})()`,
+    "Monaco draft undo",
+  );
+  const afterDraftUndo = await evaluate(
+    `(async()=>{return (await window.forgecut.invoke('get_project_snapshot')).value;})()`,
+  );
+  if (
+    JSON.stringify(afterDraftUndo.project) !== JSON.stringify(applied.project)
+  )
+    throw new Error("Draft undo changed the active project");
+  await key("Z", "KeyZ", 90, 3);
+  await wait(
+    `(async()=>{const value=await ${draft()};return value.component.source.files[${JSON.stringify(component.source.entry)}]===${JSON.stringify(edited)};})()`,
+    "Monaco draft redo",
+  );
   if (process.env.FORGECUT_CHECK_SCREENSHOT) {
     const screenshot = await send("Page.captureScreenshot", { format: "png" });
     await writeFile(
@@ -149,6 +226,7 @@ export async function verifyCode(send) {
   }
   await click("Canvas");
   await wait(`!document.querySelector('.code-workspace')`, "return to canvas");
+  await verifyCanvas(send);
   const undone = await evaluate(
     `(async()=>{const result=await window.forgecut.invoke('undo');if(!result.ok)throw new Error(result.error.message);return (await window.forgecut.invoke('get_project_snapshot')).value;})()`,
   );
