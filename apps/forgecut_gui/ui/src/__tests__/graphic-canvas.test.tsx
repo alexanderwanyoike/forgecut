@@ -201,3 +201,31 @@ it("nudges by one composition pixel or ten with Shift", async () => {
     ),
   );
 });
+it("keeps an active drag through a preview redraw at the same project revision", async () => {
+  const { target, view, props } = await fixture();
+  fireEvent.mouseDown(target, { button: 0, clientX: 100, clientY: 100 });
+  fireEvent.mouseMove(window, { clientX: 150, clientY: 125 });
+  view.rerender(
+    <Preview {...props} project={structuredClone(props.project)} />,
+  );
+  fireEvent.mouseMove(window, { clientX: 160, clientY: 130 });
+  fireEvent.mouseUp(window, { clientX: 160, clientY: 130 });
+  await waitFor(() =>
+    expect(invoke).toHaveBeenCalledExactlyOnceWith(
+      "apply_edits",
+      expect.objectContaining({
+        expectedRevision: props.projectVersion,
+        operations: [
+          expect.objectContaining({
+            args: expect.objectContaining({
+              patch: {
+                kind: "RemotionGraphic",
+                changes: { props: { title_x: 270, title_y: 480 } },
+              },
+            }),
+          }),
+        ],
+      }),
+    ),
+  );
+});
