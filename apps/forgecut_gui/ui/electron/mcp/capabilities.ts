@@ -4,7 +4,7 @@ import {
   historyRequestSchema,
 } from "../backend/command-schema.js";
 import { MAX_MESSAGE_BYTES } from "./contract.js";
-import { importRequestSchema } from "./job-schema.js";
+import { importRequestSchema, frameRequestSchema } from "./job-schema.js";
 
 export const editingCapabilities = {
   schemaVersion: 1,
@@ -17,6 +17,7 @@ export const editingCapabilities = {
   history: z.toJSONSchema(historyRequestSchema),
   jobs: {
     import: z.toJSONSchema(importRequestSchema),
+    frame: z.toJSONSchema(frameRequestSchema),
     concurrency: 1,
     maxActive: 16,
     maxRetained: 64,

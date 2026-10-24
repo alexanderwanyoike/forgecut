@@ -105,6 +105,7 @@ export async function startLocalBridge(
       const request = bridgeRequestSchema.parse(input);
       const labels = {
         import: "Import media",
+        frame: "Source frame",
         job: "Read job",
         cancel: "Cancel job",
         summary: "Read project",

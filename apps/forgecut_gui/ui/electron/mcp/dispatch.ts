@@ -15,7 +15,12 @@ import {
 } from "../backend/timeline-ops.js";
 import { EditingError } from "../backend/editing-error.js";
 import type { BridgeResult } from "./contract.js";
-import { importRequestSchema, jobRequestSchema } from "./job-schema.js";
+import {
+  importRequestSchema,
+  jobRequestSchema,
+  frameRequestSchema,
+} from "./job-schema.js";
+import { sourceFrame } from "../backend/source-frame.js";
 
 export const pageFields = {
   sessionId: idSchema,
@@ -32,6 +37,7 @@ export const projectFileRequestSchema = z.strictObject({
     .refine(isAbsolute, "Use an absolute project path"),
 });
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
+  frameRequestSchema.extend({ action: z.literal("frame") }),
   importRequestSchema.extend({ action: z.literal("import") }),
   jobRequestSchema.extend({ action: z.literal("job") }),
   jobRequestSchema.extend({ action: z.literal("cancel") }),
@@ -102,16 +108,16 @@ export async function dispatchLocal(
       return service.jobs.read(request.jobId, request.sessionId);
     if (request.action === "cancel")
       return service.jobs.cancel(request.jobId, request.sessionId);
-    if (request.action === "import") {
+    if (request.action === "import" || request.action === "frame") {
       state.assertSession(request.sessionId);
       return service.jobs.start(
         {
           sessionId: request.sessionId,
           projectRevision: request.expectedRevision,
           requestId: request.requestId,
-          kind: "import",
-          label: "Import media",
-          input: request.paths,
+          kind: request.action,
+          label: request.action === "import" ? "Import media" : "Source frame",
+          input: request,
         },
         async (signal, onProgress) => {
           state.assertSession(request.sessionId);
@@ -121,9 +127,23 @@ export async function dispatchLocal(
               error: {
                 code: "CONFLICT",
                 message:
-                  "The project changed before the import started. Read it again and retry.",
+                  "The project changed before the media job started. Read it again and retry.",
               },
             };
+          if (request.action === "frame") {
+            const asset = state.project.assets.find(
+              (candidate) => candidate.id === request.assetId,
+            );
+            if (!asset)
+              return {
+                ok: false,
+                error: {
+                  code: "NOT_FOUND",
+                  message: "Source asset not found.",
+                },
+              };
+            return sourceFrame(asset, request.timeUs, signal);
+          }
           const imported = await service.execute(
             "import_assets",
             { paths: request.paths },

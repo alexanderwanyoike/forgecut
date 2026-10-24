@@ -21,3 +21,16 @@ export const jobRequestSchema = z.strictObject({
   sessionId: idSchema,
   jobId: z.uuid(),
 });
+export const frameRequestSchema = importRequestSchema
+  .omit({ paths: true })
+  .extend({ assetId: idSchema, timeUs: timeSchema });
+export const frameJobSchema = z.looseObject({
+  kind: z.literal("frame"),
+  result: z.strictObject({
+    ok: z.literal(true),
+    value: z.strictObject({
+      mimeType: z.literal("image/jpeg"),
+      data: z.string().max(700000),
+    }),
+  }),
+});
