@@ -1,4 +1,5 @@
 .sequence-controls {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -6,6 +7,52 @@
   color: var(--text-secondary);
   font-size: 12px;
   -webkit-app-region: no-drag;
+}
+
+.sequence-controls > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sequence-action {
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sequence-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.sequence-name-form {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 200;
+  display: grid;
+  gap: 12px;
+  width: 280px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 20%);
+}
+
+.sequence-name-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.sequence-form-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .sequence-controls select,

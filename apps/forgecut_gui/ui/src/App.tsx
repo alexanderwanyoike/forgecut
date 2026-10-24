@@ -153,6 +153,7 @@ export default function App() {
         </div>
         {snapshot && (
           <SequenceControls
+            key={snapshot.sessionId}
             snapshot={snapshot}
             beforeChange={async () => {
               if (sourceClose.current && !(await sourceClose.current()))
