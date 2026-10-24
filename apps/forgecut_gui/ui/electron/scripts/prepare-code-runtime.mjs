@@ -1,6 +1,6 @@
 import { build } from "esbuild";
 import { createRequire } from "node:module";
-import { cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 const root = resolve(import.meta.dirname, "../..");
 const runtime = join(root, "electron/dist/code-runtime");
@@ -11,7 +11,17 @@ await build({
   entryPoints: ["electron/source/worker.ts"],
   outfile: join(runtime, "compiler.cjs"),
   bundle: true,
-  external: ["esbuild"],
+  plugins: [
+    {
+      name: "prepared-esbuild-api",
+      setup(plugin) {
+        plugin.onResolve({ filter: /^esbuild$/ }, () => ({
+          path: "./vendor/esbuild/lib/main.js",
+          external: true,
+        }));
+      },
+    },
+  ],
   platform: "node",
   target: "node20",
   format: "cjs",
@@ -68,12 +78,10 @@ for (const name of [
     notices.push(await readFile(join(folder, file), "utf8"));
 }
 const esbuildFolder = dirname(require.resolve("esbuild/package.json"));
-await mkdir(join(runtime, "node_modules/esbuild/lib"), { recursive: true });
+await rm(join(runtime, "node_modules"), { recursive: true, force: true });
+await mkdir(join(runtime, "vendor/esbuild/lib"), { recursive: true });
 for (const name of ["package.json", "lib/main.js", "LICENSE.md"])
-  await cp(
-    join(esbuildFolder, name),
-    join(runtime, "node_modules/esbuild", name),
-  );
+  await cp(join(esbuildFolder, name), join(runtime, "vendor/esbuild", name));
 notices.push(
   "esbuild: MIT",
   await readFile(join(esbuildFolder, "LICENSE.md"), "utf8"),
