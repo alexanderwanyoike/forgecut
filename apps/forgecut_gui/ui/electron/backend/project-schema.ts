@@ -92,6 +92,7 @@ const projectSchema = z.strictObject({
   settings: settingsSchema,
   assets: z.array(assetSchema),
   timeline: z.strictObject({
+    duration_us: timeSchema.positive().optional(),
     tracks: z.array(
       z.strictObject({
         id: idSchema,

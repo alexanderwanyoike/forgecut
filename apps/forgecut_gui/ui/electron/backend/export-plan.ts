@@ -20,6 +20,7 @@ export type RenderPlan = {
 export function compileExportPlan(project: Project): RenderPlan {
   const { width, height, fps, sample_rate: sampleRate } = project.settings;
   const duration = sequenceDurationUs(project) / 1_000_000;
+  const frameCount = frameAtOrAfter(sequenceDurationUs(project), fps);
   if (duration <= 0) throw new Error("The sequence has no duration to export.");
   const inputs: RenderInput[] = [];
   const textFiles: RenderPlan["textFiles"] = [];
@@ -36,7 +37,7 @@ export function compileExportPlan(project: Project): RenderPlan {
   for (const track of project.timeline.tracks)
     for (const item of track.items) {
       const range = itemFrameRange(item, fps);
-      if (range.end <= range.start) continue;
+      if (range.end <= range.start || range.start >= frameCount) continue;
       const length = (range.end - range.start) / fps;
       const active = `gte(round(t*${fps}),${range.start})*lt(round(t*${fps}),${range.end})`;
       const data = itemData(item);
@@ -118,7 +119,7 @@ export function compileExportPlan(project: Project): RenderPlan {
       "-map",
       "[outa]",
       "-frames:v",
-      String(frameAtOrAfter(sequenceDurationUs(project), fps)),
+      String(frameCount),
       "-t",
       String(duration),
       "-c:v",
