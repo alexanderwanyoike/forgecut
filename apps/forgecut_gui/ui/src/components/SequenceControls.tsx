@@ -1,6 +1,6 @@
 import { Layers3, Pencil, Plus, Trash2 } from "lucide-react";
-import ActionButton from "./ActionButton";
 import { useState } from "react";
+import ActionButton from "./ActionButton";
 import { projectSequences } from "../../electron/domain/project-sequences";
 import type {
   ProjectSnapshot,

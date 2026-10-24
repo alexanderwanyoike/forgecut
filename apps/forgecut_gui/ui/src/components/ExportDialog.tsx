@@ -1,4 +1,6 @@
+import { ArrowLeft, Download, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import ActionButton from "./ActionButton";
 import type { JobSnapshot } from "../../electron/shared/jobs";
 import {
   invoke,
@@ -146,13 +148,13 @@ export default function ExportDialog(props: {
       >
         <div className="export-header">
           <h3 id="export-heading">Export project</h3>
-          <button
-            className="close-btn"
+          <ActionButton
+            icon={X}
+            iconOnly
+            tooltip="Close export dialog"
             aria-label="Close export dialog"
             onClick={props.onClose}
-          >
-            &times;
-          </button>
+          ></ActionButton>
         </div>
         <div className="export-body">
           <div className="export-info">
@@ -231,29 +233,30 @@ export default function ExportDialog(props: {
         </div>
         <div className="export-footer">
           {exporting && (
-            <button
-              className="preview-btn"
+            <ActionButton
+              icon={X}
               disabled={
                 job?.status === "cancelling" || job?.status === "committing"
               }
               onClick={cancel}
             >
               Cancel export
-            </button>
+            </ActionButton>
           )}
           {exporting && (
-            <button className="btn-export" onClick={props.onClose}>
+            <ActionButton icon={ArrowLeft} onClick={props.onClose}>
               Back to editor
-            </button>
+            </ActionButton>
           )}
           {!exporting && (
-            <button
-              className="btn-export"
+            <ActionButton
+              icon={Download}
+              className="primary-action"
               disabled={starting}
               onClick={handleExport}
             >
               {starting ? "Preparing" : "Export"}
-            </button>
+            </ActionButton>
           )}
         </div>
       </div>

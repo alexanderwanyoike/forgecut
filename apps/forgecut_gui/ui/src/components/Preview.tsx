@@ -1,4 +1,6 @@
+import { Clapperboard, MonitorPlay, Pause, Play } from "lucide-react";
 import { lazy, Suspense, useEffect, useState, type CSSProperties } from "react";
+import ActionButton from "./ActionButton";
 import {
   frameAtOrAfter,
   resolveSequenceFrame,
@@ -45,6 +47,17 @@ export default function Preview(props: PreviewProps) {
   });
   return (
     <section className="panel preview">
+      <div className="panel-header">
+        <span>
+          <MonitorPlay size={15} aria-hidden="true" />
+          Canvas
+        </span>
+        <span className="panel-detail">
+          {settings.width} × {settings.height}
+          <span className="detail-divider">/</span>
+          {settings.fps} fps
+        </span>
+      </div>
       <div className="preview-viewport" ref={viewportRef}>
         <div
           className="preview-composition"
@@ -164,9 +177,11 @@ export default function Preview(props: PreviewProps) {
           })}
         </div>
         {!frame?.durationUs && (
-          <span className="placeholder-label">
-            Import a clip and drag it to the timeline
-          </span>
+          <div className="canvas-empty">
+            <Clapperboard size={32} strokeWidth={1.2} aria-hidden="true" />
+            <strong>No clips yet</strong>
+            <span>Import media to start editing</span>
+          </div>
         )}
         {error.key === sourceKey && error.message && (
           <span className="placeholder-label" role="alert">
@@ -175,14 +190,19 @@ export default function Preview(props: PreviewProps) {
         )}
       </div>
       <div className="preview-controls">
-        <button
-          className="preview-btn"
+        <ActionButton
+          className="transport-play primary-action"
+          icon={props.playing ? Pause : Play}
+          iconOnly
+          tooltip={props.playing ? "Pause sequence" : "Play sequence"}
           aria-label={props.playing ? "Pause sequence" : "Play sequence"}
           onClick={playback.handlePlayPause}
-        >
-          {props.playing ? "⏹" : "▶"}
-        </button>
+        />
         <span className="preview-time">{formatTimeUs(props.playheadUs)}</span>
+        <span className="preview-duration">
+          / {formatTimeUs(frame?.durationUs ?? 0)}
+        </span>
+        <span className="preview-scale">Fit · {Math.round(scale * 100)}%</span>
       </div>
     </section>
   );

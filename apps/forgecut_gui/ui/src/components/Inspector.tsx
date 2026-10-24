@@ -1,4 +1,6 @@
+import { Code2, SlidersHorizontal } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import ActionButton from "./ActionButton";
 import { getItemData } from "../lib/timeline/items";
 import { invoke, invokeGrouped } from "../lib/bridge";
 import type {
@@ -192,7 +194,13 @@ export default function Inspector({
 
   return (
     <aside className="panel inspector">
-      <div className="panel-header">Inspector</div>
+      <div className="panel-header">
+        <span>
+          <SlidersHorizontal size={15} aria-hidden="true" />
+          Inspector
+        </span>
+        <span className="panel-detail">{item ? "Selection" : "Sequence"}</span>
+      </div>
       <div
         className="inspector-body"
         onFocusCapture={() => {
@@ -230,12 +238,13 @@ export default function Inspector({
             {graphic && component && (
               <>
                 {onEditCode && (
-                  <button
-                    className="preview-btn inspector-code-button"
+                  <ActionButton
+                    icon={Code2}
+                    className="inspector-code-button"
                     onClick={() => onEditCode(graphic.id)}
                   >
                     Edit code
-                  </button>
+                  </ActionButton>
                 )}
                 <GraphicLayers
                   component={component}

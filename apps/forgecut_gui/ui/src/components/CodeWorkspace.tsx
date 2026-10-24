@@ -1,4 +1,6 @@
+import { ArrowLeft, Check, Play, RotateCcw, Save, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
+import ActionButton from "./ActionButton";
 import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
 import type { GraphicDiagnostic } from "../../electron/shared/graphic-source";
 import type {
@@ -27,7 +29,9 @@ export default function CodeWorkspace(props: Props) {
     return (
       <section className="panel code-workspace">
         <p role="alert">{found.error.message}</p>
-        <button onClick={props.onClose}>Canvas</button>
+        <ActionButton icon={ArrowLeft} onClick={props.onClose}>
+          Canvas
+        </ActionButton>
       </section>
     );
   return (
@@ -131,16 +135,19 @@ function Workspace({
           <span className="code-eyebrow">COMPONENT CODE</span>
           <strong>{component.name}</strong>
         </div>
-        <button
+        <ActionButton
+          icon={ArrowLeft}
           onClick={async () => {
             if (await close()) onClose();
           }}
         >
           Canvas
-        </button>
+        </ActionButton>
       </header>
       <div className="code-toolbar">
-        <button
+        <ActionButton
+          icon={Save}
+          tooltip="Save the current source draft"
           disabled={
             !source.draft || checking || promotion.busy || source.conflict
           }
@@ -149,17 +156,20 @@ function Workspace({
           }}
         >
           Save draft
-        </button>
-        <button
+        </ActionButton>
+        <ActionButton
+          icon={Play}
+          tooltip="Render a frame from the draft before applying"
           disabled={
             !source.draft || checking || promotion.busy || source.conflict
           }
           onClick={preview}
         >
           Preview draft
-        </button>
-        <button
-          className="code-apply"
+        </ActionButton>
+        <ActionButton
+          icon={Check}
+          className="primary-action"
           disabled={
             !source.draft ||
             !changed ||
@@ -170,15 +180,17 @@ function Workspace({
           onClick={apply}
         >
           Apply source
-        </button>
-        <button
+        </ActionButton>
+        <ActionButton
+          icon={RotateCcw}
+          tooltip="Restore the active source in the draft"
           disabled={!source.draft || checking || promotion.busy}
           onClick={async () => {
             await source.revert();
           }}
         >
           Revert draft
-        </button>
+        </ActionButton>
         <label>
           Apply to{" "}
           <select
@@ -195,14 +207,15 @@ function Workspace({
           </select>
         </label>
         {promotion.busy && (
-          <button
+          <ActionButton
+            icon={X}
             disabled={promotion.job?.status === "committing"}
             onClick={() => {
               void promotion.cancel().catch(failure);
             }}
           >
             Cancel Apply
-          </button>
+          </ActionButton>
         )}
       </div>
       {source.error && (
@@ -212,20 +225,20 @@ function Workspace({
       )}
       {source.conflict && (
         <div className="code-conflict">
-          <button
+          <ActionButton
             onClick={() => {
               void source.keepEdits();
             }}
           >
             Keep edited files
-          </button>
-          <button
+          </ActionButton>
+          <ActionButton
             onClick={() => {
               void source.reload();
             }}
           >
             Use saved draft
-          </button>
+          </ActionButton>
         </div>
       )}
       {message.error && (
@@ -288,7 +301,7 @@ function Workspace({
             <li
               key={`${diagnostic.file}:${diagnostic.line}:${diagnostic.column}:${index}`}
             >
-              <button
+              <ActionButton
                 onClick={() => {
                   setPath(diagnostic.file);
                   setLocation({ ...diagnostic });
@@ -296,7 +309,7 @@ function Workspace({
               >
                 {diagnostic.file}:{diagnostic.line}:{diagnostic.column}{" "}
                 {diagnostic.message}
-              </button>
+              </ActionButton>
             </li>
           ))}
         </ul>

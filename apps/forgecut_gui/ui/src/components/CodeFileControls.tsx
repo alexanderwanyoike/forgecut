@@ -1,4 +1,6 @@
+import { FilePlus2 } from "lucide-react";
 import { useState } from "react";
+import ActionButton from "./ActionButton";
 import type { GraphicComponent } from "../../electron/shared/graphics";
 
 type Props = {
@@ -52,7 +54,7 @@ export default function CodeFileControls({
         ))}
         <option value="@contract">Property types (read only)</option>
       </select>
-      <button
+      <ActionButton
         disabled={
           path === "@contract" ||
           path === source.entry ||
@@ -62,8 +64,8 @@ export default function CodeFileControls({
         onClick={() => onChange({ ...source, entry: path })}
       >
         Make entry
-      </button>
-      <button
+      </ActionButton>
+      <ActionButton
         disabled={path === "@contract" || path === source.entry}
         onClick={() => {
           const files = { ...source.files };
@@ -73,7 +75,7 @@ export default function CodeFileControls({
         }}
       >
         Remove file
-      </button>
+      </ActionButton>
       <input
         aria-label="New source filename"
         value={name}
@@ -83,7 +85,9 @@ export default function CodeFileControls({
           if (event.key === "Enter") add();
         }}
       />
-      <button onClick={add}>Add file</button>
+      <ActionButton icon={FilePlus2} onClick={add}>
+        Add file
+      </ActionButton>
       {error && <span role="alert">{error}</span>}
     </div>
   );

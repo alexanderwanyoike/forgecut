@@ -7,8 +7,8 @@ import {
   Save,
   Undo2,
 } from "lucide-react";
-import ActionButton from "./components/ActionButton";
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import ActionButton from "./components/ActionButton";
 import AppearanceControls from "./components/AppearanceControls";
 import McpStatus from "./components/McpStatus";
 import { useSequenceEditor } from "./hooks/useSequenceEditor";
@@ -207,16 +207,18 @@ export default function App() {
         <div className="project-notice" role="alert">
           {error}
           {recoveryPath && (
-            <button onClick={handleRecover}>Open recovery copy</button>
+            <ActionButton onClick={handleRecover}>
+              Open recovery copy
+            </ActionButton>
           )}
-          <button
+          <ActionButton
             onClick={() => {
               setError(null);
               setRecoveryPath(null);
             }}
           >
             Dismiss
-          </button>
+          </ActionButton>
         </div>
       )}
 
@@ -269,7 +271,7 @@ export default function App() {
           {editor.error ? (
             <div role="alert">
               {editor.error}
-              <button onClick={editor.retry}>Retry sequence</button>
+              <ActionButton onClick={editor.retry}>Retry sequence</ActionButton>
             </div>
           ) : (
             "Loading sequence…"
