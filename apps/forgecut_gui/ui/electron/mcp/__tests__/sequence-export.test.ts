@@ -107,6 +107,16 @@ it("accepts explicit MCP export targets and includes them in job retry identity"
       error: { code: "NOT_FOUND" },
     });
     expect(state.snapshot()).toEqual(before);
+    expect(
+      await service.execute("delete_sequence", { sequenceId: clip }),
+    ).toMatchObject({ ok: true });
+    const deleted = state.snapshot();
+    const afterDeletion = await client.callTool({
+      name: "start_export",
+      arguments: request,
+    });
+    expect(afterDeletion.structuredContent).toEqual(started.structuredContent);
+    expect(state.snapshot()).toEqual(deleted);
   } finally {
     release();
     await client.close();
