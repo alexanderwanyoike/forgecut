@@ -115,6 +115,7 @@ export class JobQueue {
       entry.snapshot.status = "cancelling";
       entry.controller.abort();
     }
+    this.prune();
     return { ok: true, value: structuredClone(entry.snapshot) };
   }
 
