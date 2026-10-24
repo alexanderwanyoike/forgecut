@@ -1,3 +1,4 @@
+import { resolveSequenceFrame } from "../domain/sequence.js";
 import { isAbsolute } from "node:path";
 import { z } from "zod";
 import { ensureForgeCutExtension } from "../backend/state.js";
@@ -53,6 +54,11 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
     request: historyRequestSchema,
   }),
   z.strictObject({ action: z.literal("assets"), ...pageFields }),
+  z.strictObject({
+    action: z.literal("sequence"),
+    ...pageFields,
+    playheadUs: timeSchema,
+  }),
   z.strictObject({
     action: z.literal("timeline"),
     ...pageFields,
@@ -134,6 +140,22 @@ export async function dispatchLocal(
       };
     }
     state.assertSession(request.sessionId);
+    if (request.action === "sequence") {
+      const { layers, ...frame } = resolveSequenceFrame(
+        state.project,
+        request.playheadUs,
+      );
+      return {
+        ok: true,
+        value: {
+          sessionId: state.sessionId,
+          revision: state.revision,
+          ...frame,
+          layers: layers.slice(request.offset, request.offset + request.limit),
+          total: layers.length,
+        },
+      };
+    }
     if (request.action === "context")
       return { ok: true, value: state.getEditingContext() };
     if (request.action === "save" || request.action === "open") {
