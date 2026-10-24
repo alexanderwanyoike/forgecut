@@ -86,3 +86,12 @@
   font-size: 12px;
   line-height: 1.6;
 }
+.credit-conflict {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}

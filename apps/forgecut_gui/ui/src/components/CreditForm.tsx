@@ -1,4 +1,4 @@
-import { Save, Trash2 } from "lucide-react";
+import { RefreshCw, Save, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import type {
   EditOperation,
@@ -24,6 +24,9 @@ export default function CreditForm({
   const [draft, setDraft] = useState<ResourceLicense>(
     target.license ?? { identifier: "", text: "" },
   );
+  const currentLicense = JSON.stringify(target.license ?? null);
+  const [baseLicense, setBaseLicense] = useState(currentLicense);
+  const changed = currentLicense !== baseLicense;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -32,6 +35,7 @@ export default function CreditForm({
     setMessage("");
   };
   const commit = async (license: ResourceLicense | null) => {
+    if (changed) return;
     let operation: EditOperation;
     if (target.type === "asset")
       operation = {
@@ -47,7 +51,7 @@ export default function CreditForm({
     setBusy(true);
     setError("");
     try {
-      await invokeInContext(
+      const saved = await invokeInContext(
         {
           sessionId: snapshot.sessionId,
           sequenceId: snapshot.activeSequenceId,
@@ -60,7 +64,14 @@ export default function CreditForm({
           operations: [operation],
         },
       );
-      setDraft(license ?? { identifier: "", text: "" });
+      const acknowledged =
+        target.type === "asset"
+          ? saved.project.assets.find((value) => value.id === target.id)
+              ?.license
+          : saved.project.resources?.find((value) => value.id === target.id)
+              ?.license;
+      setBaseLicense(JSON.stringify(acknowledged ?? null));
+      setDraft(acknowledged ?? { identifier: "", text: "" });
       setMessage(license ? "Credits saved" : "Credit removed");
     } catch (cause) {
       setError(String(cause));
@@ -120,6 +131,23 @@ export default function CreditForm({
           onChange={(event) => set("text", event.target.value)}
         />
       </label>
+      {changed && (
+        <div className="credit-conflict" role="alert">
+          <p>Credits changed elsewhere. Reload before saving.</p>
+          <ActionButton
+            icon={RefreshCw}
+            disabled={busy}
+            onClick={() => {
+              setBaseLicense(currentLicense);
+              setDraft(target.license ?? { identifier: "", text: "" });
+              setMessage("");
+              setError("");
+            }}
+          >
+            Reload credits
+          </ActionButton>
+        </div>
+      )}
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
       <div className="credit-actions">
@@ -127,14 +155,14 @@ export default function CreditForm({
           type="submit"
           icon={Save}
           className="primary-action"
-          disabled={busy || !draft.identifier || !draft.text}
+          disabled={busy || changed || !draft.identifier || !draft.text}
         >
           Save credits
         </ActionButton>
         {target.type === "asset" && target.license && (
           <ActionButton
             icon={Trash2}
-            disabled={busy}
+            disabled={busy || changed}
             onClick={() => {
               void commit(null);
             }}
