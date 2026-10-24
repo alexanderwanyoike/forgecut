@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import ExportDialog from "../components/ExportDialog";
 
 const api = vi.hoisted(() => ({
@@ -8,6 +8,7 @@ const api = vi.hoisted(() => ({
   save: vi.fn(),
 }));
 vi.mock("../lib/bridge", () => api);
+beforeEach(() => vi.clearAllMocks());
 
 it("shows a queued export and cancels the same scoped job", async () => {
   api.save.mockResolvedValue("/result.mp4");
@@ -157,6 +158,84 @@ it("exports a review range from the captured sequence target", async () => {
       outputPath: "/review.mp4",
       sequenceId: "clip",
       range: { startUs: 1250000, endUs: 1850000 },
+    }),
+  );
+});
+
+it("blocks invalid review ranges and allows switching back to a full export", () => {
+  const target = {
+    sessionId: "validation",
+    sequenceId: "clip",
+    name: "Clip",
+    durationUs: 40000000,
+    playheadUs: 0,
+  };
+  render(<ExportDialog open target={target} onClose={() => {}} />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Review a range" }));
+  for (const [start, end] of [
+    ["", "1"],
+    ["0", "31"],
+    ["5", "4"],
+  ]) {
+    fireEvent.change(screen.getByLabelText("Review start (s)"), {
+      target: { value: start },
+    });
+    fireEvent.change(screen.getByLabelText("Review end (s)"), {
+      target: { value: end },
+    });
+    expect(
+      (screen.getByRole("button", { name: "Export" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(screen.getByRole("alert")).toBeTruthy();
+  }
+  expect(api.save).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Review a range" }));
+  expect(
+    (screen.getByRole("button", { name: "Export" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(false);
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("reopens the dialog with a full export instead of a previous review draft", async () => {
+  api.save.mockResolvedValue("/full.mp4");
+  api.invokeInContext.mockResolvedValue({
+    id: "full",
+    sessionId: "reopen",
+    projectRevision: 1,
+    requestId: "full",
+    kind: "export",
+    label: "Export",
+    status: "completed",
+    progress: 1,
+    result: { ok: true, value: { outputPath: "/full.mp4" } },
+  });
+  const target = {
+    sessionId: "reopen",
+    sequenceId: "clip",
+    name: "Clip",
+    durationUs: 2000000,
+    playheadUs: 0,
+  };
+  const view = render(<ExportDialog open target={target} onClose={() => {}} />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Review a range" }));
+  view.rerender(
+    <ExportDialog open={false} target={target} onClose={() => {}} />,
+  );
+  view.rerender(<ExportDialog open target={target} onClose={() => {}} />);
+  expect(
+    (
+      screen.getByRole("checkbox", {
+        name: "Review a range",
+      }) as HTMLInputElement
+    ).checked,
+  ).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Export" }));
+  await waitFor(() =>
+    expect(api.invokeInContext).toHaveBeenCalledWith(target, "export_project", {
+      outputPath: "/full.mp4",
+      sequenceId: "clip",
     }),
   );
 });
