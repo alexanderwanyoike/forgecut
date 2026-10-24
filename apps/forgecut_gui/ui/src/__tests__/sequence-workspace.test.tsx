@@ -334,3 +334,36 @@ it("ignores a delayed context reply after the visible sequence has changed", asy
     release();
   }
 });
+
+it("adds an audio track to an empty sequence without changing another timeline", async () => {
+  const { state, App } = await fixture();
+  render(<App />);
+  await screen.findByLabelText("Text");
+  const rootTimeline = structuredClone(state.project.timeline);
+  fireEvent.click(screen.getByRole("button", { name: "New sequence" }));
+  fireEvent.change(screen.getByLabelText("Sequence name"), {
+    target: { value: "Audio clip" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Create sequence" }));
+  await screen.findByText("Project Settings");
+  fireEvent.change(screen.getByLabelText("New track type"), {
+    target: { value: "Audio" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "+ Track" }));
+  await waitFor(() =>
+    expect(
+      state.project.sequences!.find(
+        (sequence) => sequence.name === "Audio clip",
+      )?.timeline.tracks,
+    ).toMatchObject([{ kind: "Audio", items: [] }]),
+  );
+  expect(state.project.timeline).toEqual(rootTimeline);
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  await waitFor(() =>
+    expect(
+      state.project.sequences!.find(
+        (sequence) => sequence.name === "Audio clip",
+      )?.timeline.tracks,
+    ).toEqual([]),
+  );
+});
