@@ -13,9 +13,9 @@ it("reads bounded asset credit details and updates them through guarded MCP hist
   const directory = await mkdtemp(join(tmpdir(), "forgecut-credits-mcp-"));
   const state = new AppState();
   const license = {
-    identifier: "Original recording",
+    identifier: "\0".repeat(256),
     text: "\0".repeat(65536),
-    attribution: "Project editor",
+    attribution: "\0".repeat(2048),
     source_url: "https://example.com/recording",
   };
   state.executeProjectChange((project) => {
@@ -66,14 +66,16 @@ it("reads bounded asset credit details and updates them through guarded MCP hist
           {
             license: {
               identifier: license.identifier,
-              attribution: license.attribution,
-              source_url: license.source_url,
             },
           },
           ...Array.from({ length: 99 }, () => ({})),
         ],
       },
     });
+    expect(
+      (page.structuredContent as { value: { assets: { license: unknown }[] } })
+        .value.assets[0].license,
+    ).toEqual({ identifier: license.identifier });
     expect(JSON.stringify(page.structuredContent)).not.toContain('"text":');
     expect(
       Buffer.byteLength(JSON.stringify(detail.structuredContent)),
