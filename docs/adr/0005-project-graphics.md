@@ -33,3 +33,11 @@ Graphic resources retain a UUID, content hash, MIME type and licence/provenance 
 Saving writes immutable bytes into `.forgecut-resources/<sha256>` beside the manifest before replacing the manifest. Relative references and licence text travel with the project. Reopening verifies resource hashes and hydrates the app store; missing/corrupt resources produce an actionable load failure while preserving the current open project. Backups and undo can continue referencing older immutable files. No original asset path is required after import.
 
 The resource-persistence slice exposes import through the shared IPC command. Resource pickers, MCP import jobs and component rendering inputs follow in the next graphics slices. A maintained generated-PNG test moves the manifest/resource folder, clears the app cache and reopens without the original artwork.
+
+## Font selection and identical rendering inputs
+
+A font property references a project resource ID. Importing a font and selecting it for a graphic is one guarded transaction and one undo action; the component source/version stays unchanged. The font's licence can be supplied as metadata or a local text file. Unknown references and resource-kind mismatches fail before the project changes.
+
+Preview serves only hash-checked resources belonging to the current project through a dedicated resource protocol. Export reads the same immutable bytes into bounded data inputs for its offline worker. The pinned Remotion font loader registers a family derived from the content hash, with shared inputs in Player and renderMedia. Player waits for font preparation before mounting the composition and seeks to the current local frame when ready. Loading failures are visible and exports preserve the old destination. The explicit system sans-serif choice remains available when no project font is selected.
+
+The Inspector provides project-font selection and import with licence text. Native Linux acceptance loads an actual font, verifies document font registration, saves/reopens its resource references and exports the card through the job queue. CI supplies a redistributable system font for this check; private Octane assets remain outside the repository.
