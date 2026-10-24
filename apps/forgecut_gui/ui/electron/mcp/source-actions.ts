@@ -1,9 +1,48 @@
+import type { GraphicComponent } from "../shared/graphics.js";
 import type { GraphicDraft } from "../shared/graphic-draft.js";
 import type { EditingService } from "../backend/editing-service.js";
 import { EditingError } from "../backend/editing-error.js";
 import { resolveGraphicInstance } from "../domain/graphic-instance.js";
 import type { BridgeResult } from "./contract.js";
 import type { SourceAction } from "./draft-schema.js";
+
+function sourceView(
+  component: GraphicComponent,
+  request: Extract<SourceAction, { action: "source-read" }>,
+  version: {
+    revision: number;
+    activeVersion: string;
+    baseVersion: string;
+    draftRevision: number | null;
+  },
+): BridgeResult {
+  const { source: sourceFiles, ...metadata } = component;
+  const content = request.file ? sourceFiles.files[request.file] : undefined;
+  if (request.file && content === undefined)
+    return {
+      ok: false,
+      error: { code: "NOT_FOUND", message: "Source file not found" },
+    };
+  return {
+    ok: true,
+    value: {
+      sessionId: request.sessionId,
+      revision: version.revision,
+      itemId: request.itemId,
+      componentId: component.id,
+      activeVersion: version.activeVersion,
+      baseVersion: version.baseVersion,
+      draftRevision: version.draftRevision,
+      entry: sourceFiles.entry,
+      ...(request.includeMetadata ? { metadata } : {}),
+      files: Object.entries(sourceFiles.files).map(([path, text]) => ({
+        path,
+        bytes: Buffer.byteLength(text),
+      })),
+      ...(request.file ? { file: { path: request.file, content } } : {}),
+    },
+  };
+}
 
 export async function dispatchGraphicSource(
   service: EditingService,
@@ -34,6 +73,13 @@ export async function dispatchGraphicSource(
   }
   const active = resolveGraphicInstance(state.project, request.itemId);
   if (!active.ok) return active;
+  if (request.action === "source-read" && request.view === "active")
+    return sourceView(active.value.component, request, {
+      revision: state.revision,
+      activeVersion: active.value.component.version,
+      baseVersion: active.value.component.version,
+      draftRevision: null,
+    });
   const loaded = await service.execute(
     "get_graphic_draft",
     { itemId: request.itemId },
@@ -44,36 +90,13 @@ export async function dispatchGraphicSource(
   if (loaded.revision !== state.revision)
     throw new EditingError("CONFLICT", "Project changed while reading source");
   const draft = loaded.value as GraphicDraft;
-  if (request.action === "source-read") {
-    const component =
-      request.view === "active" ? active.value.component : draft.component;
-    const { source: sourceFiles, ...metadata } = component;
-    const content = request.file ? sourceFiles.files[request.file] : undefined;
-    if (request.file && content === undefined)
-      return {
-        ok: false,
-        error: { code: "NOT_FOUND", message: "Source file not found" },
-      };
-    return {
-      ok: true,
-      value: {
-        sessionId: state.sessionId,
-        revision: state.revision,
-        itemId: request.itemId,
-        componentId: component.id,
-        activeVersion: active.value.component.version,
-        baseVersion: draft.baseVersion,
-        draftRevision: draft.revision,
-        entry: sourceFiles.entry,
-        ...(request.includeMetadata ? { metadata } : {}),
-        files: Object.entries(sourceFiles.files).map(([path, text]) => ({
-          path,
-          bytes: Buffer.byteLength(text),
-        })),
-        ...(request.file ? { file: { path: request.file, content } } : {}),
-      },
-    };
-  }
+  if (request.action === "source-read")
+    return sourceView(draft.component, request, {
+      revision: state.revision,
+      activeVersion: active.value.component.version,
+      baseVersion: draft.baseVersion,
+      draftRevision: draft.revision,
+    });
   if (request.expectedDraftRevision !== draft.revision)
     return {
       ok: false,
