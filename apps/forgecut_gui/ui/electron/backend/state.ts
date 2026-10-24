@@ -422,7 +422,8 @@ export class AppState {
 
 function createProject(name: string): Project {
   return {
-    schema_version: 3,
+    schema_version: 4,
+    source_selections: [],
     default_sequence: { id: randomUUID(), name: "Main" },
     sequences: [],
     resources: [],
