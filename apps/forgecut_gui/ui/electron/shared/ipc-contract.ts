@@ -312,6 +312,16 @@ export type CommandMap = {
     args: GraphicPromotionRequest;
     result: JobSnapshot;
   };
+  get_graphic_type_libraries: {
+    args: undefined;
+    result: Record<string, string>;
+  };
+  get_graphic_draft_preview: {
+    args: Omit<GraphicPromotionRequest, "scope" | "requestId"> & {
+      frame: number;
+    };
+    result: GraphicPreviewFrame;
+  };
   get_graphic_draft: { args: { itemId: string }; result: GraphicDraft };
   save_graphic_draft: {
     args: {

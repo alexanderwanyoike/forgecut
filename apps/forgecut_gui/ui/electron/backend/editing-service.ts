@@ -1,5 +1,6 @@
 import { ZodError } from "zod";
 import { createHash } from "node:crypto";
+import { graphicEditorCommands } from "./commands/graphic-editor.js";
 import { graphicPromotionCommands } from "./commands/graphic-promotion.js";
 import { GraphicDraftStore } from "./GraphicDraftStore.js";
 import { graphicDraftCommands } from "./commands/graphic-drafts.js";
@@ -51,6 +52,7 @@ const handlers: Record<
   ...graphicSourceCommands,
   ...graphicDraftCommands,
   ...graphicPromotionCommands,
+  ...graphicEditorCommands,
   ...graphicPreviewCommands,
   ...graphicResourceCommands,
   ...mediaCommands,
