@@ -326,3 +326,68 @@ it("ignores a poll response older than a newly acknowledged manual save", async 
       .value,
   ).toBe(code);
 });
+it("retains typing made while Keep edited files reads the agent draft", async () => {
+  const { state, itemId } = await fixture();
+  const loaded = await service.execute("get_graphic_draft", { itemId });
+  if (!loaded.ok) throw new Error(loaded.error.message);
+  const original = loaded.value as GraphicDraft;
+  const component = structuredClone(original.component);
+  component.properties.title.label = "Agent label";
+  await service.execute("save_graphic_draft", {
+    itemId,
+    sessionId: state.sessionId,
+    expectedDraftRevision: 0,
+    baseVersion: original.baseVersion,
+    component,
+  });
+  fireEvent.change(screen.getByLabelText("Graphic source editor"), {
+    target: { value: "export default function Earlier(){return null}" },
+  });
+  await screen.findByRole("button", { name: "Keep edited files" });
+  const execute = bridge.getMockImplementation()!;
+  let release: (() => void) | undefined;
+  let began: (() => void) | undefined;
+  const paused = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    began = resolve;
+  });
+  let held = false;
+  bridge.mockImplementation(async (command: string, args: unknown) => {
+    const result = await execute(command, args);
+    if (command === "get_graphic_draft" && !held) {
+      held = true;
+      began!();
+      await paused;
+    }
+    return result;
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Keep edited files" }));
+  await started;
+  const latest =
+    "export default function Later(){return <div>New typing</div>}";
+  fireEvent.change(screen.getByLabelText("Graphic source editor"), {
+    target: { value: latest },
+  });
+  await act(async () => {
+    release!();
+  });
+  expect(
+    (screen.getByLabelText("Graphic source editor") as HTMLTextAreaElement)
+      .value,
+  ).toBe(latest);
+  fireEvent.click(screen.getByRole("button", { name: "Keep edited files" }));
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toContain("Draft saved"),
+  );
+  expect(await service.execute("get_graphic_draft", { itemId })).toMatchObject({
+    ok: true,
+    value: {
+      component: {
+        properties: { title: { label: "Agent label" } },
+        source: { files: { "main.tsx": latest } },
+      },
+    },
+  });
+});
