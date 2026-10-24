@@ -237,7 +237,12 @@ it("removes the transient drag position when the project revision changes", asyn
   view.rerender(
     <Preview {...props} projectVersion={props.projectVersion + 1} />,
   );
-  await waitFor(() => expect(target.parentElement?.style.left).toBe("150px"));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Select Title" }).parentElement?.style
+        .left,
+    ).toBe("150px"),
+  );
   fireEvent.mouseUp(window);
   expect(invoke).not.toHaveBeenCalled();
 });
