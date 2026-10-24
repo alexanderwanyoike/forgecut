@@ -26,15 +26,27 @@ export default function GraphicStyleControls({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [presetId, setPresetId] = useState("");
+  const [baseStyle, setBaseStyle] = useState<string | null>(null);
   const styles = project.style_presets ?? [];
-  const missing = !!presetId && !styles.some((style) => style.id === presetId);
+  const destination = styles.find((style) => style.id === presetId);
+  const missing = !!presetId && !destination;
+  const changed = !!destination && baseStyle !== JSON.stringify(destination);
   const [name, setName] = useState(`${component.name.slice(0, 190)} style`);
   const [purpose, setPurpose] = useState<StylePreset["purpose"]>(
     component.template_id === "ending-card" ? "ending" : "card",
   );
   const [busy, setBusy] = useState(false);
+  function chooseStyle(id: string) {
+    const style = styles.find((value) => value.id === id);
+    setPresetId(id);
+    setBaseStyle(style ? JSON.stringify(style) : null);
+    if (style) {
+      setName(style.name);
+      setPurpose(style.purpose);
+    }
+  }
   async function save() {
-    if (!name.trim() || busy || missing) return;
+    if (!name.trim() || busy || missing || changed) return;
     setBusy(true);
     const sequenceId = project.default_sequence?.id ?? project.id;
     try {
@@ -80,28 +92,20 @@ export default function GraphicStyleControls({
             void save().catch(() => {});
           }}
         >
-          {styles.length > 0 && (
+          {(styles.length > 0 || presetId) && (
             <label>
               Style destination
               <select
                 value={presetId}
                 disabled={busy}
                 onChange={(event) => {
-                  const id = event.currentTarget.value;
-                  const style = styles.find((value) => value.id === id);
-                  setPresetId(id);
-                  setName(
-                    style?.name ?? `${component.name.slice(0, 190)} style`,
-                  );
-                  setPurpose(
-                    style?.purpose ??
-                      (component.template_id === "ending-card"
-                        ? "ending"
-                        : "card"),
-                  );
+                  chooseStyle(event.currentTarget.value);
                 }}
               >
                 <option value="">New style</option>
+                {missing && (
+                  <option value={presetId}>Style no longer available</option>
+                )}
                 {styles.map((style) => (
                   <option key={style.id} value={style.id}>
                     {style.name}
@@ -109,6 +113,19 @@ export default function GraphicStyleControls({
                 ))}
               </select>
             </label>
+          )}
+          {changed && (
+            <div role="status" className="graphic-style-notice">
+              <p>This style changed. Reload its details before replacing it.</p>
+              <ActionButton onClick={() => chooseStyle(presetId)}>
+                Reload style
+              </ActionButton>
+            </div>
+          )}
+          {missing && (
+            <p role="status">
+              This style was removed. Choose a new destination.
+            </p>
           )}
           <label>
             Style name
@@ -138,7 +155,7 @@ export default function GraphicStyleControls({
             <ActionButton
               icon={Save}
               type="submit"
-              disabled={busy || !name.trim() || missing}
+              disabled={busy || !name.trim() || missing || changed}
             >
               {presetId ? "Replace style" : "Create style"}
             </ActionButton>

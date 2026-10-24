@@ -22,3 +22,14 @@
   flex-wrap: wrap;
   gap: 7px;
 }
+.graphic-style-form p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.graphic-style-notice {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
