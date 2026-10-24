@@ -236,3 +236,19 @@ mediaTest(
     ).toBe(false);
   },
 );
+
+mediaTest(
+  "keeps source review keys away from the selected timeline clip",
+  async () => {
+    const { state } = await reviewFixture();
+    const before = structuredClone(state.project);
+    const button = screen.getByRole("button", { name: "Short preview" });
+    button.focus();
+    for (const key of ["Delete", "Backspace", "s", " "]) {
+      await act(async () => {
+        fireEvent.keyDown(button, { key });
+      });
+      expect(state.project).toEqual(before);
+    }
+  },
+);
