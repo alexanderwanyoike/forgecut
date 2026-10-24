@@ -3,10 +3,12 @@ import { spawnSync } from "node:child_process";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { AppState } from "../state";
 import { EditingService } from "../editing-service";
 import { exportProject } from "../exporter";
+
+afterEach(() => vi.unstubAllEnvs());
 
 it.skipIf(process.env.FORGECUT_GRAPHICS_TEST !== "1")(
   "renders a pinned Remotion card without footage at its exact timeline frames",
@@ -155,4 +157,115 @@ it.skipIf(
     }
   },
   30000,
+);
+
+it.skipIf(process.env.FORGECUT_GRAPHICS_TEST !== "1")(
+  "renders owned artwork through Remotion with its exact pixel content",
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), "forgecut-artwork-render-"));
+    try {
+      vi.stubEnv("FORGECUT_RESOURCE_DIR", join(directory, "cache"));
+      const path = join(directory, "green.png");
+      const generated = spawnSync("ffmpeg", [
+        "-v",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=lime:s=64x36",
+        "-frames:v",
+        "1",
+        "-threads",
+        "1",
+        path,
+      ]);
+      expect(generated.status, generated.stderr.toString()).toBe(0);
+      const state = new AppState();
+      const service = new EditingService(state);
+      await service.execute("update_project", {
+        settings: { width: 64, height: 36, fps: 10 },
+      });
+      await service.execute("add_graphic_item", {
+        templateId: "title-card",
+        trackId: "graphics",
+        timelineStartUs: 0,
+        durationUs: 1000000,
+        props: { title: "", entrance_frames: 0, background_opacity: 0 },
+      });
+      const item = state.project.timeline.tracks[0].items[0];
+      if (!("RemotionGraphic" in item)) throw new Error("Invalid fixture");
+      expect(
+        await service.execute("import_graphic_resource", {
+          path,
+          kind: "Image",
+          license: { identifier: "test-only", text: "Generated image" },
+          target: {
+            itemId: item.RemotionGraphic.id,
+            property: "image",
+            sessionId: state.sessionId,
+            expectedRevision: state.revision,
+          },
+        }),
+      ).toMatchObject({ ok: true });
+      const output = join(directory, "result.mp4");
+      expect(await exportProject(state.project, output)).toMatchObject({
+        ok: true,
+      });
+      const pixels = spawnSync("ffmpeg", [
+        "-v",
+        "error",
+        "-threads",
+        "1",
+        "-i",
+        output,
+        "-frames:v",
+        "1",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "-threads",
+        "1",
+        "pipe:1",
+      ]);
+      expect(pixels.status, pixels.stderr.toString()).toBe(0);
+      expect(pixels.stdout[0]).toBeLessThan(10);
+      expect(pixels.stdout[1]).toBeGreaterThan(240);
+      expect(pixels.stdout[2]).toBeLessThan(10);
+      await service.execute("update_item", {
+        itemId: item.RemotionGraphic.id,
+        patch: {
+          kind: "RemotionGraphic",
+          changes: { props: { image_opacity: 0.5 } },
+        },
+      });
+      const half = join(directory, "half.mp4");
+      expect(await exportProject(state.project, half)).toMatchObject({
+        ok: true,
+      });
+      const mixed = spawnSync("ffmpeg", [
+        "-v",
+        "error",
+        "-threads",
+        "1",
+        "-i",
+        half,
+        "-frames:v",
+        "1",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "-threads",
+        "1",
+        "pipe:1",
+      ]);
+      expect(mixed.status, mixed.stderr.toString()).toBe(0);
+      expect(mixed.stdout[1]).toBeGreaterThan(110);
+      expect(mixed.stdout[1]).toBeLessThan(145);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+  120000,
 );

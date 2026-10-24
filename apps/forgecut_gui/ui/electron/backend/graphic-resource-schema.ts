@@ -20,6 +20,8 @@ export const graphicResourceSchema = z
       "font/woff",
       "font/woff2",
     ]),
+    width: z.number().int().positive().max(8192).optional(),
+    height: z.number().int().positive().max(8192).optional(),
     sha256: z.string().regex(/^[a-f0-9]{64}$/),
     path: z.string().regex(/^\.forgecut-resources\/[a-f0-9]{64}$/),
     license: resourceLicenseSchema,

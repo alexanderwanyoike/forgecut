@@ -6,26 +6,37 @@ export type GraphicValues = Record<string, GraphicValue>;
 type PropertyBase = { id: string; label: string };
 export type GraphicProperty = PropertyBase &
   (
-    | { type: "text" | "color" | "font"; default: string }
+    | { type: "text" | "color" | "font" | "image"; default: string }
     | { type: "number"; default: number; min?: number; max?: number }
     | { type: "boolean"; default: boolean }
+    | {
+        type: "select";
+        default: string;
+        options: { value: string; label: string }[];
+      }
   );
-export type GraphicLayer = {
-  id: string;
-  name: string;
-  label: string;
-  kind: "text";
-  bindings: {
-    x: string;
-    y: string;
-    width: string;
-    height: string;
-    text: string;
-    color: string;
-    font_size: string;
-    opacity: string;
-  };
+type LayerGeometryBindings = {
+  x: string;
+  y: string;
+  width: string;
+  height: string;
+  opacity: string;
 };
+export type GraphicLayer = { id: string; name: string; label: string } & (
+  | {
+      kind: "text";
+      bindings: LayerGeometryBindings & {
+        text: string;
+        color: string;
+        font_size: string;
+        font?: string;
+      };
+    }
+  | {
+      kind: "image";
+      bindings: LayerGeometryBindings & { image: string; fit: string };
+    }
+);
 export type GraphicComponent = {
   id: string;
   template_id: string;

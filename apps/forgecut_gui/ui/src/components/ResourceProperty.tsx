@@ -5,6 +5,7 @@ import type { GraphicResource } from "../../electron/shared/graphic-resources";
 
 type Props = {
   origin?: Pick<ProjectSnapshot, "sessionId" | "revision">;
+  kind?: "Font" | "Image";
   itemId: string;
   property: string;
   label: string;
@@ -14,6 +15,7 @@ type Props = {
 };
 export default function ResourceProperty({
   origin,
+  kind = "Font",
   itemId,
   property,
   label,
@@ -23,7 +25,8 @@ export default function ResourceProperty({
 }: Props) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
-  const importFont = async () => {
+  const actionLabel = kind === "Font" ? "Import font" : "Import artwork";
+  const importResource = async () => {
     const captured = origin;
     if (!captured) {
       setError("The project is not ready for resource import.");
@@ -34,22 +37,34 @@ export default function ResourceProperty({
     try {
       const path = await open<string | null>({
         multiple: false,
-        title: "Choose a font",
+        title: kind === "Font" ? "Choose a font" : "Choose artwork",
         filters: [
-          { name: "Fonts", extensions: ["ttf", "otf", "woff", "woff2"] },
+          kind === "Font"
+            ? { name: "Fonts", extensions: ["ttf", "otf", "woff", "woff2"] }
+            : { name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] },
         ],
       });
       if (!path) return;
-      const licensePath = await open<string | null>({
-        multiple: false,
-        title: "Choose this font's licence text",
-        filters: [{ name: "Licence text", extensions: ["*"] }],
-      });
-      if (!licensePath) return;
+      const licensePath =
+        kind === "Font"
+          ? await open<string | null>({
+              multiple: false,
+              title: "Choose this font's licence text",
+              filters: [{ name: "Licence text", extensions: ["*"] }],
+            })
+          : null;
+      if (kind === "Font" && !licensePath) return;
       await invoke("import_graphic_resource", {
         path,
-        kind: "Font",
-        licensePath,
+        kind,
+        ...(licensePath
+          ? { licensePath }
+          : {
+              license: {
+                identifier: "Unspecified",
+                text: "Licence information was not supplied at import.",
+              },
+            }),
         target: {
           itemId,
           property,
@@ -73,9 +88,11 @@ export default function ResourceProperty({
           onChange={(event) => onValueChange(event.currentTarget.value)}
           disabled={pending}
         >
-          <option value="">System sans-serif</option>
+          <option value="">
+            {kind === "Font" ? "System sans-serif" : "None"}
+          </option>
           {resources
-            .filter((resource) => resource.kind === "Font")
+            .filter((resource) => resource.kind === kind)
             .map((resource) => (
               <option key={resource.id} value={resource.id}>
                 {resource.name}
@@ -85,11 +102,11 @@ export default function ResourceProperty({
       </label>
       <button
         className="preview-btn"
-        aria-label="Import font"
+        aria-label={actionLabel}
         disabled={pending}
-        onClick={importFont}
+        onClick={importResource}
       >
-        {pending ? "Importing font…" : "Import font…"}
+        {pending ? "Importing…" : `${actionLabel}…`}
       </button>
       {error && <p role="alert">{error}</p>}
     </>

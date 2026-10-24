@@ -12,16 +12,19 @@ export async function graphicResourceInputs(
   const inputs: Record<string, GraphicResourceInput> = {};
   let size = 0;
   for (const [key, property] of Object.entries(component.properties)) {
-    if (property.type !== "font" || !values[key]) continue;
+    if ((property.type !== "font" && property.type !== "image") || !values[key])
+      continue;
     const resource = project.resources?.find(
-      (candidate) => candidate.id === values[key] && candidate.kind === "Font",
+      (candidate) =>
+        candidate.id === values[key] &&
+        candidate.kind.toLowerCase() === property.type,
     );
     if (!resource)
       return {
         ok: false,
         error: {
           code: "MISSING_RESOURCE",
-          message: `Missing font resource for ${property.label}`,
+          message: `Missing resource for ${property.label}`,
         },
       };
     if (inputs[resource.id]) continue;

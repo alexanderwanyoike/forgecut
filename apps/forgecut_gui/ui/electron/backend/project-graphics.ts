@@ -22,7 +22,8 @@ export function validateProjectGraphics(project: Project): void {
       if (ids.has(property.id))
         throw new Error("Duplicate graphic property ID");
       ids.add(property.id);
-      if (property.type === "font") requireFont(project, property.default);
+      if (property.type === "font" || property.type === "image")
+        requireResource(project, property.default, property.type);
     }
     const names = new Set<string>();
     for (const layer of component.layers) {
@@ -35,6 +36,9 @@ export function validateProjectGraphics(project: Project): void {
         let expected = "number";
         if (binding === "text") expected = "text";
         if (binding === "color") expected = "color";
+        if (binding === "font") expected = "font";
+        if (binding === "image") expected = "image";
+        if (binding === "fit") expected = "select";
         if (property?.type !== expected)
           throw new Error(`Invalid layer property binding: ${name}`);
       }
@@ -55,18 +59,23 @@ export function validateProjectGraphics(project: Project): void {
       const props = validateGraphicProperties(component, graphic.props);
       if (!props.ok) throw new Error(props.error.message);
       for (const [key, property] of Object.entries(component.properties))
-        if (property.type === "font") requireFont(project, props.value[key]);
+        if (property.type === "font" || property.type === "image")
+          requireResource(project, props.value[key], property.type);
       graphic.props = props.value;
     }
 }
 
-function requireFont(project: Project, id: unknown): void {
+function requireResource(
+  project: Project,
+  id: unknown,
+  kind: "font" | "image",
+): void {
   if (id === "") return;
   if (
     typeof id !== "string" ||
     !project.resources?.some(
-      (resource) => resource.id === id && resource.kind === "Font",
+      (resource) => resource.id === id && resource.kind.toLowerCase() === kind,
     )
   )
-    throw new Error(`Missing font resource: ${String(id)}`);
+    throw new Error(`Missing ${kind} resource: ${String(id)}`);
 }

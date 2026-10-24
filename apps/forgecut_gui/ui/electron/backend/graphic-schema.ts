@@ -21,7 +21,7 @@ const propertyBase = { id: z.uuid(), label: z.string().min(1).max(256) };
 const property = z.discriminatedUnion("type", [
   z.strictObject({
     ...propertyBase,
-    type: z.enum(["text", "font"]),
+    type: z.enum(["text", "font", "image"]),
     default: z.string().max(32768),
   }),
   z.strictObject({
@@ -35,6 +35,20 @@ const property = z.discriminatedUnion("type", [
     default: z.number(),
     min: z.number().optional(),
     max: z.number().optional(),
+  }),
+  z.strictObject({
+    ...propertyBase,
+    type: z.literal("select"),
+    default: z.string().max(256),
+    options: z
+      .array(
+        z.strictObject({
+          value: z.string().min(1).max(256),
+          label: z.string().min(1).max(256),
+        }),
+      )
+      .min(1)
+      .max(32),
   }),
   z.strictObject({
     ...propertyBase,
@@ -83,22 +97,40 @@ export const graphicComponentSchema = z.strictObject({
     .refine((properties) => Object.keys(properties).length <= 100),
   layers: z
     .array(
-      z.strictObject({
-        id: z.uuid(),
-        name: key,
-        label: z.string().min(1).max(256),
-        kind: z.literal("text"),
-        bindings: z.strictObject({
-          x: key,
-          y: key,
-          width: key,
-          height: key,
-          text: key,
-          color: key,
-          font_size: key,
-          opacity: key,
+      z.discriminatedUnion("kind", [
+        z.strictObject({
+          id: z.uuid(),
+          name: key,
+          label: z.string().min(1).max(256),
+          kind: z.literal("text"),
+          bindings: z.strictObject({
+            x: key,
+            y: key,
+            width: key,
+            height: key,
+            opacity: key,
+            text: key,
+            color: key,
+            font_size: key,
+            font: key.optional(),
+          }),
         }),
-      }),
+        z.strictObject({
+          id: z.uuid(),
+          name: key,
+          label: z.string().min(1).max(256),
+          kind: z.literal("image"),
+          bindings: z.strictObject({
+            x: key,
+            y: key,
+            width: key,
+            height: key,
+            opacity: key,
+            image: key,
+            fit: key,
+          }),
+        }),
+      ]),
     )
     .max(100),
 });
