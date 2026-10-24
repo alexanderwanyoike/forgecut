@@ -170,6 +170,24 @@ describe("Timeline controls", () => {
     }
   });
 
+  it("keeps an explicit end visible and aligned while zooming beyond the last item", () => {
+    const { container } = render(
+      <Timeline
+        {...defaultProps}
+        projectTimeline={{ tracks: [], markers: [], duration_us: 60000000 }}
+      />,
+    );
+    const end = screen.getByTitle("Sequence end");
+    expect(end.style.left).toBe("6048px");
+    expect(
+      container.querySelector<HTMLElement>(".timeline-content")?.style.width,
+    ).toBe("6548px");
+    fireEvent.change(screen.getByRole("slider"), { target: { value: "50" } });
+    expect(end.style.left).toBe("3048px");
+    expect(
+      container.querySelector<HTMLElement>(".timeline-content")?.style.width,
+    ).toBe("3298px");
+  });
   it("renders control group buttons", () => {
     render(<Timeline {...defaultProps} />);
     expect(screen.getByText("Playhead")).toBeTruthy();
