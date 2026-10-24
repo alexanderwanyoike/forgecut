@@ -1,9 +1,7 @@
 import type { IpcMainInvokeEvent } from "electron";
-import type {
-  CommandMetadata,
-  CommandResponse,
-} from "../shared/ipc-contract.js";
+import type { CommandResponse } from "../shared/ipc-contract.js";
 import type { EditingService } from "./editing-service.js";
+
 export type {
   CommandArgs,
   CommandContext,
@@ -15,7 +13,7 @@ export function dispatchCommand(
   service: EditingService,
   command: string,
   args?: unknown,
-  metadata?: CommandMetadata,
+  metadata?: unknown,
 ): Promise<CommandResponse> {
   return service.execute(command, args, metadata, (name, payload) => {
     if (!event.sender.isDestroyed())

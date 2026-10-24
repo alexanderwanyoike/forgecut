@@ -10,7 +10,7 @@ export type CommandContext = { state: AppState; emit: EventSink };
 export type CommandHandler = (
   args: CommandArgs,
   context: CommandContext,
-) => Promise<unknown> | unknown;
+) => unknown;
 
 export type CommandRegistry = Record<string, CommandHandler>;
 
@@ -40,7 +40,10 @@ export function optionalString(
 
 export function requiredStringArray(args: CommandArgs, key: string): string[] {
   const value = args?.[key];
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+  if (
+    !Array.isArray(value) ||
+    !value.every((item: unknown): item is string => typeof item === "string")
+  ) {
     throw new Error(`Missing required string array argument: ${key}`);
   }
   return value;

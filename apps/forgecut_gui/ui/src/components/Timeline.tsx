@@ -104,7 +104,7 @@ export default function Timeline(props: TimelineProps) {
 
   useEffect(() => {
     const el = timelineRef.current;
-    if (!el) return;
+    if (!el) return undefined;
 
     updateViewportMetrics();
     const resizeObserver =
@@ -122,7 +122,7 @@ export default function Timeline(props: TimelineProps) {
 
   // Init default tracks on mount and after project load
   useEffect(() => {
-    if (props.projectTimeline) return;
+    if (props.projectTimeline) return undefined;
     let cancelled = false;
     (async () => {
       const next = await invoke("init_default_tracks");
@@ -164,7 +164,14 @@ export default function Timeline(props: TimelineProps) {
     e.preventDefault();
     const assetJson = e.dataTransfer?.getData("application/forgecut-asset");
     if (!assetJson) return;
-    const asset = JSON.parse(assetJson);
+    const asset: unknown = JSON.parse(assetJson);
+    if (
+      !asset ||
+      typeof asset !== "object" ||
+      !("id" in asset) ||
+      typeof asset.id !== "string"
+    )
+      return;
 
     const trackContent = (e.currentTarget as HTMLElement).querySelector(
       ".track-content",
@@ -175,7 +182,7 @@ export default function Timeline(props: TimelineProps) {
 
     const tl = await invoke("add_clip_to_timeline", {
       assetId: asset.id,
-      trackId: trackId,
+      trackId,
       timelineStartUs: startUs,
     });
     setTimeline(tl);

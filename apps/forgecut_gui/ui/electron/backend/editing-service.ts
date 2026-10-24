@@ -2,7 +2,6 @@ import { ZodError } from "zod";
 import { createHash } from "node:crypto";
 import type {
   CommandName,
-  CommandMetadata,
   CommandResponse,
   EditOperation,
   EditRequest,
@@ -45,12 +44,13 @@ type CachedEdit = {
 
 export class EditingService {
   private requests = new Map<string, CachedEdit>();
+
   constructor(readonly state: AppState) {}
 
   async execute(
     command: string,
     input?: unknown,
-    metadata?: CommandMetadata,
+    metadata?: unknown,
     emit: EventSink = () => {},
   ): Promise<CommandResponse> {
     try {
@@ -72,22 +72,19 @@ export class EditingService {
           sessionId: snapshot.sessionId,
           revision: snapshot.revision,
         };
-      } else if (command === "get_project_snapshot")
-        value = this.state.snapshot();
+      }
+      if (command === "get_project_snapshot") value = this.state.snapshot();
       else if (Object.prototype.hasOwnProperty.call(editSchemas, command)) {
         this.applyOperations(
           [{ command, args } as EditOperation],
           meta?.editGroup,
         );
-        value =
-          command === "update_project"
-            ? this.state.project
-            : command === "remove_asset"
-              ? undefined
-              : this.state.project.timeline;
+        if (command === "update_project") value = this.state.project;
+        else if (command === "remove_asset") value = undefined;
+        else value = this.state.project.timeline;
       } else {
-        const sessionId = this.state.sessionId;
-        const revision = this.state.revision;
+        const { sessionId } = this.state;
+        const { revision } = this.state;
         const derived =
           command === "get_clip_thumbnails" || command === "get_waveform";
         const assetBefore = derived
@@ -97,9 +94,10 @@ export class EditingService {
               ),
             )
           : undefined;
-        value = await (
-          handlers[command as keyof typeof handlers] as CommandHandler
-        )(args, { state: this.state, emit });
+        value = await handlers[command as keyof typeof handlers](args, {
+          state: this.state,
+          emit,
+        });
         if (
           !["create_project", "load_project", "recover_project"].includes(
             command,
@@ -209,7 +207,7 @@ export class EditingService {
       const args = editSchemas[operation.command].parse(
         operation.args,
       ) as CommandArgs;
-      const result = (handlers[operation.command] as CommandHandler)(args, {
+      const result = handlers[operation.command](args, {
         state: draft,
         emit: () => {},
       });

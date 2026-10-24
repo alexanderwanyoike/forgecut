@@ -12,7 +12,7 @@ import {
   removeItem,
   splitAt,
   timelineEndUs,
-  timelineStartUs,
+  timelineStartUs as getTimelineStartUs,
   trimIn,
   trimOut,
 } from "../timeline-ops.js";
@@ -162,7 +162,7 @@ export const timelineCommands = {
       .flatMap((track) => track.items)
       .filter(
         (item) =>
-          playheadUs >= timelineStartUs(item) &&
+          playheadUs >= getTimelineStartUs(item) &&
           playheadUs < timelineEndUs(item),
       )
       .map((item) => withOverlayAssetPath(item, state.project.assets));
@@ -271,7 +271,7 @@ function findClipAtPlayhead(
   for (const track of tracks) {
     for (const item of track.items) {
       if (
-        playheadUs < timelineStartUs(item) ||
+        playheadUs < getTimelineStartUs(item) ||
         playheadUs >= timelineEndUs(item)
       ) {
         continue;
@@ -283,12 +283,12 @@ function findClipAtPlayhead(
       if (!asset) continue;
       const data = itemData(item);
       const sourceInUs = "source_in_us" in data ? data.source_in_us : 0;
-      const seekUs = sourceInUs + (playheadUs - timelineStartUs(item));
+      const seekUs = sourceInUs + (playheadUs - getTimelineStartUs(item));
 
       return {
         file_path: asset.path,
         seek_seconds: seekUs / 1_000_000,
-        clip_start_us: timelineStartUs(item),
+        clip_start_us: getTimelineStartUs(item),
         clip_end_us: timelineEndUs(item),
         source_in_us: sourceInUs,
       };

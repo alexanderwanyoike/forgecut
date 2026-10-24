@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getItemData } from "./lib/timeline/items";
 import { invoke, open, save } from "./lib/bridge";
 import AssetBin from "./components/AssetBin";
 import ExportDialog from "./components/ExportDialog";
@@ -41,7 +42,7 @@ export default function App() {
       setSelectedClipId((id) =>
         id &&
         snapshot.project.timeline.tracks.some((track) =>
-          track.items.some((item) => Object.values(item)[0].id === id),
+          track.items.some((item) => getItemData(item).id === id),
         )
           ? id
           : null,
@@ -49,10 +50,8 @@ export default function App() {
   }, [projectVersion]);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        await invoke("autosave");
-      } catch (_) {}
+    const interval = setInterval(() => {
+      void invoke("autosave").catch(() => {});
     }, 60_000);
     return () => clearInterval(interval);
   }, []);

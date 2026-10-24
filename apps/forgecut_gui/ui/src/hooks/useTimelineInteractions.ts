@@ -125,7 +125,9 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
   };
 
   // --- Global mouse up: commit drag or trim ---
-  const handleGlobalMouseUpRef = useRef<(e: MouseEvent) => void>(() => {});
+  const handleGlobalMouseUpRef = useRef<
+    (e: MouseEvent) => void | Promise<void>
+  >(() => {});
   handleGlobalMouseUpRef.current = async (e: MouseEvent) => {
     const epoch = generation.current;
     const ds = dragStateRef.current;
@@ -151,7 +153,7 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
           const thresholdUs = Math.round(pixelsToUs(5, pixelsPerSecond));
           newStartUs =
             nearestSnapPoint(newStartUs, snapPoints, thresholdUs) ?? newStartUs;
-        } catch (_) {}
+        } catch {}
       }
 
       // Cross-track move if target is a different track of the same kind
@@ -200,12 +202,13 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
       } catch (err) {
         console.error("trim_clip failed:", err);
       }
-      return;
     }
   };
 
   // --- Global mouse move: snap-line preview and drop-target highlight ---
-  const handleGlobalMouseMoveRef = useRef<(e: MouseEvent) => void>(() => {});
+  const handleGlobalMouseMoveRef = useRef<
+    (e: MouseEvent) => void | Promise<void>
+  >(() => {});
   handleGlobalMouseMoveRef.current = (e: MouseEvent) => {
     const ds = dragStateRef.current;
     if (!ds) {
@@ -250,7 +253,9 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
   };
 
   // --- Ruler scrub ---
-  const handleRulerMouseMoveRef = useRef<(e: MouseEvent) => void>(() => {});
+  const handleRulerMouseMoveRef = useRef<
+    (e: MouseEvent) => void | Promise<void>
+  >(() => {});
   handleRulerMouseMoveRef.current = (e: MouseEvent) => {
     if (!rulerDraggingRef.current) return;
     if (playing) onPlayingChange(false);
@@ -259,12 +264,12 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
 
   useEffect(() => {
     const upHandler = (e: MouseEvent) => {
-      handleGlobalMouseUpRef.current(e);
+      void handleGlobalMouseUpRef.current(e);
       rulerDraggingRef.current = false;
     };
     const moveHandler = (e: MouseEvent) => {
-      handleGlobalMouseMoveRef.current(e);
-      handleRulerMouseMoveRef.current(e);
+      void handleGlobalMouseMoveRef.current(e);
+      void handleRulerMouseMoveRef.current(e);
     };
     window.addEventListener("mouseup", upHandler);
     window.addEventListener("mousemove", moveHandler);

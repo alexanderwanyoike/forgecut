@@ -25,10 +25,14 @@ export type ItemView = {
 
 export function getItemData(item: TimelineItem): ItemView {
   const variant = Object.keys(item)[0] as TimelineItemVariant;
-  const data = (item as Record<string, any>)[variant];
+  let data;
+  if ("VideoClip" in item) data = item.VideoClip;
+  else if ("AudioClip" in item) data = item.AudioClip;
+  else if ("ImageOverlay" in item) data = item.ImageOverlay;
+  else data = item.TextOverlay;
   const startUs = data.timeline_start_us;
   const durationUs =
-    variant === "VideoClip" || variant === "AudioClip"
+    "source_out_us" in data
       ? data.source_out_us - data.source_in_us
       : data.duration_us;
   return { variant, ...data, startUs, durationUs };

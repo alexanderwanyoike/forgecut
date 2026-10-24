@@ -73,13 +73,13 @@ export function usePlayback(options: PlaybackOptions) {
 
   // --- Seek effect: when paused, load clip + seek video ---
   useEffect(() => {
-    if (playing) return;
+    if (playing) return undefined;
 
     stopPolling();
 
     let cancelled = false;
 
-    (async () => {
+    void (async () => {
       try {
         const clip = await invoke("get_clip_at_playhead", { playheadUs });
         if (cancelled) return;
@@ -110,7 +110,7 @@ export function usePlayback(options: PlaybackOptions) {
         video.pause();
         setStatusMsg("");
       } catch (e) {
-        if (!cancelled) setStatusMsg(`Error: ${e}`);
+        if (!cancelled) setStatusMsg(`Error: ${String(e)}`);
       }
     })();
 
@@ -158,7 +158,8 @@ export function usePlayback(options: PlaybackOptions) {
   }, [stopPolling, onPlayingChange, onPlayheadChange]);
 
   const handlePlayPause = useCallback(async () => {
-    const epoch = ++projectEpoch.current;
+    projectEpoch.current += 1;
+    const epoch = projectEpoch.current;
     const video = videoRef.current;
     if (!video) return;
 
@@ -175,7 +176,7 @@ export function usePlayback(options: PlaybackOptions) {
       if (epoch !== projectEpoch.current) return;
     } catch (e) {
       if (epoch !== projectEpoch.current) return;
-      setStatusMsg(`Error: ${e}`);
+      setStatusMsg(`Error: ${String(e)}`);
       return;
     }
 
@@ -194,7 +195,7 @@ export function usePlayback(options: PlaybackOptions) {
       startPolling();
     } catch (e) {
       if (epoch !== projectEpoch.current) return;
-      setStatusMsg(`Play error: ${e}`);
+      setStatusMsg(`Play error: ${String(e)}`);
       onPlayingChange(false);
     }
   }, [

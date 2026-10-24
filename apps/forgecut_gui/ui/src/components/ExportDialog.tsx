@@ -18,12 +18,13 @@ export default function ExportDialog(props: { onClose: () => void }) {
   const unlistenProgressRef = useRef<(() => void) | null>(null);
   const unlistenCompleteRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       unlistenProgressRef.current?.();
       unlistenCompleteRef.current?.();
-    };
-  }, []);
+    },
+    [],
+  );
 
   const handleExport = async () => {
     const filePath = await save({

@@ -103,10 +103,12 @@ function request<K extends CommandName>(
       acceptVersion(response.sessionId, response.revision);
       return response.value;
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
       if (!command.startsWith("get_"))
         window.dispatchEvent(
-          new CustomEvent("forgecut:command-error", { detail: error.message }),
+          new CustomEvent("forgecut:command-error", {
+            detail: error instanceof Error ? error.message : String(error),
+          }),
         );
       throw error;
     });

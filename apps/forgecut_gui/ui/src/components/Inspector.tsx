@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { getItemData } from "../lib/timeline/items";
 import { invoke, invokeGrouped } from "../lib/bridge";
 import type {
   ItemPatch,
@@ -25,14 +26,13 @@ export default function Inspector({
   const item = project
     ? (project.timeline.tracks
         .flatMap((track) => track.items)
-        .find(
-          (candidate) => Object.values(candidate)[0].id === selectedClipId,
-        ) ?? null)
+        .find((candidate) => getItemData(candidate).id === selectedClipId) ??
+      null)
     : details;
   const projectSettings = project?.settings ?? settings;
 
   useEffect(() => {
-    if (project) return;
+    if (project) return undefined;
     let cancelled = false;
     invoke("get_project_settings")
       .then((value) => {
@@ -76,7 +76,7 @@ export default function Inspector({
   const numberField = (
     label: string,
     value: number,
-    change: (value: number) => void,
+    change: (value: number) => void | Promise<void>,
     min?: number,
   ) => (
     <label className="inspector-row" key={label}>
@@ -90,7 +90,7 @@ export default function Inspector({
           if (raw === "") return;
           const next = Number(raw);
           if (Number.isFinite(next) && (min === undefined || next >= min))
-            change(next);
+            void change(next);
         }}
       />
     </label>
@@ -109,6 +109,52 @@ export default function Inspector({
     : null;
   const asset = project?.assets.find(
     (candidate) => candidate.id === data?.asset_id,
+  );
+
+  const settingsView = projectSettings ? (
+    <div className="inspector-section">
+      <div className="inspector-section-title">Project Settings</div>
+      {project && (
+        <label className="inspector-row">
+          <span className="inspector-label">Name</span>
+          <PropertyInput
+            className="inspector-input"
+            value={project.name}
+            onValueChange={(name) => {
+              invokeGrouped(group.current, "update_project", {
+                name,
+              }).catch(() => {});
+            }}
+          />
+        </label>
+      )}
+      {numberField(
+        "Width",
+        projectSettings.width,
+        (width) => updateSettings({ width }),
+        1,
+      )}
+      {numberField(
+        "Height",
+        projectSettings.height,
+        (height) => updateSettings({ height }),
+        1,
+      )}
+      {numberField(
+        "FPS",
+        projectSettings.fps,
+        (fps) => updateSettings({ fps }),
+        1,
+      )}
+      {numberField(
+        "Sample Rate",
+        projectSettings.sample_rate,
+        (sample_rate) => updateSettings({ sample_rate }),
+        1,
+      )}
+    </div>
+  ) : (
+    <div className="inspector-empty">No selection</div>
   );
 
   return (
@@ -252,50 +298,8 @@ export default function Inspector({
               </label>
             )}
           </div>
-        ) : projectSettings ? (
-          <div className="inspector-section">
-            <div className="inspector-section-title">Project Settings</div>
-            {project && (
-              <label className="inspector-row">
-                <span className="inspector-label">Name</span>
-                <PropertyInput
-                  className="inspector-input"
-                  value={project.name}
-                  onValueChange={(name) => {
-                    invokeGrouped(group.current, "update_project", {
-                      name,
-                    }).catch(() => {});
-                  }}
-                />
-              </label>
-            )}
-            {numberField(
-              "Width",
-              projectSettings.width,
-              (width) => updateSettings({ width }),
-              1,
-            )}
-            {numberField(
-              "Height",
-              projectSettings.height,
-              (height) => updateSettings({ height }),
-              1,
-            )}
-            {numberField(
-              "FPS",
-              projectSettings.fps,
-              (fps) => updateSettings({ fps }),
-              1,
-            )}
-            {numberField(
-              "Sample Rate",
-              projectSettings.sample_rate,
-              (sample_rate) => updateSettings({ sample_rate }),
-              1,
-            )}
-          </div>
         ) : (
-          <div className="inspector-empty">No selection</div>
+          settingsView
         )}
       </div>
     </aside>
