@@ -15,6 +15,7 @@ import { useSequenceEditor } from "./hooks/useSequenceEditor";
 import SequenceControls from "./components/SequenceControls";
 import { invoke, open, save } from "./lib/bridge";
 import AssetBin from "./components/AssetBin";
+import SourceWorkspace from "./components/SourceWorkspace";
 import ExportDialog, { type ExportTarget } from "./components/ExportDialog";
 import Inspector from "./components/Inspector";
 import Preview from "./components/Preview";
@@ -27,6 +28,7 @@ export default function App() {
   const [showExport, setShowExport] = useState(false);
   const [exportTarget, setExportTarget] = useState<ExportTarget | undefined>();
   const [sourceItemId, setSourceItemId] = useState<string | null>(null);
+  const [sourceAssetId, setSourceAssetId] = useState<string | null>(null);
   const sourceClose = useRef<(() => Promise<boolean>) | null>(null);
   const { snapshot, error, setError } = useProject();
   const editor = useSequenceEditor(snapshot);
@@ -47,6 +49,7 @@ export default function App() {
   const projectName = snapshot?.project.name ?? "Untitled Project";
   useEffect(() => {
     setSourceItemId(null);
+    setSourceAssetId(null);
     if (snapshot && snapshot.project.timeline.tracks.length === 0) {
       invoke("init_default_tracks").catch(() => {});
     }
@@ -228,7 +231,23 @@ export default function App() {
         projectAssets={snapshot?.project.assets}
         resources={snapshot?.project.resources}
         missingMedia={snapshot?.missingMedia}
+        onReviewSource={(assetId) => {
+          void (async () => {
+            if (sourceClose.current && !(await sourceClose.current())) return;
+            setPlaying(false);
+            setSourceItemId(null);
+            setSourceAssetId(assetId);
+          })().catch(() => {});
+        }}
       />
+      {sourceAssetId && snapshot && (
+        <SourceWorkspace
+          key={`${snapshot.sessionId}:${sourceAssetId}`}
+          snapshot={snapshot}
+          assetId={sourceAssetId}
+          onClose={() => setSourceAssetId(null)}
+        />
+      )}
 
       {sourceItemId && snapshot && (
         <Suspense
@@ -248,7 +267,7 @@ export default function App() {
         </Suspense>
       )}
 
-      {!sourceItemId && editor.ready && (
+      {!sourceItemId && !sourceAssetId && editor.ready && (
         <Preview
           key={`preview:${editor.key}`}
           sessionId={snapshot?.sessionId}
@@ -267,7 +286,7 @@ export default function App() {
         />
       )}
 
-      {!sourceItemId && !editor.ready && (
+      {!sourceItemId && !sourceAssetId && !editor.ready && (
         <section className="panel preview sequence-loading" aria-busy="true">
           {editor.error ? (
             <div role="alert">
@@ -280,7 +299,7 @@ export default function App() {
         </section>
       )}
 
-      {editor.ready && (
+      {editor.ready && !sourceAssetId && (
         <Inspector
           onEditCode={async (itemId) => {
             if (
@@ -291,6 +310,7 @@ export default function App() {
             )
               return;
             setPlaying(false);
+            setSourceAssetId(null);
             setSourceItemId(itemId);
           }}
           selectedLayerId={selectedLayerId}

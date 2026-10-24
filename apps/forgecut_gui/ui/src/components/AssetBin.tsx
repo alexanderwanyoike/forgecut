@@ -1,4 +1,4 @@
-import { File, Film, Image, Library, Music2, Upload } from "lucide-react";
+import { Eye, File, Film, Image, Library, Music2, Upload } from "lucide-react";
 import { useState, useEffect } from "react";
 import ActionButton from "./ActionButton";
 import { invoke, open } from "../lib/bridge";
@@ -21,6 +21,7 @@ interface Asset {
 
 interface AssetBinProps {
   projectVersion: number;
+  onReviewSource?: (assetId: string) => void;
   projectAssets?: ProjectAsset[];
   missingMedia?: string[];
   resources?: GraphicResource[];
@@ -28,6 +29,7 @@ interface AssetBinProps {
 
 export default function AssetBin({
   projectVersion,
+  onReviewSource,
   projectAssets,
   missingMedia = [],
   resources = [],
@@ -212,6 +214,19 @@ export default function AssetBin({
                   )}
                 </div>
               </div>
+              {onReviewSource &&
+                (asset.kind === "Video" || asset.kind === "Audio") && (
+                  <ActionButton
+                    icon={Eye}
+                    iconOnly
+                    tooltip={`Review source: ${asset.name}`}
+                    disabled={
+                      !asset.probe?.duration_us ||
+                      missingMedia.includes(asset.id)
+                    }
+                    onClick={() => onReviewSource(asset.id)}
+                  />
+                )}
             </div>
           );
         })}
