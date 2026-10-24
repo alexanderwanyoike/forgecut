@@ -13,6 +13,7 @@ import type {
 import { frameAtOrAfter } from "../../electron/domain/sequence";
 import { graphicFit } from "../lib/preview/graphic-geometry";
 import { isPackagedGraphic } from "../lib/preview/graphic-runtime";
+import CustomGraphicPreview from "./CustomGraphicPreview";
 
 export type GraphicPreviewProps = {
   component?: GraphicComponent;
@@ -75,11 +76,22 @@ export default function GraphicPreview({
   useEffect(() => {
     player.current?.seekTo(Math.min(duration - 1, Math.max(0, frame)));
   }, [frame, duration, fontStatus.key]);
-  if (!component || !isPackagedGraphic(component))
+  if (!component)
     return (
       <span role="alert">
         This component version is unavailable in the graphics runtime.
       </span>
+    );
+  if (!isPackagedGraphic(component))
+    return (
+      <CustomGraphicPreview
+        component={component}
+        resources={resources}
+        item={item}
+        frame={frame}
+        placement={placement}
+        settings={settings}
+      />
     );
   if (fontId && !font)
     return <span role="alert">The selected font resource is unavailable.</span>;

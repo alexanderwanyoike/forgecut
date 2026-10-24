@@ -81,19 +81,44 @@ it("shows isolated custom frames without evaluating source in the editor", async
   const state = new AppState();
   const service = new EditingService(state);
   await service.execute("add_graphic_item", {
-    templateId: "title-card", trackId: "graphics", timelineStartUs: 0, durationUs: 2000000,
+    templateId: "title-card",
+    trackId: "graphics",
+    timelineStartUs: 0,
+    durationUs: 2000000,
   });
   const project = structuredClone(state.project);
   const component = project.components![0];
-  component.source.files[component.source.entry] = 'export default function Card(){throw new Error("Never execute in editor");}';
+  component.source.files[component.source.entry] =
+    'export default function Card(){throw new Error("Never execute in editor");}';
   component.version = componentVersion(component);
   const item = project.timeline.tracks[0].items[0];
   if (!("RemotionGraphic" in item)) throw new Error("Invalid fixture");
   item.RemotionGraphic.component_version = component.version;
-  vi.mocked(invoke).mockResolvedValueOnce({mimeType:"image/png",data:"aXNvbGF0ZWQ=",width:64,height:36});
-  render(<Preview project={project} projectVersion={1} playheadUs={500000} playing={false} onPlayingChange={vi.fn()} onPlayheadChange={vi.fn()} />);
-  await waitFor(() => expect(screen.getByAltText("Graphic preview").getAttribute("src")).toBe("data:image/png;base64,aXNvbGF0ZWQ="));
-  expect(invoke).toHaveBeenCalledWith("get_graphic_preview", expect.objectContaining({itemId:item.RemotionGraphic.id,frame:15}));
+  vi.mocked(invoke).mockResolvedValueOnce({
+    mimeType: "image/png",
+    data: "aXNvbGF0ZWQ=",
+    width: 64,
+    height: 36,
+  });
+  render(
+    <Preview
+      project={project}
+      projectVersion={1}
+      playheadUs={500000}
+      playing={false}
+      onPlayingChange={vi.fn()}
+      onPlayheadChange={vi.fn()}
+    />,
+  );
+  await waitFor(() =>
+    expect(screen.getByAltText("Graphic preview").getAttribute("src")).toBe(
+      "data:image/png;base64,aXNvbGF0ZWQ=",
+    ),
+  );
+  expect(invoke).toHaveBeenCalledWith(
+    "get_graphic_preview",
+    expect.objectContaining({ itemId: item.RemotionGraphic.id, frame: 15 }),
+  );
 });
 
 it("adds a title at the playhead through the shared service command", async () => {
@@ -200,7 +225,10 @@ it("shows RGBA colours accurately and preserves alpha when the picker changes RG
   );
 });
 
-it("rejects a component with known source but a different property contract", async () => {
+it("shows component validation failures from the isolated preview", async () => {
+  vi.mocked(invoke).mockRejectedValueOnce(
+    new Error("Invalid component version"),
+  );
   const state = new AppState();
   await new EditingService(state).execute("add_graphic_item", {
     templateId: "title-card",
