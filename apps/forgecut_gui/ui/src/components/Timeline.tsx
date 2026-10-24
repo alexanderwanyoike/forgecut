@@ -258,6 +258,23 @@ export default function Timeline(props: TimelineProps) {
     }
   };
 
+  const handleAddGraphic = async () => {
+    try {
+      setTimeline(
+        await invoke("add_graphic_item", {
+          templateId: "title-card",
+          trackId:
+            timeline.tracks.find((track) => track.kind === "Graphics")?.id ??
+            crypto.randomUUID(),
+          timelineStartUs: props.playheadUs,
+          durationUs: 3000000,
+        }),
+      );
+    } catch (failure) {
+      console.error("Creating graphic failed", failure);
+    }
+  };
+
   const timelineWidth = timelineContentWidth(timeline, pixelsPerSecond);
   const rulerInterval = timelineRulerInterval(pixelsPerSecond);
   const rulerTicks = [];
@@ -277,6 +294,9 @@ export default function Timeline(props: TimelineProps) {
       <div className="timeline-controls">
         <span className="timeline-label">Timeline</span>
         <div className="control-group">
+          <button className="add-text-btn" onClick={handleAddGraphic}>
+            + Graphic
+          </button>
           <button className="add-text-btn" onClick={handleAddText}>
             + Text
           </button>

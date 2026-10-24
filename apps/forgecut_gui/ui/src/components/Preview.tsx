@@ -1,5 +1,8 @@
-import { useEffect, useState, type CSSProperties } from "react";
-import { resolveSequenceFrame } from "../../electron/domain/sequence";
+import { lazy, Suspense, useEffect, useState, type CSSProperties } from "react";
+import {
+  frameAtOrAfter,
+  resolveSequenceFrame,
+} from "../../electron/domain/sequence";
 import { itemData } from "../../electron/domain/timeline-item";
 import { mediaUrl } from "../lib/bridge";
 import type { PreviewProps } from "../lib/preview/types";
@@ -9,6 +12,8 @@ import { useCompositionSize } from "../hooks/useCompositionSize";
 import PreviewMedia from "./PreviewMedia";
 import { AudioMixer } from "../lib/preview/AudioMixer";
 import type { VisualPlacement } from "../../electron/shared/ipc-contract";
+
+const GraphicPreview = lazy(() => import("./GraphicPreview"));
 
 export default function Preview(props: PreviewProps) {
   const [mixer] = useState(() => new AudioMixer());
@@ -101,6 +106,29 @@ export default function Preview(props: PreviewProps) {
                   src={mediaUrl(asset.path)}
                   style={visualStyle(placement)}
                 />
+              );
+            }
+            if ("RemotionGraphic" in item && placement) {
+              const graphic = item.RemotionGraphic;
+              const component = props.project?.components?.find(
+                (candidate) =>
+                  candidate.id === graphic.component_id &&
+                  candidate.version === graphic.component_version,
+              );
+              return (
+                <div key={key} style={visualStyle(placement)}>
+                  <Suspense fallback={<span>Loading graphic…</span>}>
+                    <GraphicPreview
+                      component={component}
+                      item={graphic}
+                      frame={
+                        frame.frame -
+                        frameAtOrAfter(graphic.timeline_start_us, settings.fps)
+                      }
+                      settings={settings}
+                    />
+                  </Suspense>
+                </div>
               );
             }
             if ("TextOverlay" in item) {
