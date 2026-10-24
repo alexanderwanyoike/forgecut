@@ -16,20 +16,6 @@ async function renderSourceReview(
   request: SourceReviewRequest,
   signal: AbortSignal,
 ): Promise<Result<SourceReview>> {
-  if (
-    !asset.probe ||
-    request.endUs > asset.probe.duration_us ||
-    (request.kind === "contact-sheet" && asset.kind !== "Video") ||
-    (request.kind === "waveform" && asset.probe.audio_channels < 1)
-  )
-    return {
-      ok: false,
-      error: {
-        code: "INVALID_INPUT",
-        message:
-          "Choose an available source range with the requested video or audio stream",
-      },
-    };
   const durationUs = request.endUs - request.startUs;
   const metadata = {
     assetId: asset.id,
@@ -126,6 +112,20 @@ export async function sourceReview(
   request: SourceReviewRequest,
   signal: AbortSignal,
 ): Promise<Result<SourceReview>> {
+  if (
+    !asset.probe ||
+    request.endUs > asset.probe.duration_us ||
+    (request.kind === "contact-sheet" && asset.kind !== "Video") ||
+    (request.kind === "waveform" && asset.probe.audio_channels < 1)
+  )
+    return {
+      ok: false,
+      error: {
+        code: "INVALID_INPUT",
+        message:
+          "Choose an available source range with the requested video or audio stream",
+      },
+    };
   try {
     const fingerprint = await mediaCacheId(asset.path, asset.id);
     if (signal.aborted)
