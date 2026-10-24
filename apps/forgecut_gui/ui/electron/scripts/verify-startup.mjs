@@ -147,6 +147,7 @@ async function main() {
   const result = await send("Runtime.evaluate", {
     expression: `({
       bridge: typeof window.forgecut,
+      origin: window.location.origin,
       text: document.body.innerText,
       rootHtmlLength: document.getElementById("root")?.innerHTML.length ?? 0
     })`,
@@ -207,6 +208,8 @@ async function main() {
 
   const value = result.result?.result?.value;
   if (!value) throw new Error("Could not inspect renderer state");
+  if (executable && value.origin !== "forgecut-app://editor")
+    throw new Error(`Unexpected packaged editor origin: ${value.origin}`);
   if (value.bridge !== "object") {
     throw new Error(`ForgeCut preload bridge missing: ${value.bridge}`);
   }
