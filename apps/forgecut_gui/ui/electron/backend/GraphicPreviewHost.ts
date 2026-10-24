@@ -7,8 +7,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
-import type { GraphicPreviewResult as Result } from "../shared/graphic-preview.js";
 import type {
+  GraphicPreviewResult as Result,
   GraphicPreviewInput,
   GraphicPreviewFrame,
 } from "../shared/graphic-preview.js";

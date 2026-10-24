@@ -1,5 +1,5 @@
-import { graphicDiagnosticsSchema } from "../../electron/shared/graphic-diagnostic-schema";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { graphicDiagnosticsSchema } from "../../electron/shared/graphic-diagnostic-schema";
 import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
 import type { GraphicDiagnostic } from "../../electron/shared/graphic-source";
 import type { useGraphicSourceDraft } from "./useGraphicSourceDraft";
@@ -38,15 +38,14 @@ export function useGraphicCodeActions(
   );
   const message = notice.version === version ? notice : { text: "", error: "" };
   const failure = (error: unknown, token = source.version()) => {
-    const message =
-      error instanceof Error
-        ? error.message
-        : error &&
-            typeof error === "object" &&
-            "message" in error &&
-            typeof error.message === "string"
-          ? error.message
-          : String(error);
+    let failureMessage = String(error);
+    if (
+      error &&
+      typeof error === "object" &&
+      "message" in error &&
+      typeof error.message === "string"
+    )
+      failureMessage = error.message;
     const diagnostics = graphicDiagnosticsSchema.safeParse(
       error && typeof error === "object" && "diagnostics" in error
         ? error.diagnostics
@@ -55,7 +54,7 @@ export function useGraphicCodeActions(
     if (alive.current) {
       if (diagnostics.success)
         setChecked({ version: token, items: diagnostics.data });
-      setNotice({ version: token, text: "", error: message });
+      setNotice({ version: token, text: "", error: failureMessage });
     }
   };
   async function inspect() {

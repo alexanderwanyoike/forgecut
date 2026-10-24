@@ -3,10 +3,10 @@ import { resolveGraphicInstance } from "../domain/graphic-instance.js";
 import type { Project } from "../shared/ipc-contract.js";
 import type { GraphicValues } from "../shared/graphics.js";
 import type {
+  GraphicPreviewResult as Result,
   GraphicPreviewInput,
   GraphicPreviewFrame,
 } from "../shared/graphic-preview.js";
-import type { GraphicPreviewResult as Result } from "../shared/graphic-preview.js";
 import { frameAtOrAfter } from "../domain/sequence.js";
 import { validateGraphicProperties } from "../domain/graphic-properties.js";
 import { validateGraphicDependencies } from "../domain/graphic-dependencies.js";

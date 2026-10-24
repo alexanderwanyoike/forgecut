@@ -1,5 +1,5 @@
-import type { GraphicRuntimeFailure } from "../../electron/shared/graphic-diagnostic-schema";
 import { useEffect, useRef, useState } from "react";
+import type { GraphicRuntimeFailure } from "../../electron/shared/graphic-diagnostic-schema";
 import {
   graphicPromotionResultSchema,
   type GraphicPromotionRequest,
