@@ -27,9 +27,8 @@ export default function SourceMonitor({ asset, onClose }: Props) {
         {asset?.name ?? "Source unavailable"}
       </div>
       <div className="source-media-stage">
-        {!asset ? (
-          <p role="alert">The source is no longer available.</p>
-        ) : asset.kind === "Audio" ? (
+        {!asset && <p role="alert">The source is no longer available.</p>}
+        {asset?.kind === "Audio" && (
           <audio
             key={asset.path}
             ref={(element) => {
@@ -38,7 +37,8 @@ export default function SourceMonitor({ asset, onClose }: Props) {
             controls
             src={mediaUrl(asset.path)}
           />
-        ) : (
+        )}
+        {asset && asset.kind !== "Audio" && (
           <video
             key={asset.path}
             ref={(element) => {
