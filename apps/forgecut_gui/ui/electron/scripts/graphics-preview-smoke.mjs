@@ -33,6 +33,16 @@ export async function verifyGraphicsPreview(directory, send) {
         return response.value;
       };
       await invoke('create_project');
+      await invoke('init_default_tracks');
+      const media = await invoke('import_assets', {paths:[${JSON.stringify(artwork)}]});
+      await invoke('add_image_overlay', {assetId:media[0].id,timelineStartUs:0,durationUs:1000000,x:0,y:0,width:64,height:36,opacity:1});
+      for(let attempt=0;attempt<200;attempt++){
+        const image=document.querySelector('.preview-viewport img[src^="forgecut-media:"]');
+        if(image?.complete && image.naturalWidth===64)break;
+        if(attempt===199)throw new Error('Imported image overlay did not load on the packaged editor origin');
+        await new Promise(resolve=>setTimeout(resolve,20));
+      }
+      await invoke('create_project');
       await invoke('update_project', { settings: { width: 640, height: 360, fps: 10 } });
       await invoke('add_graphic_item', { templateId: 'title-card', trackId: crypto.randomUUID(), timelineStartUs: 0, durationUs: 1000000, props: { title: 'Graphics runtime check', entrance_frames: 0 } });
       if (${JSON.stringify(checkFont)}) {
