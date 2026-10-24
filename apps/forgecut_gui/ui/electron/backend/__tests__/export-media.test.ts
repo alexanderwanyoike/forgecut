@@ -26,7 +26,7 @@ function ffmpeg(args: string[]) {
 it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
   "renders leading gaps, silent cuts, an independent music bed and a title-only ending at their timeline positions",
   async () => {
-    const dir = await mkdtemp(join(tmpdir(), "forgecut-render-"));
+    const dir = await mkdtemp(join(process.cwd(), ".forgecut-render-test-"));
     try {
       const source = join(dir, "source.mkv");
       const music = join(dir, "music.wav");
