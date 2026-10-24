@@ -267,3 +267,12 @@
     margin-left: 0;
   }
 }
+@media (max-width: 1100px) {
+  .code-footer span:last-child,
+  .code-preview > p:last-child {
+    display: none;
+  }
+  .code-preview {
+    grid-template-rows: auto minmax(60px, 1fr) auto;
+  }
+}
