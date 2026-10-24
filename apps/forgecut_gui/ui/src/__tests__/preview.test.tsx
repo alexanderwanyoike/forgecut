@@ -57,6 +57,7 @@ function videoProject(): Project {
   };
 }
 const idle = {
+  projectVersion: 0,
   playheadUs: 0,
   playing: false,
   onPlayingChange: () => {},
@@ -106,7 +107,9 @@ describe("Preview component", () => {
   });
   it("leaves a real gap black rather than retaining an old source", () => {
     const project = videoProject();
-    project.timeline.tracks[0].items[0].VideoClip!.timeline_start_us = 2000000;
+    const clip = project.timeline.tracks[0].items[0];
+    if (!("VideoClip" in clip)) throw new Error("Invalid video fixture");
+    clip.VideoClip.timeline_start_us = 2000000;
     render(<Preview {...idle} project={project} />);
     expect(document.querySelector(".preview-viewport video")).toBeNull();
   });
