@@ -15,8 +15,13 @@ export default function App() {
   const [playheadUs, setPlayheadUs] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const selectClip = (id: string | null) => {
+    setSelectedClipId(id);
+    setSelectedLayerId(null);
+  };
   const { snapshot, error, setError } = useProject();
-  useEditingContext(snapshot, selectedClipId, playheadUs);
+  useEditingContext(snapshot, selectedClipId, playheadUs, selectedLayerId);
   const [recoveryPath, setRecoveryPath] = useState<string | null>(null);
   const [showFileMenu, setShowFileMenu] = useState(false);
   const projectVersion = snapshot?.revision ?? 0;
@@ -33,7 +38,7 @@ export default function App() {
   useEffect(() => {
     setPlayheadUs(0);
     setPlaying(false);
-    setSelectedClipId(null);
+    selectClip(null);
     if (snapshot && snapshot.project.timeline.tracks.length === 0) {
       invoke("init_default_tracks").catch(() => {});
     }
@@ -87,7 +92,7 @@ export default function App() {
       setRecoveryPath(null);
       setPlayheadUs(0);
       setPlaying(false);
-      setSelectedClipId(null);
+      selectClip(null);
     } catch (e) {
       setError(`Could not open the project: ${String(e)}`);
       setRecoveryPath(path);
@@ -186,6 +191,13 @@ export default function App() {
       />
 
       <Preview
+        sessionId={snapshot?.sessionId}
+        selectedClipId={selectedClipId}
+        selectedLayerId={selectedLayerId}
+        onGraphicSelection={(itemId, layerId) => {
+          setSelectedClipId(itemId);
+          setSelectedLayerId(layerId);
+        }}
         project={snapshot?.project}
         playheadUs={playheadUs}
         playing={playing}
@@ -207,7 +219,7 @@ export default function App() {
         onPlayheadChange={setPlayheadUs}
         onPlayingChange={setPlaying}
         selectedClipId={selectedClipId}
-        onSelectedClipChange={setSelectedClipId}
+        onSelectedClipChange={selectClip}
         projectVersion={projectVersion}
         projectTimeline={snapshot?.project.timeline}
         projectMediaVersion={JSON.stringify([

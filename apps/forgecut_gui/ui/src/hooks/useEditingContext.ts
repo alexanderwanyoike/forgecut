@@ -10,6 +10,7 @@ export function useEditingContext(
   snapshot: ProjectSnapshot | null,
   selectedItemId: string | null,
   playheadUs: TimeUs,
+  selectedLayerId?: string | null,
 ): void {
   useEffect(() => {
     if (!snapshot) return;
@@ -20,7 +21,8 @@ export function useEditingContext(
     void invoke("set_editing_context", {
       sessionId: snapshot.sessionId,
       selectedItemIds,
+      selectedLayerIds: selectedLayerId ? [selectedLayerId] : [],
       playheadUs,
     }).catch(() => {});
-  }, [snapshot, selectedItemId, playheadUs]);
+  }, [snapshot, selectedItemId, playheadUs, selectedLayerId]);
 }
