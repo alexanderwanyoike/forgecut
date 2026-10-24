@@ -1,3 +1,4 @@
+import type { RemotionGraphicItem } from "../shared/graphics.js";
 import type { Project } from "../shared/ipc-contract.js";
 import { validateGraphicProperties } from "../domain/graphic-properties.js";
 import { componentVersion } from "./graphic-component.js";
@@ -55,43 +56,36 @@ export function validateProjectGraphics(project: Project): void {
     const defaults = validateGraphicProperties(component, {});
     if (!defaults.ok) throw new Error(defaults.error.message);
   }
-  for (const preset of project.style_presets ?? []) {
-    const component = project.components?.find(
-      (value) =>
-        value.id === preset.component_id &&
-        value.version === preset.component_version,
-    );
-    if (!component) throw new Error("Missing style preset component version");
-    for (const id of Object.keys(preset.layer_states ?? {}))
-      if (!component.layers.some((layer) => layer.id === id))
-        throw new Error(`Unknown style preset layer: ${id}`);
-    const props = validateGraphicProperties(component, preset.props);
-    if (!props.ok) throw new Error(props.error.message);
-    for (const [key, property] of Object.entries(component.properties))
-      if (property.type === "font" || property.type === "image")
-        requireResource(project, props.value[key], property.type);
-    preset.props = props.value;
-  }
+  for (const preset of project.style_presets ?? [])
+    validateGraphicStyle(project, preset);
   for (const track of project.timeline.tracks)
-    for (const item of track.items) {
-      if (!("RemotionGraphic" in item)) continue;
-      const graphic = item.RemotionGraphic;
-      const component = project.components?.find(
-        (candidate) =>
-          candidate.id === graphic.component_id &&
-          candidate.version === graphic.component_version,
-      );
-      if (!component) throw new Error("Missing graphic component version");
-      for (const id of Object.keys(graphic.layer_states ?? {}))
-        if (!component.layers.some((layer) => layer.id === id))
-          throw new Error(`Unknown graphic layer: ${id}`);
-      const props = validateGraphicProperties(component, graphic.props);
-      if (!props.ok) throw new Error(props.error.message);
-      for (const [key, property] of Object.entries(component.properties))
-        if (property.type === "font" || property.type === "image")
-          requireResource(project, props.value[key], property.type);
-      graphic.props = props.value;
-    }
+    for (const item of track.items)
+      if ("RemotionGraphic" in item)
+        validateGraphicStyle(project, item.RemotionGraphic);
+}
+
+function validateGraphicStyle(
+  project: Project,
+  graphic: Pick<
+    RemotionGraphicItem,
+    "component_id" | "component_version" | "props" | "layer_states"
+  >,
+): void {
+  const component = project.components?.find(
+    (value) =>
+      value.id === graphic.component_id &&
+      value.version === graphic.component_version,
+  );
+  if (!component) throw new Error("Missing graphic component version");
+  for (const id of Object.keys(graphic.layer_states ?? {}))
+    if (!component.layers.some((layer) => layer.id === id))
+      throw new Error(`Unknown graphic layer: ${id}`);
+  const props = validateGraphicProperties(component, graphic.props);
+  if (!props.ok) throw new Error(props.error.message);
+  for (const [key, property] of Object.entries(component.properties))
+    if (property.type === "font" || property.type === "image")
+      requireResource(project, props.value[key], property.type);
+  graphic.props = props.value;
 }
 
 function requireResource(

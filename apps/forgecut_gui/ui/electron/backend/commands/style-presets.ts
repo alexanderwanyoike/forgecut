@@ -1,5 +1,5 @@
-import { scaleGraphicProperties } from "../../domain/graphic-scale.js";
 import { randomUUID } from "node:crypto";
+import { scaleGraphicProperties } from "../../domain/graphic-scale.js";
 import type { CommandMap } from "../../shared/ipc-contract.js";
 import type { StylePreset } from "../../shared/style-presets.js";
 import { addItem } from "../timeline-ops.js";

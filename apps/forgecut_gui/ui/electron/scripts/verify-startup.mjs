@@ -1,3 +1,4 @@
+import { verifyStylePresets } from "./style-preset-smoke.mjs";
 import { verifySourceSelections } from "./source-selection-smoke.mjs";
 import { verifyVariants } from "./variant-smoke.mjs";
 import { verifyAppearance } from "./appearance-smoke.mjs";
@@ -217,6 +218,7 @@ async function main() {
   await verifySequences(send);
   await verifyVariants(send);
   await verifySourceSelections(mcpDirectory, send);
+  await verifyStylePresets(mcpDirectory, send);
   ws.close();
 
   const value = result.result?.result?.value;
