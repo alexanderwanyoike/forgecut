@@ -171,6 +171,11 @@ export type EditRequest = {
   operations: EditOperation[];
 };
 
+export type HistoryRequest = Pick<
+  EditRequest,
+  "sessionId" | "expectedRevision" | "requestId"
+> & { direction: "undo" | "redo" };
+
 export type ClipAtPlayhead = {
   file_path: string;
   seek_seconds: number;
@@ -215,6 +220,7 @@ export type CommandMap = {
   get_project_settings: { args: undefined; result: ProjectSettings };
   get_project_snapshot: { args: undefined; result: ProjectSnapshot };
   apply_edits: { args: EditRequest; result: ProjectSnapshot };
+  apply_history: { args: HistoryRequest; result: ProjectSnapshot };
   update_project: {
     args: { name?: string; settings?: Partial<ProjectSettings> };
     result: Project;

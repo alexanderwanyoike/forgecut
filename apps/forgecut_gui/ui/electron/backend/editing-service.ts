@@ -13,6 +13,7 @@ import { EditingError } from "./editing-error.js";
 import {
   commandSchemas,
   editRequestSchema,
+  historyRequestSchema,
   editSchemas,
   metadataSchema,
 } from "./command-schema.js";
@@ -28,7 +29,10 @@ import type {
 } from "./commands/types.js";
 
 const handlers: Record<
-  Exclude<CommandName, "get_project_snapshot" | "apply_edits">,
+  Exclude<
+    CommandName,
+    "get_project_snapshot" | "apply_edits" | "apply_history"
+  >,
   CommandHandler
 > = {
   ...projectCommands,
@@ -65,8 +69,11 @@ export class EditingService {
         input,
       ) as CommandArgs;
       let value: unknown;
-      if (command === "apply_edits") {
-        const snapshot = this.applyEdits(args as EditRequest);
+      if (command === "apply_edits" || command === "apply_history") {
+        const snapshot =
+          command === "apply_edits"
+            ? this.applyEdits(args as EditRequest)
+            : this.applyHistory(args);
         return {
           ok: true,
           value: snapshot,
@@ -160,6 +167,26 @@ export class EditingService {
       ...operation,
       args: editSchemas[operation.command].parse(operation.args),
     }));
+    return this.executeGuarded(request, () =>
+      this.applyOperations(
+        request.operations as EditOperation[],
+        request.editGroup,
+      ),
+    );
+  }
+
+  private applyHistory(input: unknown): ProjectSnapshot {
+    const request = historyRequestSchema.parse(input);
+    return this.executeGuarded(request, () => {
+      if (request.direction === "undo") this.state.undo();
+      else this.state.redo();
+    });
+  }
+
+  private executeGuarded(
+    request: { sessionId: string; expectedRevision: number; requestId: string },
+    change: () => void,
+  ): ProjectSnapshot {
     this.state.assertSession(request.sessionId);
     const key = `${request.sessionId}:${request.requestId}`;
     const fingerprint = createHash("sha256")
@@ -170,7 +197,7 @@ export class EditingService {
       if (cached.fingerprint !== fingerprint)
         throw new EditingError(
           "REQUEST_REUSED",
-          "This request ID was already used for a different edit.",
+          "This request ID was already used for a different operation.",
         );
       return structuredClone(cached.snapshot);
     }
@@ -180,10 +207,7 @@ export class EditingService {
         "The project has changed. Read its latest revision and retry.",
       );
     const before = this.state.project;
-    this.applyOperations(
-      request.operations as EditOperation[],
-      request.editGroup,
-    );
+    change();
     const snapshot = {
       ...this.state.snapshot(),
       changedItemIds: changedItemIds(before, this.state.project),

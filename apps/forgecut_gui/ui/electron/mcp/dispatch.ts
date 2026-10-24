@@ -1,7 +1,12 @@
+import { isAbsolute } from "node:path";
 import { z } from "zod";
+import { ensureForgeCutExtension } from "../backend/state.js";
 import type { EditingService } from "../backend/editing-service.js";
 import type { ProjectSnapshot } from "../shared/ipc-contract.js";
-import { editRequestSchema } from "../backend/command-schema.js";
+import {
+  editRequestSchema,
+  historyRequestSchema,
+} from "../backend/command-schema.js";
 import { idSchema, timeSchema } from "../backend/project-schema.js";
 import {
   itemData,
@@ -16,8 +21,23 @@ export const pageFields = {
   offset: timeSchema.default(0),
   limit: z.number().int().min(1).max(100).default(50),
 };
+export const projectFileRequestSchema = z.strictObject({
+  sessionId: idSchema,
+  expectedRevision: timeSchema,
+  path: z
+    .string()
+    .min(1)
+    .max(4096)
+    .refine(isAbsolute, "Use an absolute project path"),
+});
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("summary") }),
+  projectFileRequestSchema.extend({ action: z.literal("save") }),
+  projectFileRequestSchema.extend({ action: z.literal("open") }),
+  z.strictObject({
+    action: z.literal("history"),
+    request: historyRequestSchema,
+  }),
   z.strictObject({ action: z.literal("assets"), ...pageFields }),
   z.strictObject({
     action: z.literal("timeline"),
@@ -75,8 +95,11 @@ export async function dispatchLocal(
   try {
     if (request.action === "summary")
       return { ok: true, value: summary(state) };
-    if (request.action === "apply") {
-      const response = await service.execute("apply_edits", request.request);
+    if (request.action === "apply" || request.action === "history") {
+      const response = await service.execute(
+        request.action === "apply" ? "apply_edits" : "apply_history",
+        request.request,
+      );
       if (!response.ok) return response;
       const snapshot = response.value as ProjectSnapshot;
       return {
@@ -88,6 +111,28 @@ export async function dispatchLocal(
       };
     }
     state.assertSession(request.sessionId);
+    if (request.action === "save" || request.action === "open") {
+      if (request.expectedRevision !== state.revision)
+        return {
+          ok: false,
+          error: {
+            code: "CONFLICT",
+            message:
+              "The project changed. Read it again before using project files.",
+          },
+        };
+      if (request.action === "save") {
+        const { revision } = state;
+        const path = ensureForgeCutExtension(request.path);
+        await state.saveProject(path);
+        return {
+          ok: true,
+          value: { saved: true, path, sessionId: request.sessionId, revision },
+        };
+      }
+      await state.loadProject(request.path);
+      return { ok: true, value: summary(state) };
+    }
     if (request.action === "assets")
       return {
         ok: true,
@@ -143,10 +188,13 @@ export async function dispatchLocal(
       },
     };
   } catch (error) {
+    let code = "INVALID_INPUT";
+    if (error instanceof EditingError) code = error.code;
+    else if (error instanceof Error && "code" in error) code = "IO_ERROR";
     return {
       ok: false,
       error: {
-        code: error instanceof EditingError ? error.code : "INVALID_INPUT",
+        code,
         message: error instanceof Error ? error.message : String(error),
       },
     };

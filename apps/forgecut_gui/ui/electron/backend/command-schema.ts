@@ -117,6 +117,12 @@ export const editRequestSchema = z.strictObject({
     .min(1)
     .max(100),
 });
+export const historyRequestSchema = z.strictObject({
+  sessionId: id,
+  expectedRevision: time,
+  requestId: id,
+  direction: z.enum(["undo", "redo"]),
+});
 export const metadataSchema = z
   .strictObject({ sessionId: id.optional(), editGroup: id.optional() })
   .optional();
@@ -129,6 +135,7 @@ export const commandSchemas = {
   get_project_settings: none,
   get_project_snapshot: none,
   apply_edits: editRequestSchema,
+  apply_history: historyRequestSchema,
   autosave: none,
   get_timeline: none,
   init_default_tracks: none,

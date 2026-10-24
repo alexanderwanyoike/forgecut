@@ -1,9 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { editingCapabilities } from "./capabilities.js";
-import { editRequestSchema } from "../backend/command-schema.js";
+import {
+  editRequestSchema,
+  historyRequestSchema,
+} from "../backend/command-schema.js";
 import { idSchema, timeSchema } from "../backend/project-schema.js";
-import { pageFields } from "./dispatch.js";
+import { pageFields, projectFileRequestSchema } from "./dispatch.js";
 import { callBridge, listSessions, sessionDirectory } from "./sessions.js";
 import type { BridgeResult, LocalSession } from "./contract.js";
 
@@ -128,6 +131,33 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
       }),
     },
     async ({ label, ...request }) => call({ action: "apply", label, request }),
+  );
+  server.registerTool(
+    "apply_history",
+    {
+      description:
+        "Undo or redo one complete project edit with session, revision and retry guards. Reusing a request ID with different input is rejected.",
+      inputSchema: historyRequestSchema,
+    },
+    async (request) => call({ action: "history", request }),
+  );
+  server.registerTool(
+    "save_project",
+    {
+      description:
+        "Save a snapshot of the selected project atomically to an absolute path. Returns the saved revision, which may precede later manual edits.",
+      inputSchema: projectFileRequestSchema,
+    },
+    async (request) => call({ action: "save", ...request }),
+  );
+  server.registerTool(
+    "open_project",
+    {
+      description:
+        "Replace the selected instance's project with a validated project file. Requires the current identity/revision; rejects concurrent edits and preserves the open project on failure. Returns a new project session identity.",
+      inputSchema: projectFileRequestSchema,
+    },
+    async (request) => call({ action: "open", ...request }),
   );
   return server;
 }

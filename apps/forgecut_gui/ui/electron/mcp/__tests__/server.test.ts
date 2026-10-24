@@ -67,6 +67,28 @@ it("requires explicit attachment and edits the live owner through the official M
     });
     expect(edit.isError).toBe(false);
     expect(state.project.name).toBe("From Codex");
+    const history = await client.callTool({
+      name: "apply_history",
+      arguments: {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        requestId: "undo-rename",
+        direction: "undo",
+      },
+    });
+    expect(history.isError).toBe(false);
+    expect(state.project.name).toBe("Untitled");
+    const redone = await client.callTool({
+      name: "apply_history",
+      arguments: {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        requestId: "redo-rename",
+        direction: "redo",
+      },
+    });
+    expect(redone.isError).toBe(false);
+    expect(state.project.name).toBe("From Codex");
     const current = await client.callTool({
       name: "read_project",
       arguments: {},
@@ -75,6 +97,57 @@ it("requires explicit attachment and edits the live owner through the official M
       ok: true,
       value: { name: "From Codex", revision: state.revision },
     });
+    const path = join(directory, "saved.forgecut");
+    const saved = await client.callTool({
+      name: "save_project",
+      arguments: {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        path,
+      },
+    });
+    expect(saved.isError).toBe(false);
+    state.executeProjectChange((project) => {
+      project.name = "Unsaved change";
+    });
+    const previousSession = state.sessionId;
+    const reopened = await client.callTool({
+      name: "open_project",
+      arguments: {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        path,
+      },
+    });
+    expect(reopened.isError).toBe(false);
+    expect(state.project.name).toBe("From Codex");
+    expect(state.sessionId).not.toBe(previousSession);
+    const unchanged = state.snapshot();
+    expect(
+      (
+        await client.callTool({
+          name: "open_project",
+          arguments: {
+            sessionId: state.sessionId,
+            expectedRevision: state.revision,
+            path: join(directory, "missing.forgecut"),
+          },
+        })
+      ).isError,
+    ).toBe(true);
+    const missing = await client.callTool({
+      name: "open_project",
+      arguments: {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        path: join(directory, "missing.forgecut"),
+      },
+    });
+    expect(missing.structuredContent).toMatchObject({
+      ok: false,
+      error: { code: "IO_ERROR" },
+    });
+    expect(state.snapshot()).toEqual(unchanged);
   } finally {
     await client.close();
     await server.close();

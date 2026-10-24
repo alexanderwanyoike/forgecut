@@ -325,7 +325,7 @@ function createProject(name: string): Project {
   };
 }
 
-function ensureForgeCutExtension(path: string): string {
+export function ensureForgeCutExtension(path: string): string {
   return extname(path) === ".forgecut" ? path : `${path}.forgecut`;
 }
 
