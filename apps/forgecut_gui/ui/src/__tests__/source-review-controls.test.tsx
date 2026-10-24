@@ -324,3 +324,28 @@ mediaTest(
     expect(createPreviewUrl).not.toHaveBeenCalled();
   },
 );
+
+mediaTest(
+  "returns from the bounded preview to the same source player and releases playback",
+  async () => {
+    await reviewFixture();
+    const source = document.querySelector<HTMLVideoElement>(
+      ".source-media-stage video",
+    )!;
+    const stopSource = vi.spyOn(source, "pause").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: "Short preview" }));
+    const preview = (await screen.findByLabelText(
+      "Source preview",
+    )) as HTMLVideoElement;
+    fireEvent.loadedData(preview);
+    expect(stopSource).toHaveBeenCalled();
+    const stopPreview = vi.spyOn(preview, "pause").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: "Back to source" }));
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Source preview")).toBeNull(),
+    );
+    expect(document.querySelector(".source-media-stage video")).toBe(source);
+    expect(stopPreview).toHaveBeenCalled();
+    expect(revokePreviewUrl).toHaveBeenCalledWith("blob:source-preview");
+  },
+);
