@@ -10,6 +10,7 @@ import { AppState } from "./backend/state.js";
 import { EditingService } from "./backend/editing-service.js";
 import { graphicResourceResponse } from "./backend/graphic-resource-response.js";
 import { mediaResponseInit } from "./backend/media-protocol.js";
+import { appAssetResponse } from "./backend/app-assets.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -47,6 +48,15 @@ let mcpStatus: McpStatus = {
 ipcMain.handle("forgecut:mcp-status", (): McpStatus => mcpStatus);
 
 protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "forgecut-app",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+    },
+  },
   {
     scheme: "forgecut-resource",
     privileges: {
@@ -94,7 +104,7 @@ function createWindow(): void {
   if (rendererUrl) {
     void win.loadURL(rendererUrl);
   } else {
-    void win.loadFile(join(__dirname, "../../dist/index.html"));
+    void win.loadURL("forgecut-app://editor/");
   }
 }
 
@@ -125,6 +135,9 @@ ipcMain.handle(
 );
 
 void app.whenReady().then(async () => {
+  protocol.handle("forgecut-app", (request) =>
+    appAssetResponse(join(__dirname, "../../dist"), request.url),
+  );
   try {
     localBridge = await startLocalBridge(editing, undefined, (label) => {
       mcpStatus = {
