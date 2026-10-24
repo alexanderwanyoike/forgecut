@@ -76,6 +76,13 @@ export async function verifyStyleControls(send) {
       document.querySelector('.time-ruler').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, clientX: rect.x + 48 + 500 - scroll.scrollLeft, clientY: rect.y + 10 }));
       window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
       await wait(() => document.querySelector('.preview-time')?.textContent === '00:00:05.000', 'selected source preview');
+      const sourceLabel = [...document.querySelectorAll('.clip-label')].find(element => element.textContent === 'Manual card');
+      const sourceClip = sourceLabel.closest('.clip');
+      sourceClip.scrollIntoView({ block: 'nearest' });
+      const sourceBounds = sourceClip.getBoundingClientRect();
+      sourceLabel.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, clientX: sourceBounds.x + 20, clientY: sourceBounds.y + 10 }));
+      window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      await settle();
       await click('Save project style');
       await wait(() => field('Style name'), 'style form');
       if (button('Reload style')) await click('Reload style');
