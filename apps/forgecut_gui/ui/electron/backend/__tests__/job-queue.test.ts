@@ -262,6 +262,10 @@ it("does not cancel a job after it begins publishing its completed output", asyn
   );
   if (!job.ok) throw new Error(job.error.message);
   try {
+    expect(jobs.read(job.value.id, "session")).toMatchObject({
+      ok: true,
+      value: { status: "committing" },
+    });
     expect(jobs.cancel(job.value.id, "session")).toMatchObject({
       ok: false,
       error: { code: "COMMITTING" },
