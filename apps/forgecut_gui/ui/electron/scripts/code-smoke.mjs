@@ -20,6 +20,10 @@ export async function verifyCode(send) {
     throw new Error(`Code editor timed out: ${label}`);
   };
   const click = async (label) => {
+    await wait(
+      `(()=>{const button=[...document.querySelectorAll('button')].find(value=>value.textContent.trim()===${JSON.stringify(label)});return button&&!button.disabled;})()`,
+      `available ${label}`,
+    );
     const found = await evaluate(
       `(()=>{const button=[...document.querySelectorAll('button')].find(value=>value.textContent.trim()===${JSON.stringify(label)});if(!button||button.disabled)return false;button.click();return true;})()`,
     );
