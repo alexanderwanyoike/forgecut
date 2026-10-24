@@ -45,6 +45,7 @@
     "@modelcontextprotocol/client": "2.4.0",
     "@modelcontextprotocol/server": "2.4.0",
     "@remotion/bundler": "4.0.537",
+    "@remotion/fonts": "4.0.537",
     "@remotion/player": "4.0.537",
     "@remotion/renderer": "4.0.537",
     "@testing-library/dom": "^10.4.0",

@@ -9,7 +9,11 @@ export function graphicTemplates(): GraphicComponent[] {
     name: "Title card",
     design_size: { width: 1920, height: 1080 },
     dependencies: {
-      packages: { react: "18.3.1", remotion: "4.0.537" },
+      packages: {
+        react: "18.3.1",
+        remotion: "4.0.537",
+        "@remotion/fonts": "4.0.537",
+      },
       assets: [],
       fonts: [],
     },
@@ -28,6 +32,12 @@ export function graphicTemplates(): GraphicComponent[] {
         label: "Title",
         type: "text",
         default: "Title",
+      },
+      font: {
+        id: "42bb1cd8-dfb9-4cbd-bb6a-de11b1c7b569",
+        label: "Font",
+        type: "font",
+        default: "",
       },
       color: {
         id: "1df73ef3-8e7d-5112-9846-451af4778997",

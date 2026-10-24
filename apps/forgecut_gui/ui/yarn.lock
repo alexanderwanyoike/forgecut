@@ -1206,6 +1206,13 @@
     "@remotion/captions" "4.0.537"
     zod "4.5.4"
 
+"@remotion/fonts@4.0.537":
+  version "4.0.537"
+  resolved "https://registry.yarnpkg.com/@remotion/fonts/-/fonts-4.0.537.tgz#58bf72f7f34724b5dd28dcfd6d58f7b2e1811661"
+  integrity sha512-Nkqxt8Olmfu65B1nOEqy5ZjreQQTPtq58H6uT0oxtHa24K3pDYjkz3E2NWukMiGAttQRP8PBkQ03wgYBQg32jg==
+  dependencies:
+    remotion "4.0.537"
+
 "@remotion/licensing@4.0.537":
   version "4.0.537"
   resolved "https://registry.yarnpkg.com/@remotion/licensing/-/licensing-4.0.537.tgz#f74e1d7ef4631c5fe2be76020b2576e9f3e4e0ac"

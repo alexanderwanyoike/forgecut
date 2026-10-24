@@ -7,8 +7,8 @@ type Input = TitleCardProps & {
   fps: number;
   duration: number;
 };
-function Graphic({ values }: Input) {
-  return <TitleCard values={values} />;
+function Graphic({ values, resources }: Input) {
+  return <TitleCard values={values} resources={resources} />;
 }
 function Root() {
   return (
@@ -21,6 +21,7 @@ function Root() {
       durationInFrames={30}
       defaultProps={{
         values: {},
+        resources: {},
         width: 1920,
         height: 1080,
         fps: 30,

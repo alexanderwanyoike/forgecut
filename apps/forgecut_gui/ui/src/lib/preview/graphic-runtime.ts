@@ -7,6 +7,8 @@ export function isPackagedGraphic(component: GraphicComponent): boolean {
     Object.keys(component.source.files).length === 1 &&
     component.dependencies.packages.remotion === "4.0.537" &&
     component.dependencies.packages.react === "18.3.1" &&
+    component.dependencies.packages["@remotion/fonts"] === "4.0.537" &&
+    Object.keys(component.dependencies.packages).length === 3 &&
     component.dependencies.assets.length === 0 &&
     component.dependencies.fonts.length === 0
   );

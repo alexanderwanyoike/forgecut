@@ -22,6 +22,7 @@ export function validateProjectGraphics(project: Project): void {
       if (ids.has(property.id))
         throw new Error("Duplicate graphic property ID");
       ids.add(property.id);
+      if (property.type === "font") requireFont(project, property.default);
     }
     const names = new Set<string>();
     for (const layer of component.layers) {
@@ -53,6 +54,19 @@ export function validateProjectGraphics(project: Project): void {
       if (!component) throw new Error("Missing graphic component version");
       const props = validateGraphicProperties(component, graphic.props);
       if (!props.ok) throw new Error(props.error.message);
+      for (const [key, property] of Object.entries(component.properties))
+        if (property.type === "font") requireFont(project, props.value[key]);
       graphic.props = props.value;
     }
+}
+
+function requireFont(project: Project, id: unknown): void {
+  if (id === "") return;
+  if (
+    typeof id !== "string" ||
+    !project.resources?.some(
+      (resource) => resource.id === id && resource.kind === "Font",
+    )
+  )
+    throw new Error(`Missing font resource: ${String(id)}`);
 }

@@ -1,25 +1,53 @@
+import type { GraphicResource } from "../../electron/shared/graphic-resources";
+import ResourceProperty from "./ResourceProperty";
 import type {
   GraphicComponent,
   GraphicValue,
   RemotionGraphicItem,
 } from "../../electron/shared/graphics";
-import type { ItemPatch } from "../../electron/shared/ipc-contract";
+import type {
+  ProjectSnapshot,
+  ItemPatch,
+} from "../../electron/shared/ipc-contract";
 import ColorProperty from "./ColorProperty";
 import PropertyInput from "./PropertyInput";
 import NumberProperty from "./NumberProperty";
 
 type Props = {
   component: GraphicComponent;
+  origin?: Pick<ProjectSnapshot, "sessionId" | "revision">;
   item: RemotionGraphicItem;
+  resources: GraphicResource[];
   update: (patch: ItemPatch) => Promise<void>;
 };
-export default function GraphicProperties({ component, item, update }: Props) {
+export default function GraphicProperties({
+  component,
+  origin,
+  item,
+  resources,
+  update,
+}: Props) {
   const change = (key: string, value: GraphicValue) =>
     update({ kind: "RemotionGraphic", changes: { props: { [key]: value } } });
   return (
     <>
       {Object.entries(component.properties).map(([key, property]) => {
         const value = item.props[key] ?? property.default;
+        if (property.type === "font" && typeof value === "string")
+          return (
+            <ResourceProperty
+              key={`${item.id}:${property.id}`}
+              origin={origin}
+              itemId={item.id}
+              property={key}
+              label={property.label}
+              value={value}
+              resources={resources}
+              onValueChange={(next) => {
+                void change(key, next);
+              }}
+            />
+          );
         if (property.type === "number" && typeof value === "number")
           return (
             <NumberProperty

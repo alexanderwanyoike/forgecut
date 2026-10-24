@@ -5,6 +5,9 @@ export default defineConfig({
   // Relative asset paths: the packaged app loads dist/index.html over file://
   base: "./",
   plugins: [react()],
+  optimizeDeps: {
+    include: ["@remotion/player", "@remotion/fonts", "remotion"],
+  },
   server: {
     port: 5173,
     strictPort: true,

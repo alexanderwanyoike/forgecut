@@ -18,12 +18,14 @@ interface InspectorProps {
   selectedClipId: string | null;
   project?: Project;
   projectVersion?: number;
+  sessionId?: string;
 }
 
 export default function Inspector({
   selectedClipId,
   project,
   projectVersion,
+  sessionId,
 }: InspectorProps) {
   const [details, setDetails] = useState<TimelineItem | null>(null);
   const [settings, setSettings] = useState<ProjectSettings | null>(null);
@@ -220,8 +222,14 @@ export default function Inspector({
             </div>
             {graphic && component && (
               <GraphicProperties
+                origin={
+                  sessionId && projectVersion !== undefined
+                    ? { sessionId, revision: projectVersion }
+                    : undefined
+                }
                 component={component}
                 item={graphic}
+                resources={project?.resources ?? []}
                 update={update}
               />
             )}

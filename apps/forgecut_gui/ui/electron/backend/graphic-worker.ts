@@ -38,6 +38,7 @@ async function main() {
       binariesDirectory: resolve(runtime, "compositor"),
       inputProps: {
         values: job.values,
+        resources: job.resources,
         width: job.width,
         height: job.height,
         fps: job.fps,

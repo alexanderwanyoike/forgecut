@@ -8,6 +8,7 @@ import type { McpStatus, EventSink } from "./shared/ipc-contract.js";
 import { startLocalBridge } from "./mcp/local-bridge.js";
 import { AppState } from "./backend/state.js";
 import { EditingService } from "./backend/editing-service.js";
+import { graphicResourceResponse } from "./backend/graphic-resource-response.js";
 import { mediaResponseInit } from "./backend/media-protocol.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,6 +45,15 @@ let mcpStatus: McpStatus = {
 ipcMain.handle("forgecut:mcp-status", (): McpStatus => mcpStatus);
 
 protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "forgecut-resource",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+    },
+  },
   {
     scheme: "forgecut-media",
     privileges: {
@@ -130,6 +140,9 @@ void app.whenReady().then(async () => {
   } catch (error) {
     console.warn("MCP connection unavailable:", error);
   }
+  protocol.handle("forgecut-resource", (request) =>
+    graphicResourceResponse(state.project.resources ?? [], request.url),
+  );
   protocol.handle("forgecut-media", async (request) => {
     const url = new URL(request.url);
     const path = url.searchParams.get("path");
