@@ -7,6 +7,7 @@ import type {
   GraphicComponent,
   GraphicValues,
   RemotionGraphicItem,
+  GraphicLayerStates,
 } from "./graphics.js";
 import type { JobSnapshot } from "./jobs.js";
 /**
@@ -162,6 +163,7 @@ export type EditingContext = {
   sessionId: string;
   contextRevision: number;
   selectedItemIds: string[];
+  selectedLayerIds: string[];
   playheadUs: TimeUs;
 };
 
@@ -211,6 +213,7 @@ export type ItemPatch =
       kind: "RemotionGraphic";
       changes: {
         props?: GraphicValues;
+        layer_states?: GraphicLayerStates;
         transform?: VisualPlacement;
         layer_order?: number;
       };
@@ -306,7 +309,12 @@ export type CommandMap = {
   get_project_snapshot: { args: undefined; result: ProjectSnapshot };
   get_editing_context: { args: undefined; result: EditingContext };
   set_editing_context: {
-    args: { sessionId: string; selectedItemIds: string[]; playheadUs: TimeUs };
+    args: {
+      sessionId: string;
+      selectedItemIds: string[];
+      selectedLayerIds?: string[];
+      playheadUs: TimeUs;
+    };
     result: EditingContext;
   };
   apply_edits: { args: EditRequest; result: ProjectSnapshot };

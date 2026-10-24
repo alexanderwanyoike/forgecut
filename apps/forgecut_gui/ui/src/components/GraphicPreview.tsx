@@ -98,7 +98,11 @@ export default function GraphicPreview({
         className="graphic-player"
         ref={player}
         component={TitleCard}
-        inputProps={{ values: item.props, resources: inputs }}
+        inputProps={{
+          values: item.props,
+          resources: inputs,
+          layerStates: item.layer_states,
+        }}
         errorFallback={({ error }) => (
           <span role="alert">Graphic failed: {error.message}</span>
         )}

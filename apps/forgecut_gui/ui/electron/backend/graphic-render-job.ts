@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { graphicValuesSchema } from "./graphic-schema.js";
+import {
+  graphicValuesSchema,
+  graphicLayerStatesSchema,
+} from "./graphic-schema.js";
 
 export const graphicRenderJobSchema = z.strictObject({
   output: z.string().min(1),
@@ -10,6 +13,7 @@ export const graphicRenderJobSchema = z.strictObject({
   duration: z.number().int().positive(),
   renderFrames: z.number().int().positive(),
   values: graphicValuesSchema,
+  layerStates: graphicLayerStatesSchema.optional(),
   resources: z
     .record(
       z.string().max(256),

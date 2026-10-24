@@ -8,6 +8,10 @@ type ResourceInput = { url: string; sha256: string; mime: string };
 export type TitleCardProps = {
   values: GraphicValues;
   resources?: Record<string, ResourceInput>;
+  layerStates?: Record<
+    string,
+    { hidden?: boolean; locked?: boolean; order?: number }
+  >;
 };
 const fontLoads = new Map<string, Promise<void>>();
 export function fontFamily(font: ResourceInput): string {
@@ -34,7 +38,11 @@ export function prepareFont(font: ResourceInput): Promise<void> {
   return loading;
 }
 
-export default function TitleCard({ values, resources = {} }: TitleCardProps) {
+export default function TitleCard({
+  values,
+  resources = {},
+  layerStates = {},
+}: TitleCardProps) {
   const frame = useCurrentFrame();
   const font =
     typeof values.font === "string" ? resources[values.font] : undefined;
@@ -82,25 +90,27 @@ export default function TitleCard({ values, resources = {} }: TitleCardProps) {
           opacity: numeric(values, "background_opacity"),
         }}
       />
-      {image && (
-        <Img
-          data-graphic-layer="1c1dfd1c-520b-4c83-8a82-b00fdf9b8d90"
-          alt="Artwork"
-          src={image.url}
-          onError={() => setArtworkError(image.sha256)}
-          style={{
-            position: "absolute",
-            left: numeric(values, "image_x"),
-            top: numeric(values, "image_y"),
-            width: numeric(values, "image_width"),
-            height: numeric(values, "image_height"),
-            opacity: numeric(values, "image_opacity"),
-            objectFit:
-              text(values, "image_fit") === "contain" ? "contain" : "cover",
-            zIndex: 0,
-          }}
-        />
-      )}
+      {image &&
+        !layerStates["1c1dfd1c-520b-4c83-8a82-b00fdf9b8d90"]?.hidden && (
+          <Img
+            data-graphic-layer="1c1dfd1c-520b-4c83-8a82-b00fdf9b8d90"
+            alt="Artwork"
+            src={image.url}
+            onError={() => setArtworkError(image.sha256)}
+            style={{
+              position: "absolute",
+              left: numeric(values, "image_x"),
+              top: numeric(values, "image_y"),
+              width: numeric(values, "image_width"),
+              height: numeric(values, "image_height"),
+              opacity: numeric(values, "image_opacity"),
+              objectFit:
+                text(values, "image_fit") === "contain" ? "contain" : "cover",
+              zIndex:
+                layerStates["1c1dfd1c-520b-4c83-8a82-b00fdf9b8d90"]?.order ?? 0,
+            }}
+          />
+        )}
       <div
         data-graphic-layer="3aa35212-adf2-46b6-b406-2c4b1bb4f93a"
         style={{
@@ -111,7 +121,11 @@ export default function TitleCard({ values, resources = {} }: TitleCardProps) {
           height: numeric(values, "title_height"),
           opacity: numeric(values, "opacity"),
           fontSize: numeric(values, "font_size"),
-          zIndex: 1,
+          display: layerStates["3aa35212-adf2-46b6-b406-2c4b1bb4f93a"]?.hidden
+            ? "none"
+            : undefined,
+          zIndex:
+            layerStates["3aa35212-adf2-46b6-b406-2c4b1bb4f93a"]?.order ?? 1,
           fontFamily: font ? fontFamily(font) : "sans-serif",
           fontWeight: 700,
           lineHeight: 1.05,

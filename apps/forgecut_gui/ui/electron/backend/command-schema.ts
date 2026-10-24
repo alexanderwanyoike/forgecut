@@ -12,7 +12,10 @@ import {
   fitSchema,
 } from "./project-schema.js";
 
-import { graphicValuesSchema } from "./graphic-schema.js";
+import {
+  graphicValuesSchema,
+  graphicLayerStatesSchema,
+} from "./graphic-schema.js";
 
 const nonempty = <T extends z.ZodRawShape>(shape: T) =>
   z
@@ -26,6 +29,7 @@ const patch = z.discriminatedUnion("kind", [
     kind: z.literal("RemotionGraphic"),
     changes: nonempty({
       props: graphicValuesSchema.optional(),
+      layer_states: graphicLayerStatesSchema.optional(),
       transform: visualPlacementSchema.optional(),
       layer_order: layerOrderSchema.optional(),
     }),
@@ -176,6 +180,7 @@ export const commandSchemas = {
   set_editing_context: z.strictObject({
     sessionId: id,
     selectedItemIds: z.array(id).max(100),
+    selectedLayerIds: z.array(z.uuid()).max(100).optional(),
     playheadUs: time,
   }),
   apply_edits: editRequestSchema,

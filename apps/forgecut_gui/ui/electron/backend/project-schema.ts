@@ -11,6 +11,7 @@ import {
 import {
   graphicComponentSchema,
   graphicValuesSchema,
+  graphicLayerStatesSchema,
 } from "./graphic-schema.js";
 import { graphicResourceSchema } from "./graphic-resource-schema.js";
 import { validateProjectGraphics } from "./project-graphics.js";
@@ -146,6 +147,7 @@ const projectSchema = z.strictObject({
                 component_id: idSchema,
                 component_version: z.string().regex(/^[a-f0-9]{64}$/),
                 props: graphicValuesSchema,
+                layer_states: graphicLayerStatesSchema.optional(),
                 transform: visualPlacementSchema.optional(),
                 layer_order: layerOrderSchema.optional(),
               }),
