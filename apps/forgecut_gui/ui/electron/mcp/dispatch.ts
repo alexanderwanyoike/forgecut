@@ -1,7 +1,10 @@
 import { z } from "zod";
 import type { EditingService } from "../backend/editing-service.js";
 import type { ProjectSnapshot } from "../shared/ipc-contract.js";
-import { editRequestSchema } from "../backend/command-schema.js";
+import {
+  editRequestSchema,
+  historyRequestSchema,
+} from "../backend/command-schema.js";
 import { idSchema, timeSchema } from "../backend/project-schema.js";
 import {
   itemData,
@@ -18,6 +21,10 @@ export const pageFields = {
 };
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("summary") }),
+  z.strictObject({
+    action: z.literal("history"),
+    request: historyRequestSchema,
+  }),
   z.strictObject({ action: z.literal("assets"), ...pageFields }),
   z.strictObject({
     action: z.literal("timeline"),
@@ -75,8 +82,11 @@ export async function dispatchLocal(
   try {
     if (request.action === "summary")
       return { ok: true, value: summary(state) };
-    if (request.action === "apply") {
-      const response = await service.execute("apply_edits", request.request);
+    if (request.action === "apply" || request.action === "history") {
+      const response = await service.execute(
+        request.action === "apply" ? "apply_edits" : "apply_history",
+        request.request,
+      );
       if (!response.ok) return response;
       const snapshot = response.value as ProjectSnapshot;
       return {

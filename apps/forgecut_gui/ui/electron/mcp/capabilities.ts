@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { editSchemas } from "../backend/command-schema.js";
+import {
+  editSchemas,
+  historyRequestSchema,
+} from "../backend/command-schema.js";
 import { MAX_MESSAGE_BYTES } from "./contract.js";
 
 export const editingCapabilities = {
@@ -10,6 +13,7 @@ export const editingCapabilities = {
     itemsPerPage: 100,
     messageBytes: MAX_MESSAGE_BYTES,
   },
+  history: z.toJSONSchema(historyRequestSchema),
   operations: Object.fromEntries(
     Object.entries(editSchemas).map(([command, schema]) => [
       command,

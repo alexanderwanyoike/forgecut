@@ -1,7 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { editingCapabilities } from "./capabilities.js";
-import { editRequestSchema } from "../backend/command-schema.js";
+import {
+  editRequestSchema,
+  historyRequestSchema,
+} from "../backend/command-schema.js";
 import { idSchema, timeSchema } from "../backend/project-schema.js";
 import { pageFields } from "./dispatch.js";
 import { callBridge, listSessions, sessionDirectory } from "./sessions.js";
@@ -128,6 +131,15 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
       }),
     },
     async ({ label, ...request }) => call({ action: "apply", label, request }),
+  );
+  server.registerTool(
+    "apply_history",
+    {
+      description:
+        "Undo or redo one complete project edit with session, revision and retry guards. Reusing a request ID with different input is rejected.",
+      inputSchema: historyRequestSchema,
+    },
+    async (request) => call({ action: "history", request }),
   );
   return server;
 }
