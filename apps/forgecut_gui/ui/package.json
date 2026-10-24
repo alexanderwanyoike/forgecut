@@ -13,7 +13,7 @@
     "dev": "node electron/scripts/dev.mjs",
     "dev:web": "vite",
     "dev:electron": "yarn dev",
-    "build:electron": "tsc -p electron/tsconfig.json && yarn build:mcp",
+    "build:electron": "tsc -p electron/tsconfig.json && yarn build:graphics && yarn build:mcp",
     "build:renderer": "tsc && vite build",
     "build": "yarn build:renderer && yarn build:electron",
     "verify:electron": "node electron/scripts/verify-startup.mjs",
@@ -31,7 +31,8 @@
     "analyze:health": "fallow health",
     "lint": "eslint src electron --ext .ts,.tsx,.cts",
     "mcp": "node electron/dist/mcp-adapter.cjs",
-    "build:mcp": "node electron/scripts/build-mcp.mjs"
+    "build:mcp": "node electron/scripts/build-mcp.mjs",
+    "build:graphics": "node electron/scripts/prepare-graphics.mjs"
   },
   "dependencies": {
     "react": "^18.3.0",

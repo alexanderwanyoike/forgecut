@@ -9,6 +9,7 @@ export function itemData(item: TimelineItem): TimelineItemDetail {
   if ("VideoClip" in item) return item.VideoClip;
   if ("AudioClip" in item) return item.AudioClip;
   if ("ImageOverlay" in item) return item.ImageOverlay;
+  if ("RemotionGraphic" in item) return item.RemotionGraphic;
   return item.TextOverlay;
 }
 
@@ -16,6 +17,7 @@ export function itemVariant(item: TimelineItem): TimelineItemVariant {
   if ("VideoClip" in item) return "VideoClip";
   if ("AudioClip" in item) return "AudioClip";
   if ("ImageOverlay" in item) return "ImageOverlay";
+  if ("RemotionGraphic" in item) return "RemotionGraphic";
   return "TextOverlay";
 }
 

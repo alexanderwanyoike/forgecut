@@ -4,7 +4,8 @@
     "electron/main.ts",
     "electron/preload.cts",
     "electron/scripts/*.mjs",
-    "electron/mcp/stdio.ts"
+    "electron/mcp/stdio.ts",
+    "electron/graphics/*.tsx"
   ],
   "ignorePatterns": ["dist-installers/**"],
   "health": {
@@ -32,6 +33,10 @@
         "patterns": ["electron/domain/**"]
       },
       {
+        "name": "graphics",
+        "patterns": ["electron/graphics/**"]
+      },
+      {
         "name": "backend",
         "patterns": ["electron/backend/**"]
       },
@@ -51,7 +56,7 @@
     "rules": [
       {
         "from": "renderer",
-        "allow": ["domain"],
+        "allow": ["domain", "graphics"],
         "allowTypeOnly": ["contract"]
       },
       {
@@ -60,7 +65,7 @@
       },
       {
         "from": "backend",
-        "allow": ["contract", "domain"]
+        "allow": ["contract", "domain", "graphics"]
       },
       {
         "from": "shell",
@@ -76,6 +81,11 @@
       },
       {
         "from": "domain",
+        "allow": [],
+        "allowTypeOnly": ["contract"]
+      },
+      {
+        "from": "graphics",
         "allow": [],
         "allowTypeOnly": ["contract"]
       }

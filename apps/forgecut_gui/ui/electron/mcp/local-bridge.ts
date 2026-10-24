@@ -119,6 +119,8 @@ export async function startLocalBridge(
         save: "Save project",
         open: "Open project",
         context: "Read editing context",
+        templates: "Read graphic templates",
+        component: "Read graphic component",
       };
       let label = labels[request.action];
       if (request.action === "apply") label = request.label;

@@ -26,6 +26,8 @@ function clipLabel(data: ItemView): string {
       return "Video";
     case "ImageOverlay":
       return "Image";
+    case "RemotionGraphic":
+      return data.text || "Graphic";
     case "TextOverlay":
       return data.text || "Text";
     default:

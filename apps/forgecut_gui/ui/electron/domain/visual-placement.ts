@@ -29,6 +29,15 @@ export function resolveVisualPlacement(
       ...item.ImageOverlay,
       fit: item.ImageOverlay.fit ?? "contain",
     };
+  } else if ("RemotionGraphic" in item) {
+    placement = item.RemotionGraphic.transform ?? {
+      x: 0,
+      y: 0,
+      width: project.settings.width,
+      height: project.settings.height,
+      opacity: 1,
+      fit: "contain",
+    };
   } else if ("VideoClip" in item) {
     const { width, height } = project.settings;
     const primary = project.timeline.tracks.find(

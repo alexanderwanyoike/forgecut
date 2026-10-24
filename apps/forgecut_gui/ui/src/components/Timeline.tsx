@@ -199,6 +199,8 @@ export default function Timeline(props: TimelineProps) {
         return "#c840e9";
       case "OverlayText":
         return "#e9a840";
+      case "Graphics":
+        return "#6f8e80";
       default:
         return "#ff9f4a";
     }
@@ -221,6 +223,8 @@ export default function Timeline(props: TimelineProps) {
         return "Img";
       case "OverlayText":
         return "T";
+      case "Graphics":
+        return "G";
       default:
         return "?";
     }

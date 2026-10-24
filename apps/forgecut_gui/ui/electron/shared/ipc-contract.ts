@@ -1,3 +1,8 @@
+import type {
+  GraphicComponent,
+  GraphicValues,
+  RemotionGraphicItem,
+} from "./graphics.js";
 import type { JobSnapshot } from "./jobs.js";
 /**
  * Single source of truth for the renderer <-> main IPC surface.
@@ -37,7 +42,8 @@ export type Asset = {
   probe: ProbeResult | null;
 };
 
-export type TrackKind = "Video" | "Audio" | "OverlayImage" | "OverlayText";
+export type TrackKind =
+  "Video" | "Audio" | "OverlayImage" | "OverlayText" | "Graphics";
 
 export type AudioSettings = {
   volume?: number;
@@ -98,19 +104,25 @@ export type TextOverlayItem = {
 };
 
 export type TimelineItem =
+  | { RemotionGraphic: RemotionGraphicItem }
   | { VideoClip: VideoClipItem }
   | { AudioClip: ClipItem & { volume: number } }
   | { ImageOverlay: ImageOverlayItem }
   | { TextOverlay: TextOverlayItem };
 
 export type TimelineItemDetail =
+  | RemotionGraphicItem
   | VideoClipItem
   | (ClipItem & { volume: number })
   | ImageOverlayItem
   | TextOverlayItem;
 
 export type TimelineItemVariant =
-  "VideoClip" | "AudioClip" | "ImageOverlay" | "TextOverlay";
+  | "VideoClip"
+  | "AudioClip"
+  | "ImageOverlay"
+  | "TextOverlay"
+  | "RemotionGraphic";
 
 export type Track = {
   id: string;
@@ -125,7 +137,8 @@ export type Timeline = {
 };
 
 export type Project = {
-  schema_version?: 1;
+  schema_version?: 2;
+  components?: GraphicComponent[];
   id: string;
   name: string;
   settings: ProjectSettings;
@@ -189,6 +202,14 @@ export type CommandMetadata = { sessionId?: string; editGroup?: string };
 
 export type ItemPatch =
   | {
+      kind: "RemotionGraphic";
+      changes: {
+        props?: GraphicValues;
+        transform?: VisualPlacement;
+        layer_order?: number;
+      };
+    }
+  | {
       kind: "VideoClip";
       changes: AudioSettings &
         Partial<Pick<VideoClipItem, "transform" | "layer_order">>;
@@ -224,6 +245,7 @@ export type ItemPatch =
     };
 
 export type EditCommandName =
+  | "add_graphic_item"
   | "set_sequence_end"
   | "add_clip_to_timeline"
   | "trim_clip"
@@ -291,6 +313,17 @@ export type CommandMap = {
   autosave: { args: undefined; result: void };
 
   // Timeline
+  get_graphic_components: { args: undefined; result: GraphicComponent[] };
+  add_graphic_item: {
+    args: {
+      templateId: string;
+      trackId: string;
+      timelineStartUs: TimeUs;
+      durationUs: TimeUs;
+      props?: GraphicValues;
+    };
+    result: Timeline;
+  };
   set_sequence_end: { args: { endUs: TimeUs | null }; result: Timeline };
   get_timeline: { args: undefined; result: Timeline };
   init_default_tracks: { args: undefined; result: Timeline };

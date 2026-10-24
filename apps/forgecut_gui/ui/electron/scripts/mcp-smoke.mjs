@@ -35,6 +35,19 @@ export async function verifyMcp(directory, send) {
     const snapshot = attached.structuredContent?.value;
     if (attached.isError || !snapshot?.sessionId)
       throw new Error("Could not attach to the running editor");
+    const graphics = await client.callTool({
+      name: "list_graphic_templates",
+      arguments: { sessionId: snapshot.sessionId },
+    });
+    const title = graphics.structuredContent?.value?.templates?.find(
+      (template) => template.template_id === "title-card",
+    );
+    if (
+      graphics.isError ||
+      title?.properties?.title?.type !== "text" ||
+      !/^[a-f0-9]{64}$/.test(title.version)
+    )
+      throw new Error("Packaged graphic source metadata did not reach MCP");
     const edited = await client.callTool({
       name: "apply_edits",
       arguments: {
