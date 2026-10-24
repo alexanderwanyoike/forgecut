@@ -405,6 +405,7 @@ export type CommandMap = {
   get_editing_context: { args: undefined; result: EditingContext };
   set_editing_context: {
     args: {
+      sequenceId?: string;
       sessionId: string;
       selectedItemIds: string[];
       selectedLayerIds?: string[];

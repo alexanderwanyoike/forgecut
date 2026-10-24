@@ -132,8 +132,23 @@ export class AppState {
 
   setEditingContext(
     input: CommandMap["set_editing_context"]["args"],
+    sequenceId?: string,
   ): EditingContext {
     this.assertSession(input.sessionId);
+    const requested = input.sequenceId ?? sequenceId;
+    if (
+      (input.sequenceId && sequenceId && input.sequenceId !== sequenceId) ||
+      (requested && requested !== this.activeSequence.id)
+    )
+      throw new EditingError(
+        "CONFLICT",
+        "The active sequence changed before this context update",
+      );
+    if (!requested && (this.project.sequences?.length ?? 0) > 0)
+      throw new EditingError(
+        "INVALID_INPUT",
+        "Provide a sequence ID before updating multi-sequence context",
+      );
     const ids = new Set(
       this.activeSequence.timeline.tracks.flatMap((track) =>
         track.items.map((item) => itemData(item).id),
