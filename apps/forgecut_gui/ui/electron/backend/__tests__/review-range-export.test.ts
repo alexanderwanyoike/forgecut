@@ -1,11 +1,12 @@
 /** @vitest-environment node */
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { expect, it } from "vitest";
 import { AppState } from "../state";
 import { EditingService } from "../editing-service";
+import { exportProject } from "../exporter";
 import type { JobSnapshot } from "../../shared/jobs";
 
 function ffmpeg(args: string[]) {
@@ -165,3 +166,45 @@ it.skipIf(
     }
   },
 );
+
+it("preserves existing files and leaves no staging output for invalid or empty review ranges", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "forgecut-invalid-review-"));
+  const state = new AppState();
+  const service = new EditingService(state);
+  try {
+    await service.execute("update_project", {
+      settings: { width: 64, height: 36, fps: 1 },
+    });
+    await service.execute("add_text_overlay", {
+      trackId: "title",
+      timelineStartUs: 0,
+      durationUs: 2000000,
+      text: "Keep this",
+      fontSize: 10,
+      color: "#ffffff",
+      x: 0,
+      y: 0,
+    });
+    const path = join(directory, "review.mp4");
+    await writeFile(path, "Existing review");
+    const before = state.snapshot();
+    for (const range of [
+      { startUs: -1, endUs: 200000 },
+      { startUs: 0, endUs: 31000000 },
+      { startUs: 1000000, endUs: 1000001 },
+      { startUs: 2100000, endUs: 2300000 },
+      { startUs: 1100000, endUs: 1200000 },
+    ]) {
+      expect(await exportProject(state.project, path, { range })).toMatchObject(
+        { ok: false, error: { code: "INVALID_INPUT" } },
+      );
+      expect(await readFile(path, "utf8")).toBe("Existing review");
+      expect(await readdir(directory)).toEqual(["review.mp4"]);
+      expect(state.snapshot()).toEqual(before);
+    }
+  } finally {
+    await service.jobs.close();
+    await service.closeGraphicsPreview();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
