@@ -81,6 +81,9 @@ it("reads bounded asset credit details and updates them through guarded MCP hist
     expect(
       Buffer.byteLength(JSON.stringify(page.structuredContent)),
     ).toBeLessThan(1024 * 1024);
+    state.executeProjectChange((project) => {
+      for (const asset of project.assets.slice(1)) delete asset.license;
+    });
     const before = state.snapshot();
     const request = {
       sessionId: state.sessionId,
