@@ -305,6 +305,7 @@ export type ItemPatch =
     };
 
 export type EditCommandName =
+  | "delete_style_preset"
   | "save_style_preset"
   | "add_graphic_from_preset"
   | "update_source_selection"
@@ -363,6 +364,7 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  delete_style_preset: { args: { presetId: string }; result: undefined };
   save_style_preset: { args: StylePresetInput; result: StylePreset };
   add_graphic_from_preset: {
     args: {

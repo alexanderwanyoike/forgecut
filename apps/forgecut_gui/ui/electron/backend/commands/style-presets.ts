@@ -7,6 +7,16 @@ import { EditingError } from "../editing-error.js";
 import type { CommandRegistry } from "./types.js";
 
 export const stylePresetCommands = {
+  delete_style_preset: (args, { state }) => {
+    const input = args as CommandMap["delete_style_preset"]["args"];
+    state.executeProjectChange((project) => {
+      if (!project.style_presets?.some((value) => value.id === input.presetId))
+        throw new EditingError("NOT_FOUND", "Style preset not found");
+      project.style_presets = project.style_presets.filter(
+        (value) => value.id !== input.presetId,
+      );
+    });
+  },
   save_style_preset: (args, { state }) => {
     const input = args as CommandMap["save_style_preset"]["args"];
     const sourceSequence = state.sequenceIn(

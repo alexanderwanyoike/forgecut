@@ -79,6 +79,7 @@ const patch = z.discriminatedUnion("kind", [
 ]);
 const none = z.strictObject({}).optional();
 export const editSchemas = {
+  delete_style_preset: z.strictObject({ presetId: id }),
   save_style_preset: z.strictObject({
     presetId: id.optional(),
     sourceSequenceId: id,
