@@ -70,3 +70,28 @@ it("renames default and standalone sequences by stable identity in one guarded b
   await service.jobs.close();
   await service.closeGraphicsPreview();
 });
+it("deletes an additional sequence reversibly while retaining the default sequence and shared assets", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  expect(
+    await service.execute("create_sequence", { name: "Clip" }),
+  ).toMatchObject({ ok: true });
+  const extra = state.project.sequences![0];
+  const before = state.snapshot();
+  expect(
+    await service.execute("delete_sequence", {
+      sequenceId: state.project.default_sequence!.id,
+    }),
+  ).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
+  expect(state.snapshot()).toEqual(before);
+  expect(
+    await service.execute("delete_sequence", { sequenceId: extra.id }),
+  ).toMatchObject({ ok: true });
+  expect(state.project.sequences).toEqual([]);
+  expect(state.project.assets).toEqual(before.project.assets);
+  expect(state.revision).toBe(before.revision + 1);
+  expect(await service.execute("undo")).toMatchObject({ ok: true });
+  expect(state.project).toEqual(before.project);
+  await service.jobs.close();
+  await service.closeGraphicsPreview();
+});
