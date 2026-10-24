@@ -10,6 +10,7 @@ import type {
 } from "../../electron/shared/ipc-contract";
 import PropertyInput from "./PropertyInput";
 import ClipAudioProperties from "./ClipAudioProperties";
+import VisualProperties from "./VisualProperties";
 
 interface InspectorProps {
   selectedClipId: string | null;
@@ -98,7 +99,6 @@ export default function Inspector({
     </label>
   );
   const text = item && "TextOverlay" in item ? item.TextOverlay : null;
-  const image = item && "ImageOverlay" in item ? item.ImageOverlay : null;
   let clipAudio: {
     kind: "VideoClip" | "AudioClip";
     settings: AudioSettings;
@@ -271,46 +271,8 @@ export default function Inspector({
                 )}
               </>
             )}
-            {image && (
-              <>
-                {numberField("X", image.x, (x) =>
-                  update({ kind: "ImageOverlay", changes: { x } }),
-                )}
-                {numberField("Y", image.y, (y) =>
-                  update({ kind: "ImageOverlay", changes: { y } }),
-                )}
-                {numberField(
-                  "Width",
-                  image.width,
-                  (width) =>
-                    update({ kind: "ImageOverlay", changes: { width } }),
-                  1,
-                )}
-                {numberField(
-                  "Height",
-                  image.height,
-                  (height) =>
-                    update({ kind: "ImageOverlay", changes: { height } }),
-                  1,
-                )}
-                <label className="inspector-row">
-                  <span className="inspector-label">Opacity</span>
-                  <input
-                    type="range"
-                    className="inspector-slider"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={image.opacity}
-                    onChange={(event) =>
-                      update({
-                        kind: "ImageOverlay",
-                        changes: { opacity: Number(event.currentTarget.value) },
-                      })
-                    }
-                  />
-                </label>
-              </>
+            {project && (
+              <VisualProperties project={project} item={item} update={update} />
             )}
             {clipAudio && (
               <ClipAudioProperties {...clipAudio} update={update} />
