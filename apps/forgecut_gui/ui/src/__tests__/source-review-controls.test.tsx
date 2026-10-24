@@ -9,7 +9,8 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import type { JobSnapshot } from "../../electron/shared/jobs";
 import type {
   CommandMetadata,
   CommandResponse,
@@ -26,18 +27,45 @@ const mediaTest = it.skipIf(
   ),
 );
 
+const createPreviewUrl = vi.fn(() => "blob:source-preview");
+const revokePreviewUrl = vi.fn();
+const originalCreateUrl = Object.getOwnPropertyDescriptor(
+  URL,
+  "createObjectURL",
+);
+const originalRevokeUrl = Object.getOwnPropertyDescriptor(
+  URL,
+  "revokeObjectURL",
+);
+beforeEach(() => {
+  vi.clearAllMocks();
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: createPreviewUrl,
+  });
+  Object.defineProperty(URL, "revokeObjectURL", {
+    configurable: true,
+    value: revokePreviewUrl,
+  });
+});
 let directory: string | undefined;
 afterEach(async () => {
   await cleanupSequenceWorkspace();
   if (directory) await rm(directory, { recursive: true, force: true });
   directory = undefined;
+  if (originalCreateUrl)
+    Object.defineProperty(URL, "createObjectURL", originalCreateUrl);
+  else Reflect.deleteProperty(URL, "createObjectURL");
+  if (originalRevokeUrl)
+    Object.defineProperty(URL, "revokeObjectURL", originalRevokeUrl);
+  else Reflect.deleteProperty(URL, "revokeObjectURL");
 });
 
-async function reviewFixture() {
+async function reviewFixture(durationSeconds = 2) {
   const fixture = await sequenceWorkspaceFixture();
   directory = await mkdtemp(join(tmpdir(), "forgecut-source-ui-"));
   const path = join(directory, "recording.mp4");
-  generateReviewSource(path);
+  generateReviewSource(path, durationSeconds);
   expect(
     await fixture.service.execute("import_assets", { paths: [path] }),
   ).toMatchObject({ ok: true });
@@ -156,5 +184,168 @@ mediaTest(
     fireEvent.click(screen.getByRole("button", { name: "Contact sheet" }));
     await screen.findByRole("img", { name: "Source contact sheet" });
     expect(state.project.assets[0].path).toBe(replacement);
+  },
+);
+
+mediaTest(
+  "plays a bounded source preview without changing the project",
+  async () => {
+    const { state } = await reviewFixture();
+    const before = state.snapshot();
+    fireEvent.click(screen.getByRole("button", { name: "Short preview" }));
+    const video = await screen.findByLabelText("Source preview");
+    expect(video.tagName.toLowerCase()).toBe("video");
+    expect(video.getAttribute("src")).toMatch(/^blob:/);
+    expect(createPreviewUrl).toHaveBeenCalled();
+    expect((video as HTMLVideoElement).controls).toBe(true);
+    expect(screen.getByText("0.000 to 2.000 seconds")).toBeTruthy();
+    expect(state.snapshot()).toEqual(before);
+  },
+);
+
+mediaTest(
+  "pauses the other source player and stops the preview when its range changes",
+  async () => {
+    await reviewFixture();
+    fireEvent.click(screen.getByRole("button", { name: "Short preview" }));
+    const preview = (await screen.findByLabelText(
+      "Source preview",
+    )) as HTMLVideoElement;
+    const source = document.querySelector<HTMLVideoElement>(
+      ".source-media-stage video",
+    )!;
+    const stopSource = vi.spyOn(source, "pause").mockImplementation(() => {});
+    const stopPreview = vi.spyOn(preview, "pause").mockImplementation(() => {});
+    fireEvent.play(preview);
+    expect(stopSource).toHaveBeenCalled();
+    fireEvent.play(source);
+    expect(stopPreview).toHaveBeenCalled();
+    stopPreview.mockClear();
+    fireEvent.focus(screen.getByLabelText("Source out (s)"));
+    fireEvent.change(screen.getByLabelText("Source out (s)"), {
+      target: { value: "1" },
+    });
+    fireEvent.blur(screen.getByLabelText("Source out (s)"));
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Source preview")).toBeNull(),
+    );
+    expect(stopPreview).toHaveBeenCalled();
+    expect(revokePreviewUrl).toHaveBeenCalledWith("blob:source-preview");
+  },
+);
+
+mediaTest(
+  "keeps long ranges available for contact sheets while limiting video previews to five seconds",
+  async () => {
+    await reviewFixture(6);
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Short preview",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Contact sheet",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+    fireEvent.focus(screen.getByLabelText("Source out (s)"));
+    fireEvent.change(screen.getByLabelText("Source out (s)"), {
+      target: { value: "5" },
+    });
+    fireEvent.blur(screen.getByLabelText("Source out (s)"));
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Short preview",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+  },
+);
+
+mediaTest(
+  "keeps source review keys away from the selected timeline clip",
+  async () => {
+    const { state } = await reviewFixture();
+    const before = structuredClone(state.project);
+    const button = screen.getByRole("button", { name: "Short preview" });
+    button.focus();
+    for (const key of ["Delete", "Backspace", "s", " "]) {
+      await act(async () => {
+        fireEvent.keyDown(button, { key });
+      });
+      expect(state.project).toEqual(before);
+    }
+  },
+);
+
+mediaTest(
+  "reports an unreadable preview without allocating a playback URL",
+  async () => {
+    const { state } = await reviewFixture();
+    const native = window.forgecut!.invoke;
+    window.forgecut!.invoke = async <T,>(
+      command: string,
+      args?: Record<string, unknown>,
+      metadata?: CommandMetadata,
+    ): Promise<CommandResponse<T>> => {
+      const response = await native<T>(command, args, metadata);
+      if (command === "get_media_job" && response.ok) {
+        const job = response.value as JobSnapshot;
+        if (job.kind === "source-preview" && job.result?.ok)
+          return {
+            ...response,
+            value: {
+              ...job,
+              result: {
+                ok: true,
+                value: {
+                  assetId: state.project.assets[0].id,
+                  startUs: 0,
+                  endUs: 2000000,
+                  mimeType: "video/webm",
+                  data: "invalid base64!",
+                },
+              },
+            } as T,
+          };
+      }
+      return response;
+    };
+    fireEvent.click(screen.getByRole("button", { name: "Short preview" }));
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Source review returned an unreadable result",
+    );
+    expect(screen.queryByLabelText("Source preview")).toBeNull();
+    expect(createPreviewUrl).not.toHaveBeenCalled();
+  },
+);
+
+mediaTest(
+  "returns from the bounded preview to the same source player and releases playback",
+  async () => {
+    await reviewFixture();
+    const source = document.querySelector<HTMLVideoElement>(
+      ".source-media-stage video",
+    )!;
+    const stopSource = vi.spyOn(source, "pause").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: "Short preview" }));
+    const preview = (await screen.findByLabelText(
+      "Source preview",
+    )) as HTMLVideoElement;
+    fireEvent.loadedData(preview);
+    expect(stopSource).toHaveBeenCalled();
+    const stopPreview = vi.spyOn(preview, "pause").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: "Back to source" }));
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Source preview")).toBeNull(),
+    );
+    expect(document.querySelector(".source-media-stage video")).toBe(source);
+    expect(stopPreview).toHaveBeenCalled();
+    expect(revokePreviewUrl).toHaveBeenCalledWith("blob:source-preview");
   },
 );
