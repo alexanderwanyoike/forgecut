@@ -80,7 +80,7 @@ export function compileExportPlan(project: Project): RenderPlan {
         `[${input.index}:v]${trim}setpts=PTS-STARTPTS,${image ? "" : `fps=${fps},`}format=rgba,${fitFilter},colorchannelmixer=aa=${placement.opacity},setpts=PTS+${range.start}/${fps}/TB[visual${index}]`,
       );
       filters.push(
-        `[${videoLabel}][visual${index}]overlay=x=${x}:y=${y}:eof_action=repeat:repeatlast=1:enable='${active}'[video${index}]`,
+        `[${videoLabel}][visual${index}]overlay=x=${x}:y=${y}:format=rgb:eof_action=repeat:repeatlast=1:enable='${active}'[video${index}]`,
       );
       videoLabel = `video${index}`;
     }
