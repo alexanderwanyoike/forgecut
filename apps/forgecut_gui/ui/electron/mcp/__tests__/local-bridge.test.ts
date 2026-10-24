@@ -11,7 +11,14 @@ import { callBridge, listSessions } from "../sessions";
 it("discovers an explicit local session and authenticates reads of the real owner", async () => {
   const directory = await mkdtemp(join(tmpdir(), "forgecut-bridge-"));
   const state = new AppState();
-  const bridge = await startLocalBridge(new EditingService(state), directory);
+  const activities: string[] = [];
+  const bridge = await startLocalBridge(
+    new EditingService(state),
+    directory,
+    (label) => {
+      activities.push(label);
+    },
+  );
   try {
     const sessions = await listSessions(directory);
     expect(sessions).toHaveLength(1);
@@ -33,6 +40,7 @@ it("discovers an explicit local session and authenticates reads of the real owne
         sessionId: state.sessionId,
       },
     });
+    expect(activities).toEqual(["Read project"]);
   } finally {
     await bridge.close();
     expect(await listSessions(directory)).toEqual([]);
