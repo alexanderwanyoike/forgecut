@@ -41,7 +41,7 @@ it("pages project style identities and instantiates them through guarded MCP edi
             arguments: {
               sessionId: state.sessionId,
               expectedRevision: state.revision,
-              requestId: name,
+              requestId: name.replaceAll(" ", "-"),
               label: "Save project style",
               operations: [
                 {
