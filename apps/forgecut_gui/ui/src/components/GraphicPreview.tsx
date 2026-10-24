@@ -11,6 +11,7 @@ import type {
   ProjectSettings,
 } from "../../electron/shared/ipc-contract";
 import { frameAtOrAfter } from "../../electron/domain/sequence";
+import { graphicFit } from "../lib/preview/graphic-geometry";
 import { isPackagedGraphic } from "../lib/preview/graphic-runtime";
 
 export type GraphicPreviewProps = {
@@ -86,10 +87,8 @@ export default function GraphicPreview({
     return <span role="alert">Font could not load: {fontStatus.error}</span>;
   if (fontId && fontStatus.key !== fontId)
     return <span role="status">Loading font…</span>;
-  const scale = (placement.fit === "cover" ? Math.max : Math.min)(
-    placement.width / settings.width,
-    placement.height / settings.height,
-  );
+  const fit = graphicFit(placement, settings);
+  const { scale } = fit;
   const width = settings.width * scale;
   const height = settings.height * scale;
   return (
@@ -120,8 +119,8 @@ export default function GraphicPreview({
           position: "absolute",
           width,
           height,
-          left: (placement.width - width) / 2,
-          top: (placement.height - height) / 2,
+          left: fit.x,
+          top: fit.y,
         }}
       />
     </div>
