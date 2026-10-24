@@ -119,6 +119,7 @@ export default function Preview(props: PreviewProps) {
                 <div key={key} style={visualStyle(placement)}>
                   <Suspense fallback={<span>Loading graphic…</span>}>
                     <GraphicPreview
+                      placement={placement}
                       component={component}
                       item={graphic}
                       frame={
