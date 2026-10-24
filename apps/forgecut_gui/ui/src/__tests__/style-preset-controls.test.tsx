@@ -162,3 +162,71 @@ it("deletes a saved style from the timeline picker without selecting a graphic a
   fireEvent.click(screen.getByRole("button", { name: "Undo" }));
   await waitFor(() => expect(state.project).toEqual(before.project));
 });
+
+it("protects an open style form when an agent replaces or deletes its destination", async () => {
+  const { state, service, source, root, App } = await styleFixture();
+  const input = {
+    sourceSequenceId: root,
+    itemId: source.id,
+    name: "Project card",
+    purpose: "card",
+  };
+  await service.execute("save_style_preset", input);
+  const preset = state.project.style_presets![0];
+  render(<App />);
+  await screen.findByLabelText("Title");
+  fireEvent.click(screen.getByRole("button", { name: "Save project style" }));
+  fireEvent.change(await screen.findByLabelText("Style destination"), {
+    target: { value: preset.id },
+  });
+  fireEvent.change(screen.getByLabelText("Style name"), {
+    target: { value: "Local draft" },
+  });
+  await act(async () => {
+    expect(
+      await service.execute("save_style_preset", {
+        ...input,
+        presetId: preset.id,
+        name: "Agent style",
+        purpose: "ending",
+      }),
+    ).toMatchObject({ ok: true });
+  });
+  const afterAgent = state.snapshot();
+  expect(
+    (screen.getByRole("button", { name: "Replace style" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  expect((screen.getByLabelText("Style name") as HTMLInputElement).value).toBe(
+    "Local draft",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Replace style" }));
+  expect(state.snapshot()).toEqual(afterAgent);
+  fireEvent.click(screen.getByRole("button", { name: "Reload style" }));
+  expect((screen.getByLabelText("Style name") as HTMLInputElement).value).toBe(
+    "Agent style",
+  );
+  fireEvent.change(screen.getByLabelText("Style name"), {
+    target: { value: "Recovered style" },
+  });
+  await act(async () => {
+    await service.execute("delete_style_preset", { presetId: preset.id });
+  });
+  expect(
+    (screen.getByRole("button", { name: "Replace style" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  fireEvent.change(screen.getByLabelText("Style destination"), {
+    target: { value: "" },
+  });
+  expect((screen.getByLabelText("Style name") as HTMLInputElement).value).toBe(
+    "Recovered style",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Create style" }));
+  await waitFor(() => expect(state.project.style_presets).toHaveLength(1));
+  expect(state.project.style_presets![0]).toMatchObject({
+    name: "Recovered style",
+    purpose: "ending",
+  });
+  expect(state.project.style_presets![0].id).not.toBe(preset.id);
+});
