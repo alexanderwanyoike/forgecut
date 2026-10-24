@@ -5,6 +5,7 @@ import { usePlayback } from "../hooks/usePlayback";
 
 export default function Preview(props: PreviewProps) {
   const { videoRef, statusMsg, overlays, handlePlayPause, handleEnded } = usePlayback({
+    projectVersion: props.projectVersion,
     playheadUs: props.playheadUs,
     playing: props.playing,
     onPlayingChange: props.onPlayingChange,

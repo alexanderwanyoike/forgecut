@@ -5,12 +5,19 @@ import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { AppState } from "./backend/state.js";
+import { EditingService } from "./backend/editing-service.js";
 import { dispatchCommand } from "./backend/ipc.js";
 import { mediaResponseInit } from "./backend/media-protocol.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const state = new AppState();
+const editing = new EditingService(state);
+state.subscribe((snapshot) => {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.webContents.isDestroyed()) win.webContents.send("forgecut:event:project-changed", snapshot);
+  }
+});
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -55,8 +62,8 @@ function createWindow(): void {
   }
 }
 
-ipcMain.handle("forgecut:invoke", (event, command: string, args) => {
-  return dispatchCommand(event, state, command, args);
+ipcMain.handle("forgecut:invoke", (event, command: string, args, metadata) => {
+  return dispatchCommand(event, editing, command, args, metadata);
 });
 
 ipcMain.handle("forgecut:dialog:open", async (_event, options = {}) => {

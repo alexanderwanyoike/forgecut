@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Preview from "../components/Preview";
 
 const mockInvoke = vi.hoisted(() => vi.fn());
@@ -17,6 +17,7 @@ class MockResizeObserver {
 vi.stubGlobal("ResizeObserver", MockResizeObserver);
 
 describe("Preview component", () => {
+  afterEach(() => { vi.restoreAllMocks(); });
   beforeEach(() => {
     vi.clearAllMocks();
     mockInvoke.mockImplementation(async (cmd: string) => {
@@ -152,5 +153,32 @@ describe("Preview component", () => {
       />
     );
     expect(document.querySelector("video.preview-video")).toBeTruthy();
+  });
+
+  it("pauses on project edits while allowing playback position updates", () => {
+    const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+    const props = { playheadUs: 0, playing: true, onPlayingChange: vi.fn(), onPlayheadChange: vi.fn(), projectVersion: 0 };
+    const { rerender } = render(<Preview {...props} />);
+    pause.mockClear();
+    rerender(<Preview {...props} playheadUs={1_000_000} />);
+    expect(pause).not.toHaveBeenCalled();
+    rerender(<Preview {...props} playheadUs={1_000_000} projectVersion={1} />);
+    expect(pause).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not start an old clip if the project changed while resolving playback", async () => {
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+    const props = { playheadUs: 0, playing: false, onPlayingChange: vi.fn(), onPlayheadChange: vi.fn(), projectVersion: 0 };
+    const { rerender } = render(<Preview {...props} />);
+    await screen.findByText("No clip at playhead");
+    let finish!: (value: unknown) => void;
+    mockInvoke.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    fireEvent.click(screen.getByRole("button"));
+    rerender(<Preview {...props} projectVersion={1} />);
+    await act(async () => { finish({ file_path: "/old.mp4", seek_seconds: 0, clip_start_us: 0, clip_end_us: 3_000_000, source_in_us: 0 }); });
+    expect(play).not.toHaveBeenCalled();
+    expect(props.onPlayingChange).not.toHaveBeenCalledWith(true);
   });
 });

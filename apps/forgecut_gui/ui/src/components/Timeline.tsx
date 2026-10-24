@@ -32,10 +32,16 @@ interface TimelineProps {
   selectedClipId: string | null;
   onSelectedClipChange: (id: string | null) => void;
   projectVersion: number;
+  projectTimeline?: TimelineData;
+  projectMediaVersion?: string;
 }
 
 export default function Timeline(props: TimelineProps) {
-  const [timeline, setTimeline] = useState<TimelineData>({ tracks: [], markers: [] });
+  const [localTimeline, setLocalTimeline] = useState<TimelineData>({ tracks: [], markers: [] });
+  const timeline = props.projectTimeline ?? localTimeline;
+  const setTimeline = useCallback((next: TimelineData) => {
+    if (!props.projectTimeline) setLocalTimeline(next);
+  }, [props.projectTimeline]);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(100);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [viewWidth, setViewWidth] = useState(0);
@@ -45,7 +51,7 @@ export default function Timeline(props: TimelineProps) {
 
   const { waveforms, thumbnails, thumbnailsLoading } = useClipMedia(
     timeline,
-    props.projectVersion,
+    props.projectMediaVersion ?? props.projectVersion,
   );
 
   const {
@@ -60,6 +66,7 @@ export default function Timeline(props: TimelineProps) {
     snapping,
     timeline,
     setTimeline,
+    projectVersion: props.projectVersion,
     playing: props.playing,
     onPlayingChange: props.onPlayingChange,
     onPlayheadChange: props.onPlayheadChange,
@@ -107,10 +114,14 @@ export default function Timeline(props: TimelineProps) {
 
   // Init default tracks on mount and after project load
   useEffect(() => {
+    if (props.projectTimeline) return;
+    let cancelled = false;
     (async () => {
-      setTimeline(await invoke("init_default_tracks"));
-    })();
-  }, [props.projectVersion]);
+      const next = await invoke("init_default_tracks");
+      if (!cancelled) setTimeline(next);
+    })().catch(() => {});
+    return () => { cancelled = true; };
+  }, [props.projectVersion, props.projectTimeline, setTimeline]);
 
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -195,7 +206,7 @@ export default function Timeline(props: TimelineProps) {
   const handleAddText = async () => {
     try {
       const tl = await invoke("add_text_overlay", {
-        trackId: "00000000-0000-0000-0000-000000000000",
+        trackId: timeline.tracks.find((track) => track.kind === "OverlayText")?.id ?? crypto.randomUUID(),
         timelineStartUs: props.playheadUs,
         durationUs: 3_000_000,
         text: "Hello World",
