@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { verifyAudio } from "./audio-smoke.mjs";
 import { verifyMcp } from "./mcp-smoke.mjs";
 import { spawn } from "node:child_process";
 
@@ -170,6 +171,7 @@ async function main() {
     );
   }
   await verifyMcp(mcpDirectory, send);
+  await verifyAudio(mcpDirectory, send);
   ws.close();
 
   const value = result.result?.result?.value;
@@ -191,7 +193,9 @@ async function main() {
     throw new Error(`Renderer emitted errors:\\n${errors.join("\\n")}`);
   }
 
-  console.log("Electron startup, shared editing and live MCP verified");
+  console.log(
+    "Electron startup, shared editing, live MCP and preview audio verified",
+  );
 }
 
 main()
