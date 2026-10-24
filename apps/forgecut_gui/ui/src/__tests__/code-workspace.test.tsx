@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -286,4 +287,42 @@ it("allows Revert to reconcile a draft after project undo restores older active 
     (screen.getByLabelText("Graphic source editor") as HTMLTextAreaElement)
       .value,
   ).toBe(component.source.files[component.source.entry]);
+});
+
+it("ignores a poll response older than a newly acknowledged manual save", async () => {
+  await fixture();
+  const execute = bridge.getMockImplementation()!;
+  let release: (() => void) | undefined;
+  let began: (() => void) | undefined;
+  const paused = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    began = resolve;
+  });
+  let held = false;
+  bridge.mockImplementation(async (command: string, args: unknown) => {
+    const result = await execute(command, args);
+    if (command === "get_graphic_draft" && !held) {
+      held = true;
+      began!();
+      await paused;
+    }
+    return result;
+  });
+  await started;
+  const code = "export default function Latest(){return null}";
+  fireEvent.change(screen.getByLabelText("Graphic source editor"), {
+    target: { value: code },
+  });
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toContain("Draft saved"),
+  );
+  await act(async () => {
+    release!();
+  });
+  expect(
+    (screen.getByLabelText("Graphic source editor") as HTMLTextAreaElement)
+      .value,
+  ).toBe(code);
 });
