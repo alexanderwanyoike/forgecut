@@ -88,7 +88,7 @@ export async function verifySourceSelections(directory, send) {
     throw new Error(
       `Source selection workflow failed: ${JSON.stringify(result.result)}`,
     );
-  for (const kind of ["Contact sheet", "Waveform"]) {
+  for (const kind of ["Contact sheet", "Waveform", "Short preview"]) {
     const reviewed = await send("Runtime.evaluate", {
       awaitPromise: true,
       returnByValue: true,
@@ -96,8 +96,9 @@ export async function verifySourceSelections(directory, send) {
         const before = JSON.stringify((await window.forgecut.invoke('get_project_snapshot')).value.project);
         [...document.querySelectorAll('button')].find(button => button.textContent.trim() === '${kind}' && !button.disabled).click();
         for (let attempt = 0; attempt < 200; attempt++) {
-          const image = document.querySelector('[aria-label="Source waveform"]') ?? document.querySelector('img[alt="Source contact sheet"]');
-          if (image && ('${kind}' === 'Waveform' ? image.tagName.toLowerCase() === 'svg' : image.complete && image.naturalWidth > 0)) {
+          const output = '${kind}' === 'Short preview' ? document.querySelector('video[aria-label="Source preview"]') : '${kind}' === 'Waveform' ? document.querySelector('[aria-label="Source waveform"]') : document.querySelector('img[alt="Source contact sheet"]');
+          const ready = output && ('${kind}' === 'Short preview' ? output.readyState >= 2 && output.videoWidth > 0 : '${kind}' === 'Waveform' ? output.tagName.toLowerCase() === 'svg' : output.complete && output.naturalWidth > 0);
+          if (ready) {
             if (JSON.stringify((await window.forgecut.invoke('get_project_snapshot')).value.project) !== before) throw new Error('Source review changed the project');
             return true;
           }
@@ -113,6 +114,33 @@ export async function verifySourceSelections(directory, send) {
       throw new Error(
         `Native source review failed: ${JSON.stringify(reviewed.result)}`,
       );
+    if (kind === "Short preview") {
+      const played = await send("Runtime.evaluate", {
+        userGesture: true,
+        awaitPromise: true,
+        returnByValue: true,
+        expression: `(async () => {
+          const preview = document.querySelector('video[aria-label="Source preview"]');
+          const source = document.querySelector('.source-media-stage video');
+          const before = JSON.stringify((await window.forgecut.invoke('get_project_snapshot')).value.project);
+          await preview.play();
+          for (let attempt = 0; attempt < 100 && preview.currentTime < 0.05; attempt++) await new Promise(resolve => setTimeout(resolve, 20));
+          if (preview.currentTime < 0.05 || !source.paused) throw new Error('Bounded preview did not play alone');
+          await source.play(); await new Promise(resolve => setTimeout(resolve, 50));
+          if (!preview.paused) throw new Error('Source and preview played simultaneously');
+          source.pause();
+          if (JSON.stringify((await window.forgecut.invoke('get_project_snapshot')).value.project) !== before) throw new Error('Preview playback edited the project');
+          return true;
+        })()`,
+      });
+      if (
+        played.result?.exceptionDetails ||
+        played.result?.result?.value !== true
+      )
+        throw new Error(
+          `Source preview playback failed: ${JSON.stringify(played.result)}`,
+        );
+    }
     for (const width of [1280, 1024]) {
       await send("Emulation.setDeviceMetricsOverride", {
         width,
@@ -168,6 +196,6 @@ export async function verifySourceSelections(directory, send) {
     expression: "window.forgecut.invoke('create_project')",
   });
   console.log(
-    "Source decoding, saved ranges, manual notes, agent patches, timeline insertion and undo verified",
+    "Source decoding, saved ranges, notes, bounded preview playback, player ownership, timeline insertion and undo verified",
   );
 }
