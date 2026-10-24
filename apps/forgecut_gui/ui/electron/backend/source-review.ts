@@ -4,10 +4,14 @@ import type {
   SourceReviewRequest,
 } from "../shared/source-review.js";
 import type { Result } from "../shared/result.js";
-import { computePeaks } from "./media-derived.js";
+import {
+  cachedSourceReview,
+  retainSourceReview,
+} from "./source-review-cache.js";
+import { computePeaks, mediaCacheId } from "./media-derived.js";
 import { runMediaProcess } from "./media-process.js";
 
-export async function sourceReview(
+async function renderSourceReview(
   asset: Asset,
   request: SourceReviewRequest,
   signal: AbortSignal,
@@ -115,4 +119,50 @@ export async function sourceReview(
       peaks: computePeaks(rendered.value, samplesPerPeak),
     },
   };
+}
+
+export async function sourceReview(
+  asset: Asset,
+  request: SourceReviewRequest,
+  signal: AbortSignal,
+): Promise<Result<SourceReview>> {
+  try {
+    const fingerprint = await mediaCacheId(asset.path, asset.id);
+    if (signal.aborted)
+      return {
+        ok: false,
+        error: { code: "CANCELLED", message: "Source review cancelled" },
+      };
+    const key = JSON.stringify([
+      fingerprint,
+      request.kind,
+      request.startUs,
+      request.endUs,
+    ]);
+    const cached = cachedSourceReview(key);
+    if (cached) return { ok: true, value: cached };
+    const rendered = await renderSourceReview(asset, request, signal);
+    if (!rendered.ok) return rendered;
+    if ((await mediaCacheId(asset.path, asset.id)) !== fingerprint)
+      return {
+        ok: false,
+        error: {
+          code: "CONFLICT",
+          message: "The source changed while preparing review data",
+        },
+      };
+    retainSourceReview(key, rendered.value);
+    return rendered;
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        code: "IO_ERROR",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Source review could not read the media",
+      },
+    };
+  }
 }
