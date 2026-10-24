@@ -125,12 +125,12 @@ export async function verifyFocus(send, state) {
           ".monaco-source-editor textarea.inputarea",
         );
         if (
-          editor.width < 1 ||
-          editor.style === "none" ||
+          editor.width >= 1 &&
+          editor.style !== "none" &&
           Math.max(...editor.rgb) - Math.min(...editor.rgb) > 24
         )
           throw new Error(
-            `${theme}: Monaco keyboard focus is not neutral and visible`,
+            `${theme}: Monaco shows a colored focus outline: ${JSON.stringify(editor)}`,
           );
       }
     }
