@@ -11,7 +11,12 @@ export function useProject() {
     const accept = (next: ProjectSnapshot) => {
       if (!cancelled)
         setSnapshot((current) =>
-          !current || next.revision >= current.revision ? next : current,
+          !current ||
+          next.revision > current.revision ||
+          (next.revision === current.revision &&
+            (next.sequenceRevision ?? 0) >= (current.sequenceRevision ?? 0))
+            ? next
+            : current,
         );
     };
     (async () => {
