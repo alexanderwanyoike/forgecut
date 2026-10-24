@@ -234,9 +234,15 @@ export function useGraphicSourceDraft(
   useEffect(() => {
     if (!saved.current) return;
     const activeVersion = active.version;
+    const requestedEpoch = epoch.current;
     void invoke("get_graphic_draft", { itemId })
       .then((value) => {
-        if (!alive.current || activeVersion !== currentActive.current.version)
+        if (
+          !alive.current ||
+          activeVersion !== currentActive.current.version ||
+          epoch.current !== requestedEpoch ||
+          value.revision < (saved.current?.revision ?? -1)
+        )
           return;
         if (!pending.current && epoch.current === savedEpoch.current)
           install(value);
@@ -252,9 +258,14 @@ export function useGraphicSourceDraft(
     alive.current = true;
     loadGeneration.current += 1;
     const generation = loadGeneration.current;
+    const initialEpoch = epoch.current;
     void invoke("get_graphic_draft", { itemId })
       .then((value) => {
-        if (alive.current && loadGeneration.current === generation)
+        if (
+          alive.current &&
+          loadGeneration.current === generation &&
+          epoch.current === initialEpoch
+        )
           install(value);
       })
       .catch((failure) => {
@@ -263,13 +274,15 @@ export function useGraphicSourceDraft(
       });
     const timer = setInterval(() => {
       if (pending.current) return;
+      const requestedEpoch = epoch.current;
       void invoke("get_graphic_draft", { itemId })
         .then((value) => {
           if (
             !alive.current ||
             loadGeneration.current !== generation ||
             pending.current ||
-            value.revision === saved.current?.revision
+            epoch.current !== requestedEpoch ||
+            value.revision <= (saved.current?.revision ?? -1)
           )
             return;
           if (epoch.current !== savedEpoch.current) {
