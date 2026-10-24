@@ -2,6 +2,7 @@ import type {
   SourceSelection,
   SourceSelectionInput,
 } from "./source-selection.js";
+import type { SourceReviewRequest } from "./source-review.js";
 import type { GraphicPromotionRequest } from "./graphic-promotion.js";
 import type { GraphicDraft } from "./graphic-draft.js";
 import type { GraphicPreviewFrame } from "./graphic-preview.js";
@@ -353,6 +354,7 @@ export type CommandMap = {
     result: SourceSelection;
   };
   delete_source_selection: { args: { selectionId: string }; result: undefined };
+  start_source_review: { args: SourceReviewRequest; result: JobSnapshot };
   get_sequence_timeline: { args: { sequenceId: string }; result: Timeline };
   select_sequence: {
     args: { sessionId: string; sequenceId: string };
