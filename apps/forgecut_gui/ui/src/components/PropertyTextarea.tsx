@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { usePropertyDraft } from "../hooks/usePropertyDraft";
 
 type Props = {
   className?: string;
@@ -10,22 +10,11 @@ export default function PropertyTextarea({
   onValueChange,
   className,
 }: Props) {
-  const [draft, setDraft] = useState(value);
-  const [focused, setFocused] = useState(false);
   return (
     <textarea
       className={className}
       rows={3}
-      value={focused ? draft : value}
-      onFocus={() => {
-        setDraft(value);
-        setFocused(true);
-      }}
-      onBlur={() => setFocused(false)}
-      onChange={(event) => {
-        setDraft(event.currentTarget.value);
-        onValueChange(event.currentTarget.value);
-      }}
+      {...usePropertyDraft(value, onValueChange)}
     />
   );
 }
