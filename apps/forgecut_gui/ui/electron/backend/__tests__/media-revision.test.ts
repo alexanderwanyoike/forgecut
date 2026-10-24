@@ -46,3 +46,34 @@ it.skipIf(spawnSync("ffprobe", ["-version"]).status !== 0)(
     }
   },
 );
+
+it.skipIf(spawnSync("ffprobe", ["-version"]).status !== 0)(
+  "rejects a pending import when a newer edit changes the project",
+  async () => {
+    const dir = await mkdtemp(join(tmpdir(), "forgecut-import-"));
+    try {
+      const path = join(dir, "image.png");
+      await writeFile(
+        path,
+        Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+          "base64",
+        ),
+      );
+      const state = new AppState();
+      const service = new EditingService(state);
+      const pending = service.execute("import_assets", { paths: [path] });
+      state.executeProjectChange((project) => {
+        project.name = "Manual edit";
+      });
+      const newer = state.snapshot();
+      expect(await pending).toMatchObject({
+        ok: false,
+        error: { code: "CONFLICT" },
+      });
+      expect(state.snapshot()).toEqual(newer);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);
