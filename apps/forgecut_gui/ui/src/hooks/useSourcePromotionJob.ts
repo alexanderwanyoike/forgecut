@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { GraphicPromotionRequest } from "../../electron/shared/graphic-promotion";
+import {
+  graphicPromotionResultSchema,
+  type GraphicPromotionRequest,
+  type GraphicPromotionResult,
+} from "../../electron/shared/graphic-promotion";
 import type { JobSnapshot } from "../../electron/shared/jobs";
 import type { Result } from "../../electron/shared/result";
 import { invoke } from "../lib/bridge";
@@ -15,7 +19,7 @@ export function useSourcePromotionJob() {
   }, []);
   async function start(
     request: GraphicPromotionRequest,
-  ): Promise<Result<unknown>> {
+  ): Promise<Result<GraphicPromotionResult>> {
     try {
       let current = await invoke("start_graphic_promotion", request);
       if (alive.current) setJob(current);
@@ -29,15 +33,28 @@ export function useSourcePromotionJob() {
         });
         if (alive.current) setJob(current);
       }
-      return (
-        current.result ?? {
+      if (!current.result)
+        return {
           ok: false,
           error: {
             code: "IO_ERROR",
             message: "Apply completed without a result",
           },
-        }
+        };
+      if (!current.result.ok) return current.result;
+      const result = graphicPromotionResultSchema.safeParse(
+        current.result.value,
       );
+      return result.success
+        ? { ok: true, value: result.data }
+        : {
+            ok: false,
+            error: {
+              code: "IO_ERROR",
+              message:
+                "Apply finished, but its response could not be read. Read the current project.",
+            },
+          };
     } catch (failure) {
       return {
         ok: false,

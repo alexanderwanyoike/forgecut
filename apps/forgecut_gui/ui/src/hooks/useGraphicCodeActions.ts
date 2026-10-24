@@ -117,7 +117,7 @@ export function useGraphicCodeActions(
         setNotice({
           version: source.version(),
           text: "Source applied",
-          error: "",
+          error: result.value.warning ?? "",
         });
     } catch (error) {
       failure(error);
