@@ -8,6 +8,7 @@
   --border-color: #464e55;
   --text-primary: #e7ebee;
   --text-secondary: #adb6bf;
+  --focus-ring: #adb6bf;
   --chrome-top: #3e444a;
   --chrome-bottom: #30353a;
   --canvas-bg: #15181b;
@@ -31,6 +32,7 @@
   --border-color: #c4cbd1;
   --text-primary: #262d34;
   --text-secondary: #5e6974;
+  --focus-ring: #5e6974;
   --chrome-top: #f4f5f6;
   --chrome-bottom: #d9dde1;
   --canvas-bg: #b8bec4;

@@ -1,3 +1,4 @@
+import { verifyFocus } from "./focus-smoke.mjs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -171,6 +172,7 @@ export async function verifyAppearance(send, state) {
     })()`);
     await send("Emulation.clearDeviceMetricsOverride");
   }
+  await verifyFocus(send, state);
   console.log(
     `Aluminum ${state} appearance verified in both themes at 1280px and 1024px`,
   );
