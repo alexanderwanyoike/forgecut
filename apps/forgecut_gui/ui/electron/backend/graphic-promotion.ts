@@ -84,9 +84,15 @@ export function startGraphicPromotion(
       }
       let committed = false;
       let committedRevision = revision;
+      const selected = resolveGraphicInstance(
+        prepared.value.project,
+        request.itemId,
+      );
+      if (!selected.ok) return selected;
       const applied = await drafts.commit(
         initial,
         request.expectedDraftRevision,
+        selected.value.component,
         () => {
           if (state.sessionId !== request.sessionId)
             return {
