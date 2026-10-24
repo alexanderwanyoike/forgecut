@@ -17,7 +17,16 @@ export default function SourceMonitor({ asset, onClose, children }: Props) {
     return () => element?.pause();
   }, [asset?.path]);
   return (
-    <section className="panel source-monitor">
+    <section
+      className="panel source-monitor"
+      onPlayCapture={(event) => {
+        event.currentTarget
+          .querySelectorAll<HTMLMediaElement>("audio, video")
+          .forEach((element) => {
+            if (element !== event.target) element.pause();
+          });
+      }}
+    >
       <div className="panel-header">
         <span>
           <Film size={15} aria-hidden="true" />
