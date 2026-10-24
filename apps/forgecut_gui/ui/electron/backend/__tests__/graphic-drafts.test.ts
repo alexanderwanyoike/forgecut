@@ -1,5 +1,5 @@
 /** @vitest-environment node */
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, mkdir, utimes, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -141,4 +141,23 @@ it("rejects a competing editor instance at the same durable draft revision", asy
     ok: false,
     error: { code: "CONFLICT" },
   });
+});
+
+it("recovers a stale draft lock left by an interrupted editor", async () => {
+  const { state, service, itemId } = await fixture();
+  const initial = await read(service, itemId);
+  const lockPath = join(directory, `${state.project.id}-${itemId}.json.lock`);
+  await mkdir(lockPath);
+  const stale = new Date(Date.now() - 20000);
+  await utimes(lockPath, stale, stale);
+  expect(
+    await service.execute("save_graphic_draft", {
+      itemId,
+      sessionId: state.sessionId,
+      expectedDraftRevision: 0,
+      baseVersion: initial.baseVersion,
+      component: initial.component,
+    }),
+  ).toMatchObject({ ok: true, value: { revision: 1 } });
+  await expect(stat(lockPath)).rejects.toMatchObject({ code: "ENOENT" });
 });
