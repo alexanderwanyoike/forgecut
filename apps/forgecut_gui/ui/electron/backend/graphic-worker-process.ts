@@ -8,6 +8,7 @@ export async function runGraphicWorker(
   runtime: string,
   jobPath: string,
   signal?: AbortSignal,
+  requiresBudget = false,
 ): Promise<Result<null>> {
   if (process.platform !== "linux")
     return {
@@ -26,6 +27,15 @@ export async function runGraphicWorker(
     join(runtime, "worker.cjs"),
     jobPath,
   ]);
+  if (requiresBudget && !invocation.unit)
+    return {
+      ok: false,
+      error: {
+        code: "UNAVAILABLE",
+        message:
+          "Project code requires a Linux systemd user scope with CPU and memory limits. No unbounded execution fallback is allowed.",
+      },
+    };
   return new Promise((resolve) => {
     const cancelled = (): Result<null> => ({
       ok: false,

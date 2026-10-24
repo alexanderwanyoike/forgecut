@@ -34,7 +34,7 @@ await cp(
   { recursive: true },
 );
 await bundle({
-  entryPoint: resolve(root, "electron/graphics/RenderEntry.tsx"),
+  entryPoint: resolve(root, "electron/graphics/runtime/RenderEntry.tsx"),
   outDir: resolve(runtime, "composition"),
   publicDir: null,
 });

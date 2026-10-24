@@ -6,7 +6,8 @@
     "electron/scripts/*.mjs",
     "electron/mcp/stdio.ts",
     "electron/graphics/*.tsx",
-    "electron/source/worker.ts"
+    "electron/source/worker.ts",
+    "electron/graphics/runtime/RenderEntry.tsx"
   ],
   "ignorePatterns": ["dist-installers/**"],
   "health": {
@@ -36,6 +37,10 @@
       {
         "name": "compiler",
         "patterns": ["electron/source/**"]
+      },
+      {
+        "name": "execution",
+        "patterns": ["electron/graphics/runtime/**"]
       },
       {
         "name": "graphics",
@@ -97,6 +102,11 @@
       {
         "from": "compiler",
         "allow": ["contract"]
+      },
+      {
+        "from": "execution",
+        "allow": ["graphics"],
+        "allowTypeOnly": ["contract"]
       }
     ],
     "coverage": {

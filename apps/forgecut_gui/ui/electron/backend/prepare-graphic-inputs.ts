@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
+import { validateGraphicDependencies } from "../domain/graphic-dependencies.js";
+import { checkGraphicSource } from "./graphic-source-check.js";
 import type { Project } from "../shared/ipc-contract.js";
 import type { Result } from "../shared/result.js";
 import {
@@ -40,11 +42,7 @@ export async function prepareGraphicInputs(
           candidate.id === graphic.component_id &&
           candidate.version === graphic.component_version,
       );
-      if (
-        !component ||
-        !templates.some((template) => template.version === component.version) ||
-        componentVersion(component) !== component.version
-      )
+      if (!component || componentVersion(component) !== component.version)
         return {
           ok: false,
           error: {
@@ -53,6 +51,29 @@ export async function prepareGraphicInputs(
               "This component version is unavailable in the graphics runtime.",
           },
         };
+      const dependencies = validateGraphicDependencies(component);
+      if (!dependencies.ok) return dependencies;
+      let code: string | undefined;
+      if (
+        !templates.some((template) => template.version === component.version)
+      ) {
+        const checked = await checkGraphicSource(component.source, signal);
+        if (!checked.ok) return checked;
+        if (!checked.value.ok)
+          return {
+            ok: false,
+            error: {
+              code: "INVALID_SOURCE",
+              message: checked.value.error.diagnostics
+                .map(
+                  (diagnostic) =>
+                    `${diagnostic.file}:${diagnostic.line}:${diagnostic.column} ${diagnostic.message}`,
+                )
+                .join("\n"),
+            },
+          };
+        code = checked.value.value.code;
+      }
       const resources = await graphicResourceInputs(
         project,
         component,
@@ -66,6 +87,7 @@ export async function prepareGraphicInputs(
           sourceHash: createHash("sha256")
             .update(component.source.files[component.source.entry])
             .digest("hex"),
+          code,
           output: join(directory, `${id}.mov`),
           width: project.settings.width,
           height: project.settings.height,

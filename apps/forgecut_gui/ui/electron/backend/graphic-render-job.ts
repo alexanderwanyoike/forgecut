@@ -7,6 +7,7 @@ import {
 export const graphicRenderJobSchema = z.strictObject({
   output: z.string().min(1),
   sourceHash: z.string().regex(/^[a-f0-9]{64}$/),
+  code: z.string().min(1).max(2097152).optional(),
   width: z.number().int().positive().max(16384),
   height: z.number().int().positive().max(16384),
   fps: z.number().positive().max(240),

@@ -20,7 +20,7 @@ async function main() {
   const job = graphicRenderJobSchema.parse(
     JSON.parse(await readFile(process.argv[2], "utf8")),
   );
-  if (job.sourceHash !== metadata.titleSourceHash)
+  if (!job.code && job.sourceHash !== metadata.titleSourceHash)
     throw new Error(
       "The graphics runtime source does not match this component version. Rebuild the runtime.",
     );
@@ -38,6 +38,7 @@ async function main() {
       binariesDirectory: resolve(runtime, "compositor"),
       inputProps: {
         values: job.values,
+        code: job.code,
         layerStates: job.layerStates,
         resources: job.resources,
         width: job.width,
@@ -46,7 +47,7 @@ async function main() {
         duration: job.duration,
       },
       logLevel: "error" as const,
-      timeoutInMilliseconds: 10000,
+      timeoutInMilliseconds: job.code ? 7000 : 10000,
       cancelSignal,
       onBrowserDownload: () => {
         throw new Error(

@@ -1,3 +1,4 @@
+import { graphicDependencyVersions } from "./graphic-dependencies.js";
 import { graphicPresets } from "./graphic-presets.js";
 import type { GraphicComponent } from "../shared/graphics.js";
 
@@ -10,11 +11,7 @@ export function graphicTemplateDefinitions(
     name: "Title card",
     design_size: { width: 1920, height: 1080 },
     dependencies: {
-      packages: {
-        react: "18.3.1",
-        remotion: "4.0.537",
-        "@remotion/fonts": "4.0.537",
-      },
+      packages: { ...graphicDependencyVersions },
       assets: [],
       fonts: [],
     },
