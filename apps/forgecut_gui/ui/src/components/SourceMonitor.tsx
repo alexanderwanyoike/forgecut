@@ -1,12 +1,16 @@
 import { ArrowLeft, Film } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import type { Asset } from "../../electron/shared/ipc-contract";
 import { mediaUrl } from "../lib/bridge";
 import ActionButton from "./ActionButton";
 
-type Props = { asset: Asset | undefined; onClose: () => void };
+type Props = {
+  asset: Asset | undefined;
+  onClose: () => void;
+  children?: ReactNode;
+};
 
-export default function SourceMonitor({ asset, onClose }: Props) {
+export default function SourceMonitor({ asset, onClose, children }: Props) {
   const media = useRef<HTMLMediaElement | null>(null);
   useEffect(() => {
     const element = media.current;
@@ -49,6 +53,7 @@ export default function SourceMonitor({ asset, onClose }: Props) {
           />
         )}
       </div>
+      {children}
       <div className="source-monitor-help">
         Choose source in and out points, then create a selection.
       </div>
