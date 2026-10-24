@@ -24,6 +24,7 @@ export function useEditingContext(
       .map((item) => getItemData(item).id);
     void invoke("set_editing_context", {
       sessionId: snapshot.sessionId,
+      sequenceRevision: snapshot.sequenceRevision,
       sequenceId,
       selectedItemIds,
       selectedLayerIds: selectedLayerId ? [selectedLayerId] : [],

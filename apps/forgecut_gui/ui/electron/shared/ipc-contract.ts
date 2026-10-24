@@ -176,6 +176,7 @@ export type McpStatus = {
 };
 
 export type EditingContext = {
+  sequenceRevision?: number;
   activeSequenceId?: string;
   sessionId: string;
   contextRevision: number;
@@ -407,6 +408,7 @@ export type CommandMap = {
   get_editing_context: { args: undefined; result: EditingContext };
   set_editing_context: {
     args: {
+      sequenceRevision?: number;
       sequenceId?: string;
       sessionId: string;
       selectedItemIds: string[];
