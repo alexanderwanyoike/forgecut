@@ -48,7 +48,9 @@ export function prepareGraphicPromotion(
     };
   const candidate = structuredClone(project);
   const itemIds: string[] = [];
-  for (const track of candidate.timeline.tracks)
+  for (const track of projectSequences(candidate).flatMap(
+    (sequence) => sequence.timeline.tracks,
+  ))
     for (const item of track.items) {
       if (!("RemotionGraphic" in item)) continue;
       const graphic = item.RemotionGraphic;

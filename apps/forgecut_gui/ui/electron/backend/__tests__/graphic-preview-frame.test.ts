@@ -266,3 +266,65 @@ it.skipIf(!available)(
   },
   20000,
 );
+it.skipIf(!available)(
+  "previews a graphic at its own sequence dimensions and frame rate",
+  async () => {
+    const state = new AppState();
+    const service = new EditingService(state);
+    try {
+      await service.execute("create_sequence", {
+        name: "Portrait",
+        settings: { width: 64, height: 96, fps: 10 },
+      });
+      const sequenceId = state.project.sequences![0].id;
+      expect(
+        await service.execute("apply_edits", {
+          sessionId: state.sessionId,
+          expectedRevision: state.revision,
+          requestId: crypto.randomUUID(),
+          sequenceId,
+          operations: [
+            {
+              command: "add_graphic_item",
+              args: {
+                templateId: "title-card",
+                trackId: "graphics",
+                timelineStartUs: 0,
+                durationUs: 1000000,
+                props: {
+                  title: "",
+                  background_color: "#0040ff",
+                  background_opacity: 1,
+                  entrance_frames: 0,
+                },
+              },
+            },
+          ],
+        }),
+      ).toMatchObject({ ok: true });
+      const item = state.project.sequences![0].timeline.tracks[0].items[0];
+      if (!("RemotionGraphic" in item)) throw new Error("Missing graphic");
+      const before = state.snapshot();
+      expect(
+        await service.execute("get_graphic_preview", {
+          itemId: item.RemotionGraphic.id,
+          frame: 9,
+        }),
+      ).toMatchObject({
+        ok: true,
+        value: { width: 64, height: 96, mimeType: "image/png" },
+      });
+      expect(
+        await service.execute("get_graphic_preview", {
+          itemId: item.RemotionGraphic.id,
+          frame: 10,
+        }),
+      ).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
+      expect(state.snapshot()).toEqual(before);
+    } finally {
+      await service.closeGraphicsPreview();
+      await service.jobs.close();
+    }
+  },
+  20000,
+);

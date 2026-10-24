@@ -2,15 +2,23 @@ import { access, mkdir, readFile, readdir, rm } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash, randomUUID } from "node:crypto";
+import {
+  projectSequences,
+  findProjectSequence,
+  projectForSequence,
+} from "../domain/project-sequences.js";
 import type {
   EditingContext,
   CommandMap,
   ProjectSnapshot,
+  ProjectSequence,
   Project,
   Timeline,
 } from "../shared/ipc-contract.js";
 import { itemData } from "./timeline-ops.js";
 import { SessionContext } from "./session-context.js";
+import { ProjectHistory } from "./project-history.js";
+import type { HistoryChange, HistoryLimits } from "./project-history.js";
 
 import {
   saveGraphicResources,
@@ -38,15 +46,7 @@ export type {
   Track,
 } from "../shared/ipc-contract.js";
 
-type ProjectSnapshotEntry = {
-  before: Project;
-  after: Project;
-  group?: string;
-  bytes: number;
-};
-
-type ChangeOptions = { group?: string; availablePaths?: string[] };
-type HistoryLimits = { count?: number; bytes?: number };
+type ChangeOptions = HistoryChange & { availablePaths?: string[] };
 
 export class AppState {
   private context = new SessionContext();
@@ -61,9 +61,7 @@ export class AppState {
 
   revision = 0;
 
-  private undoStack: ProjectSnapshotEntry[] = [];
-
-  private redoStack: ProjectSnapshotEntry[] = [];
+  private readonly history: ProjectHistory;
 
   private listeners = new Set<(snapshot: ProjectSnapshot) => void>();
 
@@ -71,23 +69,60 @@ export class AppState {
 
   private saveQueue: Promise<void> = Promise.resolve();
 
-  private readonly maxHistorySize: number;
-
-  private readonly maxHistoryBytes: number;
-
   constructor(limits: HistoryLimits = {}, initialProject?: Project) {
     if (initialProject)
       this.currentProject = freezeProject(validateProject(initialProject));
-    this.maxHistorySize = limits.count ?? 100;
-    this.maxHistoryBytes = limits.bytes ?? 32 * 1024 * 1024;
+    this.context.selectSequence(projectSequences(this.project)[0].id);
+    this.history = new ProjectHistory(limits);
+  }
+
+  get activeSequence(): ProjectSequence {
+    const id =
+      this.context.snapshot().activeSequenceId ??
+      projectSequences(this.project)[0].id;
+    return this.sequenceIn(this.project, id);
+  }
+
+  sequenceIn(
+    project: Project,
+    sequenceId = this.activeSequence.id,
+  ): ProjectSequence {
+    const found = findProjectSequence(project, sequenceId);
+    if (!found.ok) throw new EditingError("NOT_FOUND", found.error.message);
+    return found.value;
+  }
+
+  projectForSequence(sequenceId = this.activeSequence.id): Project {
+    const found = projectForSequence(this.project, sequenceId);
+    if (!found.ok) throw new EditingError("NOT_FOUND", found.error.message);
+    return found.value;
+  }
+
+  selectSequence(sessionId: string, sequenceId: string): EditingContext {
+    this.assertSession(sessionId);
+    const found = findProjectSequence(this.project, sequenceId);
+    if (!found.ok) throw new EditingError("NOT_FOUND", found.error.message);
+    if (this.context.selectSequence(sequenceId)) {
+      this.reconcileContext();
+      this.notify();
+    }
+    return this.getEditingContext();
+  }
+
+  get undoSequenceId(): string | undefined {
+    return this.history.undoSequenceId;
+  }
+
+  get redoSequenceId(): string | undefined {
+    return this.history.redoSequenceId;
   }
 
   get canUndo(): boolean {
-    return this.undoStack.length > 0;
+    return this.history.canUndo(this.activeSequence.id);
   }
 
   get canRedo(): boolean {
-    return this.redoStack.length > 0;
+    return this.history.canRedo(this.activeSequence.id);
   }
 
   getEditingContext(): EditingContext {
@@ -96,10 +131,25 @@ export class AppState {
 
   setEditingContext(
     input: CommandMap["set_editing_context"]["args"],
+    sequenceId?: string,
   ): EditingContext {
     this.assertSession(input.sessionId);
+    const requested = input.sequenceId ?? sequenceId;
+    if (
+      (input.sequenceId && sequenceId && input.sequenceId !== sequenceId) ||
+      (requested && requested !== this.activeSequence.id)
+    )
+      throw new EditingError(
+        "CONFLICT",
+        "The active sequence changed before this context update",
+      );
+    if (!requested && (this.project.sequences?.length ?? 0) > 0)
+      throw new EditingError(
+        "INVALID_INPUT",
+        "Provide a sequence ID before updating multi-sequence context",
+      );
     const ids = new Set(
-      this.project.timeline.tracks.flatMap((track) =>
+      this.activeSequence.timeline.tracks.flatMap((track) =>
         track.items.map((item) => itemData(item).id),
       ),
     );
@@ -116,10 +166,14 @@ export class AppState {
   snapshot(): ProjectSnapshot {
     return {
       project: structuredClone(this.project),
+      activeSequenceId: this.activeSequence.id,
+      sequenceRevision: this.context.sequenceRevision,
       sessionId: this.sessionId,
       revision: this.revision,
       canUndo: this.canUndo,
       canRedo: this.canRedo,
+      undoSequenceId: this.undoSequenceId,
+      redoSequenceId: this.redoSequenceId,
       missingMedia: this.project.assets
         .filter((asset) => this.missingMedia.has(asset.path))
         .map((asset) => asset.id),
@@ -197,22 +251,16 @@ export class AppState {
     return this.project;
   }
 
-  initDefaultTracks(): Timeline {
-    if (this.project.timeline.tracks.length === 0) {
-      this.executeProjectChange((project) => {
-        project.timeline.tracks.push({
-          id: randomUUID(),
-          kind: "Video",
-          items: [],
-        });
-        project.timeline.tracks.push({
-          id: randomUUID(),
-          kind: "Audio",
-          items: [],
-        });
-      });
+  initDefaultTracks(sequenceId = this.activeSequence.id): Timeline {
+    if (
+      this.sequenceIn(this.project, sequenceId).timeline.tracks.length === 0
+    ) {
+      this.executeTimelineChange((timeline) => {
+        timeline.tracks.push({ id: randomUUID(), kind: "Video", items: [] });
+        timeline.tracks.push({ id: randomUUID(), kind: "Audio", items: [] });
+      }, sequenceId);
     }
-    return this.project.timeline;
+    return this.sequenceIn(this.project, sequenceId).timeline;
   }
 
   executeProjectChange(
@@ -235,52 +283,40 @@ export class AppState {
       }
       return this.project;
     }
-    const previous = this.undoStack.at(-1);
-    const entryBefore =
-      options.group &&
-      previous?.group === options.group &&
-      this.redoStack.length === 0
-        ? previous.before
-        : before;
-    const entry = {
-      before: structuredClone(entryBefore),
-      after: structuredClone(after),
-      group: options.group,
-      bytes:
-        Buffer.byteLength(JSON.stringify(entryBefore)) +
-        Buffer.byteLength(JSON.stringify(after)),
-    };
-    if (entryBefore !== before) this.undoStack.pop();
-    this.undoStack.push(entry);
-    this.redoStack = [];
+    this.history.record(before, after, options);
     this.currentProject = freezeProject(after);
     options.availablePaths?.forEach((path) => this.missingMedia.delete(path));
-    this.trimHistory();
     this.changed();
     return this.project;
   }
 
-  executeTimelineChange(mutator: (timeline: Timeline) => void): Timeline {
-    this.executeProjectChange((project) => mutator(project.timeline));
-    return this.project.timeline;
+  executeTimelineChange(
+    mutator: (timeline: Timeline) => void,
+    sequenceId = this.activeSequence.id,
+  ): Timeline {
+    this.executeProjectChange(
+      (project) => mutator(this.sequenceIn(project, sequenceId).timeline),
+      { sequenceId },
+    );
+    return this.sequenceIn(this.project, sequenceId).timeline;
   }
 
-  undo(): Timeline {
-    const entry = this.undoStack.pop();
-    if (!entry) throw new EditingError("NOTHING_TO_UNDO", "Nothing to undo");
-    this.currentProject = freezeProject(structuredClone(entry.before));
-    this.redoStack.push({ ...entry, group: undefined });
+  undo(sequenceId = this.activeSequence.id): Timeline {
+    const restored = this.history.undo(sequenceId);
+    if (!restored.ok)
+      throw new EditingError(restored.error.code, restored.error.message);
+    this.currentProject = freezeProject(restored.value);
     this.changed();
-    return this.project.timeline;
+    return this.activeSequence.timeline;
   }
 
-  redo(): Timeline {
-    const entry = this.redoStack.pop();
-    if (!entry) throw new EditingError("NOTHING_TO_UNDO", "Nothing to redo");
-    this.currentProject = freezeProject(structuredClone(entry.after));
-    this.undoStack.push({ ...entry, group: undefined });
+  redo(sequenceId = this.activeSequence.id): Timeline {
+    const restored = this.history.redo(sequenceId);
+    if (!restored.ok)
+      throw new EditingError(restored.error.code, restored.error.message);
+    this.currentProject = freezeProject(restored.value);
     this.changed();
-    return this.project.timeline;
+    return this.activeSequence.timeline;
   }
 
   async autosave(): Promise<void> {
@@ -306,25 +342,15 @@ export class AppState {
   private replaceProject(project: Project): void {
     this.context.clear();
     this.currentProject = freezeProject(project);
+    this.context.selectSequence(projectSequences(this.project)[0].id);
     this.sessionId = randomUUID();
-    this.undoStack = [];
-    this.redoStack = [];
+    this.history.clear();
     this.changed();
-  }
-
-  private trimHistory(): void {
-    let bytes = this.undoStack.reduce((total, entry) => total + entry.bytes, 0);
-    while (
-      this.undoStack.length > this.maxHistorySize ||
-      bytes > this.maxHistoryBytes
-    ) {
-      bytes -= this.undoStack.shift()!.bytes;
-    }
   }
 
   private selectedGraphicLayers(itemIds: string[]): Set<string> {
     return new Set(
-      this.project.timeline.tracks
+      this.activeSequence.timeline.tracks
         .flatMap((track) => track.items)
         .flatMap((item) => {
           if (
@@ -346,16 +372,31 @@ export class AppState {
     );
   }
 
-  private changed(): void {
+  private reconcileContext(): void {
+    const sequences = projectSequences(this.project);
+    const active = this.context.snapshot().activeSequenceId;
+    if (!sequences.some((sequence) => sequence.id === active))
+      this.context.selectSequence(sequences[0].id);
+    this.context.retainSequences(
+      new Set(sequences.map((sequence) => sequence.id)),
+    );
     this.context.reconcile(
       new Set(
-        this.project.timeline.tracks.flatMap((track) =>
+        this.activeSequence.timeline.tracks.flatMap((track) =>
           track.items.map((item) => itemData(item).id),
         ),
       ),
       this.selectedGraphicLayers(this.context.snapshot().selectedItemIds),
     );
+  }
+
+  private changed(): void {
+    this.reconcileContext();
     this.revision += 1;
+    this.notify();
+  }
+
+  private notify(): void {
     for (const listener of this.listeners) {
       // Notifications cannot turn a successful commit into a reported failure.
       try {

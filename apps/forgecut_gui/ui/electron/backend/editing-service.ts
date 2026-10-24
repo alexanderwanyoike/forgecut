@@ -13,6 +13,7 @@ import type {
   CommandResponse,
   EditOperation,
   EditRequest,
+  HistoryRequest,
   ProjectSnapshot,
 } from "../shared/ipc-contract.js";
 import { JobQueue } from "./job-queue.js";
@@ -118,8 +119,16 @@ export class EditingService {
       if (command === "apply_edits" || command === "apply_history") {
         const snapshot =
           command === "apply_edits"
-            ? this.applyEdits(args as EditRequest)
-            : this.applyHistory(args);
+            ? this.applyEdits({
+                ...(args as EditRequest),
+                sequenceId:
+                  (args as EditRequest).sequenceId ?? meta?.sequenceId,
+              })
+            : this.applyHistory({
+                ...(args as HistoryRequest),
+                sequenceId:
+                  (args as HistoryRequest).sequenceId ?? meta?.sequenceId,
+              });
         return {
           ok: true,
           value: snapshot,
@@ -132,6 +141,7 @@ export class EditingService {
         value = this.applyOperations(
           [{ command, args } as EditOperation],
           meta?.editGroup,
+          meta?.sequenceId,
         );
       } else {
         const { sessionId } = this.state;
@@ -153,6 +163,7 @@ export class EditingService {
             | "cancel_media_job"
         ](args, {
           state: this.state,
+          sequenceId: meta?.sequenceId,
           preview: this.preview,
           drafts: this.drafts,
           jobs: this.jobs,
@@ -230,6 +241,7 @@ export class EditingService {
       this.applyOperations(
         request.operations as EditOperation[],
         request.editGroup,
+        request.sequenceId,
       ),
     );
   }
@@ -237,8 +249,21 @@ export class EditingService {
   private applyHistory(input: unknown): ProjectSnapshot {
     const request = historyRequestSchema.parse(input);
     return this.executeGuarded(request, () => {
-      if (request.direction === "undo") this.state.undo();
-      else this.state.redo();
+      const target =
+        request.direction === "undo"
+          ? this.state.undoSequenceId
+          : this.state.redoSequenceId;
+      if (
+        !request.sequenceId &&
+        target &&
+        (this.state.project.sequences?.length ?? 0) > 0
+      )
+        throw new EditingError(
+          "INVALID_INPUT",
+          "Provide a sequence ID for this history action",
+        );
+      if (request.direction === "undo") this.state.undo(request.sequenceId);
+      else this.state.redo(request.sequenceId);
     });
   }
 
@@ -291,11 +316,36 @@ export class EditingService {
   private applyOperations(
     operations: EditOperation[],
     group?: string,
+    sequenceId?: string,
   ): unknown {
     // Reuse command semantics on an isolated owner; publish only the final batch.
+    const globalCommands = new Set<EditOperation["command"]>([
+      "create_sequence",
+      "rename_sequence",
+      "delete_sequence",
+      "remove_asset",
+    ]);
+    const targetsSequence = (operation: EditOperation) =>
+      operation.command === "update_project"
+        ? operation.args.settings !== undefined
+        : !globalCommands.has(operation.command);
+    const scoped = operations.some(targetsSequence);
+    if (
+      !sequenceId &&
+      (this.state.project.sequences?.length ?? 0) > 0 &&
+      scoped
+    )
+      throw new EditingError(
+        "INVALID_INPUT",
+        "Provide a sequence ID before editing a multi-sequence project",
+      );
     const draft = new AppState({ count: 0 }, this.state.project);
+    const targetId = sequenceId ?? this.state.activeSequence.id;
+    draft.selectSequence(draft.sessionId, targetId);
     let value: unknown;
     for (const operation of operations) {
+      if (targetsSequence(operation))
+        draft.selectSequence(draft.sessionId, targetId);
       const args = editSchemas[operation.command].parse(
         operation.args,
       ) as CommandArgs;
@@ -308,7 +358,7 @@ export class EditingService {
     }
     this.state.executeProjectChange(
       (project) => Object.assign(project, draft.project),
-      { group },
+      { group, sequenceId: scoped ? targetId : undefined },
     );
     return value;
   }

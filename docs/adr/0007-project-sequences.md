@@ -2,7 +2,7 @@
 
 Date: 24 October 2026.
 
-Status: file-format and persistence boundary implemented. Sequence editing, context and MCP integration follow in the next slice.
+Status: persistence, native lifecycle and explicit sequence targeting implemented. Visual sequence navigation and MCP sequence tools follow separately.
 
 ## Decision
 
@@ -23,3 +23,17 @@ Maintained tests cover all three legacy input forms, stable migration identities
 Native create, list, rename and delete commands use stable sequence IDs. Creation generates a UUID and inherits project settings unless the request supplies overrides. The list response contains identity, name and settings; timelines remain available through project/timeline reads. Default-sequence deletion is rejected, and deleting an additional sequence retains shared assets and component/resource definitions.
 
 Creation, renaming and deletion participate in the existing guarded batch and project history. One batch renaming several sequences creates one revision and one undo action. The editing service returns each native handler's declared result after publishing its validated working copy, allowing creation to return the new sequence identity. No additional state owner or history store is introduced.
+
+## Context and explicit targets
+
+Keep the canonical project in the existing state owner. Selecting a sequence changes session context, never creative revision or project history. Cache each sequence's playhead, item selection and graphic-layer selection until it is deleted or the project changes. A separate sequence revision orders snapshot responses across switches, including switches that share the same creative project revision.
+
+Multi-sequence timeline edits must provide a sequence ID. A transaction selects its explicit target only in its working copy, then rechecks that target before every timeline operation. An agent can edit another sequence without changing the human's active sequence. Deleting a target earlier in the same batch rejects later operations and rolls back the batch rather than redirecting them into the default sequence. Context writes must name the currently active sequence so delayed writes cannot replace another sequence's selection or playhead.
+
+The renderer bridge attaches the active sequence ID from its latest accepted snapshot. Both bridge and project hook reject older sequence revisions at the same creative revision. Context writes also name their displayed sequence and pause when it differs from the active sequence, preventing old canvas controls from overwriting restored context. Explicit sequence timeline and frame reads use that sequence's settings. Graphic item IDs remain globally unique: draft lookup searches every sequence, and isolated graphic preview uses the owning sequence's dimensions, frame rate and duration.
+
+History remains chronological across the project, with an optional owning sequence on each action. Groups coalesce only within the same sequence. Undo and redo reject a mismatched sequence before consuming an action; snapshots expose the next action's sequence. Global project changes remain global actions, including name-only project updates. Settings updates belong to their explicit sequence. Restoring independent whole-project snapshots out of order would erase later changes in other sequences, so selective per-sequence history is not introduced. Bounded history bookkeeping is composed into the existing state owner; it does not own a second writable project.
+
+Source Apply migrates the selected instance in its owning sequence, or every pinned instance across sequences for an explicit shared update. Validate each affected graphic using its own frame rate. Instance promotion and targeted artwork imports own one sequence history action; shared source updates remain global. Retain every referenced component version across all timelines. The Code tab uses the owning sequence's frame range and counts shared instances across the canonical project.
+
+Maintained service and renderer workflows cover context restoration, unchanged creative state on switches, explicit agent edits, delayed snapshots, stale context rejection, portrait geometry, scoped history and deletion rollback. Source Apply tests retain the edited draft, preserve other instances by default and verify explicit shared updates across sequences. Artwork assignment and the Code tab have public regressions for additional sequences. A real isolated preview regression verifies the owning sequence's dimensions and frame bounds. Sequence navigation UI, MCP sequence tools and export selection remain subsequent integration slices.

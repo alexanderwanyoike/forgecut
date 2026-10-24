@@ -125,6 +125,41 @@ it("saves a recoverable buffer, previews it separately and applies one project e
     value: { baseVersion: active.RemotionGraphic.component_version },
   });
 });
+it("uses the owning sequence frame range and counts shared instances across sequences", async () => {
+  const { state } = await fixture();
+  await act(async () => {
+    await service.execute("add_graphic_item", {
+      templateId: "title-card",
+      trackId: "graphics",
+      timelineStartUs: 2000000,
+      durationUs: 1000000,
+    });
+    state.executeProjectChange((project) => {
+      const item = project.timeline.tracks[0].items.shift();
+      if (!item || !("RemotionGraphic" in item))
+        throw new Error("Missing graphic");
+      const track = crypto.randomUUID();
+      item.RemotionGraphic.track_id = track;
+      project.sequences = [
+        {
+          id: crypto.randomUUID(),
+          name: "Portrait",
+          settings: { ...project.settings, width: 360, height: 640, fps: 10 },
+          timeline: {
+            tracks: [{ id: track, kind: "Graphics", items: [item] }],
+            markers: [],
+          },
+        },
+      ];
+    });
+  });
+  expect((screen.getByLabelText("Draft frame") as HTMLInputElement).max).toBe(
+    "9",
+  );
+  expect(
+    screen.getByRole("option", { name: "Shared version (2 instances)" }),
+  ).toBeTruthy();
+});
 it("retains a manual buffer on an agent conflict and merges only explicitly chosen edited files", async () => {
   const { state, itemId } = await fixture();
   const loaded = await service.execute("get_graphic_draft", { itemId });

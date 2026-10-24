@@ -10,6 +10,46 @@ export class SessionContext {
     playheadUs: 0,
   };
 
+  private readonly sequences = new Map<
+    string,
+    Omit<ContextValues, "contextRevision" | "activeSequenceId">
+  >();
+
+  private sequenceVersion = 0;
+
+  get sequenceRevision(): number {
+    return this.sequenceVersion;
+  }
+
+  selectSequence(sequenceId: string): boolean {
+    if (this.value.activeSequenceId === sequenceId) return false;
+    const previous = this.value.activeSequenceId;
+    if (previous) {
+      this.sequences.set(previous, {
+        selectedItemIds: this.value.selectedItemIds,
+        selectedLayerIds: this.value.selectedLayerIds,
+        playheadUs: this.value.playheadUs,
+      });
+      this.sequenceVersion += 1;
+    }
+    const stored = this.sequences.get(sequenceId) ?? {
+      selectedItemIds: [],
+      selectedLayerIds: [],
+      playheadUs: 0,
+    };
+    this.value = {
+      ...stored,
+      activeSequenceId: sequenceId,
+      contextRevision: this.value.contextRevision + (previous ? 1 : 0),
+    };
+    return true;
+  }
+
+  retainSequences(ids: Set<string>): void {
+    for (const id of this.sequences.keys())
+      if (!ids.has(id)) this.sequences.delete(id);
+  }
+
   snapshot(): ContextValues {
     return structuredClone(this.value);
   }
@@ -30,6 +70,7 @@ export class SessionContext {
       return;
     this.value = {
       contextRevision: this.value.contextRevision + 1,
+      activeSequenceId: this.value.activeSequenceId,
       selectedItemIds: selection,
       selectedLayerIds: layers,
       playheadUs,
@@ -45,6 +86,8 @@ export class SessionContext {
   }
 
   clear(): void {
+    this.sequences.clear();
+    this.sequenceVersion += 1;
     this.value = {
       contextRevision: this.value.contextRevision + 1,
       selectedItemIds: [],

@@ -176,6 +176,7 @@ export type McpStatus = {
 };
 
 export type EditingContext = {
+  activeSequenceId?: string;
   sessionId: string;
   contextRevision: number;
   selectedItemIds: string[];
@@ -184,6 +185,10 @@ export type EditingContext = {
 };
 
 export type ProjectSnapshot = {
+  undoSequenceId?: string;
+  redoSequenceId?: string;
+  activeSequenceId?: string;
+  sequenceRevision?: number;
   project: Project;
   sessionId: string;
   revision: number;
@@ -232,7 +237,11 @@ export type CommandResponse<T = unknown> =
       };
     };
 
-export type CommandMetadata = { sessionId?: string; editGroup?: string };
+export type CommandMetadata = {
+  sessionId?: string;
+  editGroup?: string;
+  sequenceId?: string;
+};
 
 export type ItemPatch =
   | {
@@ -302,6 +311,7 @@ export type EditOperation = {
   [K in EditCommandName]: { command: K; args: CommandMap[K]["args"] };
 }[EditCommandName];
 export type EditRequest = {
+  sequenceId?: string;
   sessionId: string;
   expectedRevision: number;
   requestId: string;
@@ -311,7 +321,7 @@ export type EditRequest = {
 
 export type HistoryRequest = Pick<
   EditRequest,
-  "sessionId" | "expectedRevision" | "requestId"
+  "sessionId" | "expectedRevision" | "requestId" | "sequenceId"
 > & { direction: "undo" | "redo" };
 
 export type Thumbnail = {
@@ -330,6 +340,11 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  get_sequence_timeline: { args: { sequenceId: string }; result: Timeline };
+  select_sequence: {
+    args: { sessionId: string; sequenceId: string };
+    result: EditingContext;
+  };
   delete_sequence: { args: { sequenceId: string }; result: undefined };
   get_sequences: {
     args: undefined;
@@ -392,6 +407,7 @@ export type CommandMap = {
   get_editing_context: { args: undefined; result: EditingContext };
   set_editing_context: {
     args: {
+      sequenceId?: string;
       sessionId: string;
       selectedItemIds: string[];
       selectedLayerIds?: string[];

@@ -62,12 +62,11 @@ export function startGraphicPromotion(
         const item = resolveGraphicInstance(prepared.value.project, itemId);
         if (!item.ok) return item;
         const graphic = item.value.item;
+        const { fps } = item.value.sequence.settings;
         const duration = Math.max(
           1,
-          frameAtOrAfter(
-            graphic.timeline_start_us + graphic.duration_us,
-            snapshot.settings.fps,
-          ) - frameAtOrAfter(graphic.timeline_start_us, snapshot.settings.fps),
+          frameAtOrAfter(graphic.timeline_start_us + graphic.duration_us, fps) -
+            frameAtOrAfter(graphic.timeline_start_us, fps),
         );
         for (const frame of new Set([0, duration - 1])) {
           const checked = await preview.render(
@@ -119,8 +118,14 @@ export function startGraphicPromotion(
                 message: "Source promotion cancelled",
               },
             };
-          state.executeProjectChange((project) =>
-            Object.assign(project, prepared.value.project),
+          state.executeProjectChange(
+            (project) => Object.assign(project, prepared.value.project),
+            {
+              sequenceId:
+                request.scope === "shared"
+                  ? undefined
+                  : resolved.value.sequence.id,
+            },
           );
           committed = true;
           committedRevision = state.revision;

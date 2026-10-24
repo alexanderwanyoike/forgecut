@@ -30,8 +30,11 @@ export const timelineCommands = {
       if (args?.endUs === null) delete timeline.duration_us;
       else timeline.duration_us = requiredNumber(args, "endUs");
     }),
-  get_timeline: (_args, { state }) => state.project.timeline,
-  init_default_tracks: (_args, { state }) => state.initDefaultTracks(),
+  get_timeline: (_args, { state, sequenceId }) =>
+    state.sequenceIn(state.project, sequenceId ?? state.activeSequence.id)
+      .timeline,
+  init_default_tracks: (_args, { state, sequenceId }) =>
+    state.initDefaultTracks(sequenceId),
   add_clip_to_timeline: (args, { state }) =>
     state.executeTimelineChange((timeline) => {
       const assetId = requiredString(args, "assetId");
@@ -89,8 +92,8 @@ export const timelineCommands = {
         requiredNumber(args, "newStartUs"),
       );
     }),
-  undo: (_args, { state }) => state.undo(),
-  redo: (_args, { state }) => state.redo(),
+  undo: (_args, { state, sequenceId }) => state.undo(sequenceId),
+  redo: (_args, { state, sequenceId }) => state.redo(sequenceId),
   add_track: (args, { state }) =>
     state.executeTimelineChange((timeline) => {
       const kind = requiredString(args, "kind") as Track["kind"];
@@ -152,13 +155,17 @@ export const timelineCommands = {
         },
       });
     }),
-  get_snap_points: (args, { state }) =>
+  get_snap_points: (args, { state, sequenceId }) =>
     collectSnapPoints(
-      state.project.timeline,
+      state.sequenceIn(state.project, sequenceId ?? state.activeSequence.id)
+        .timeline,
       optionalString(args, "excludeItemId"),
     ),
-  get_sequence_frame: (args, { state }) =>
-    resolveSequenceFrame(state.project, requiredNumber(args, "playheadUs")),
+  get_sequence_frame: (args, { state, sequenceId }) =>
+    resolveSequenceFrame(
+      state.projectForSequence(sequenceId),
+      requiredNumber(args, "playheadUs"),
+    ),
   set_clip_volume: (args, { state }) =>
     state.executeTimelineChange((timeline) => {
       const item = findItem(timeline, requiredString(args, "itemId"));
@@ -166,9 +173,13 @@ export const timelineCommands = {
       if (!("volume" in data)) throw new Error("Volume requires an audio clip");
       data.volume = requiredNumber(args, "volume");
     }),
-  get_item_details: (args, { state }) => {
+  get_item_details: (args, { state, sequenceId }) => {
     const item = structuredClone(
-      findItem(state.project.timeline, requiredString(args, "itemId")),
+      findItem(
+        state.sequenceIn(state.project, sequenceId ?? state.activeSequence.id)
+          .timeline,
+        requiredString(args, "itemId"),
+      ),
     );
     const data = itemData(item);
     const assetId = assetIdOf(item);

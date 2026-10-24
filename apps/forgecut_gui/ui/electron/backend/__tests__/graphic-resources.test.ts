@@ -11,6 +11,75 @@ const image = Buffer.from(
   "base64",
 );
 afterEach(() => vi.unstubAllEnvs());
+it("assigns imported artwork to a graphic in another sequence as one scoped action", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "forgecut-sequence-art-"));
+  const state = new AppState();
+  const service = new EditingService(state);
+  try {
+    vi.stubEnv("FORGECUT_RESOURCE_DIR", join(directory, "cache"));
+    const path = join(directory, "art.png");
+    await writeFile(path, image);
+    await service.execute("create_sequence", { name: "Clip" });
+    const clip = state.project.sequences![0].id;
+    expect(
+      await service.execute("apply_edits", {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        requestId: crypto.randomUUID(),
+        sequenceId: clip,
+        operations: [
+          {
+            command: "add_graphic_item",
+            args: {
+              templateId: "title-card",
+              trackId: "clip-graphics",
+              timelineStartUs: 0,
+              durationUs: 1000000,
+              props: { title: "Keep these words" },
+            },
+          },
+        ],
+      }),
+    ).toMatchObject({ ok: true });
+    const item = state.project.sequences![0].timeline.tracks[0].items[0];
+    if (!("RemotionGraphic" in item)) throw new Error("Missing graphic");
+    const before = structuredClone(state.project);
+    expect(
+      await service.execute("import_graphic_resource", {
+        path,
+        kind: "Image",
+        license: { identifier: "fixture", text: "Generated test image" },
+        target: {
+          itemId: item.RemotionGraphic.id,
+          property: "image",
+          sessionId: state.sessionId,
+          expectedRevision: state.revision,
+        },
+      }),
+    ).toMatchObject({ ok: true });
+    expect(state.project.timeline).toEqual(before.timeline);
+    expect(
+      state.project.sequences![0].timeline.tracks[0].items[0],
+    ).toMatchObject({
+      RemotionGraphic: {
+        props: {
+          title: "Keep these words",
+          image: state.project.resources![0].id,
+        },
+      },
+    });
+    expect(state.snapshot().undoSequenceId).toBe(clip);
+    expect(state.snapshot().activeSequenceId).toBe(
+      state.project.default_sequence!.id,
+    );
+    state.undo(clip);
+    expect(state.project).toEqual(before);
+  } finally {
+    await service.jobs.close();
+    await service.closeGraphicsPreview();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 it("owns imported graphic artwork and carries bytes and licence metadata when the project moves", async () => {
   const directory = await mkdtemp(join(tmpdir(), "forgecut-resources-"));
   try {

@@ -8,6 +8,7 @@ import type {
 import { graphicComponentContent } from "../../electron/domain/graphic-component";
 import { resolveGraphicInstance } from "../../electron/domain/graphic-instance";
 import { frameAtOrAfter } from "../../electron/domain/sequence";
+import { projectSequences } from "../../electron/domain/project-sequences";
 import { useGraphicSourceDraft } from "../hooks/useGraphicSourceDraft";
 import { useGraphicCodeActions } from "../hooks/useGraphicCodeActions";
 import CodeFileControls from "./CodeFileControls";
@@ -34,6 +35,7 @@ export default function CodeWorkspace(props: Props) {
       {...props}
       component={found.value.component}
       item={found.value.item}
+      fps={found.value.sequence.settings.fps}
     />
   );
 }
@@ -44,7 +46,12 @@ function Workspace({
   onRegisterClose,
   component,
   item,
-}: Props & { component: GraphicComponent; item: RemotionGraphicItem }) {
+  fps,
+}: Props & {
+  component: GraphicComponent;
+  item: RemotionGraphicItem;
+  fps: number;
+}) {
   const source = useGraphicSourceDraft(snapshot.sessionId, itemId, component);
   const [path, setPath] = useState(component.source.entry);
   const [liveDiagnostics, setLiveDiagnostics] = useState<GraphicDiagnostic[]>(
@@ -53,10 +60,8 @@ function Workspace({
   const [location, setLocation] = useState<GraphicDiagnostic | undefined>();
   const duration = Math.max(
     1,
-    frameAtOrAfter(
-      item.timeline_start_us + item.duration_us,
-      snapshot.project.settings.fps,
-    ) - frameAtOrAfter(item.timeline_start_us, snapshot.project.settings.fps),
+    frameAtOrAfter(item.timeline_start_us + item.duration_us, fps) -
+      frameAtOrAfter(item.timeline_start_us, fps),
   );
   const {
     promotion,
@@ -85,7 +90,8 @@ function Workspace({
           value.message === diagnostic.message,
       ) === index,
   );
-  const affected = snapshot.project.timeline.tracks
+  const affected = projectSequences(snapshot.project)
+    .flatMap((sequence) => sequence.timeline.tracks)
     .flatMap((track) => track.items)
     .filter(
       (value) =>
