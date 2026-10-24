@@ -1,9 +1,9 @@
 /** @vitest-environment node */
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, utimes } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { AppState } from "../state";
 import { EditingService } from "../editing-service";
 import type { JobSnapshot } from "../../shared/jobs";
@@ -133,6 +133,32 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       expect(
         audio!.peaks.some(([low, high]) => low < -0.01 && high > 0.01),
       ).toBe(true);
+      vi.stubEnv("PATH", directory);
+      try {
+        const repeat = await service.execute("start_source_review", {
+          ...request,
+          requestId: "cached-sheet",
+        });
+        expect(repeat).toMatchObject({ ok: true });
+        const cached = await finish(
+          (repeat.ok ? (repeat.value as JobSnapshot) : sheet).id,
+        );
+        expect(cached.result).toEqual(sheet.result);
+        await utimes(path, new Date("2030-01-01"), new Date("2030-01-01"));
+        const changed = await service.execute("start_source_review", {
+          ...request,
+          requestId: "changed-source",
+        });
+        const invalidated = await finish(
+          (changed.ok ? (changed.value as JobSnapshot) : sheet).id,
+        );
+        expect(invalidated).toMatchObject({
+          status: "failed",
+          result: { ok: false, error: { code: "IO_ERROR" } },
+        });
+      } finally {
+        vi.unstubAllEnvs();
+      }
       expect(state.snapshot()).toEqual(before);
       expect(
         await service.execute("start_source_review", {
