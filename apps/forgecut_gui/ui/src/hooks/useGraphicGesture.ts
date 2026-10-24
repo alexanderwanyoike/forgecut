@@ -1,5 +1,5 @@
 import {
-  useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type MouseEvent,
@@ -73,7 +73,7 @@ export function useGraphicGesture({
   };
   const latest = useRef({ item, component, width, height, commit });
   latest.current = { item, component, width, height, commit };
-  useEffect(() => {
+  useLayoutEffect(() => {
     const move = (event: globalThis.MouseEvent) => {
       const gesture = active.current;
       if (!gesture) return;
