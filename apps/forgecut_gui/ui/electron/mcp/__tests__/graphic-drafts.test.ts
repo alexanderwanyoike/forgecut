@@ -63,9 +63,18 @@ it("reads bounded source, detects manual draft conflicts and applies through the
     expect(JSON.stringify(source.structuredContent)).not.toContain(
       "export default",
     );
+    expect(
+      (
+        await client.callTool({
+          name: "read_graphic_source",
+          arguments: { ...target, sessionId: randomUUID() },
+        })
+      ).structuredContent,
+    ).toMatchObject({ ok: false, error: { code: "PROJECT_CHANGED" } });
     const draft = await service.execute("get_graphic_draft", { itemId });
     if (!draft.ok) throw new Error(draft.error.message);
     const original = draft.value as GraphicDraft;
+    original.component.properties.title.label = "Manual title label";
     const file = original.component.source.entry;
     const fetched = await client.callTool({
       name: "read_graphic_source",
@@ -85,6 +94,19 @@ it("reads bounded source, detects manual draft conflicts and applies through the
         component: original.component,
       }),
     ).toMatchObject({ ok: true });
+    expect(
+      (
+        await client.callTool({
+          name: "read_graphic_source",
+          arguments: { ...target, includeMetadata: true },
+        })
+      ).structuredContent,
+    ).toMatchObject({
+      ok: true,
+      value: {
+        metadata: { properties: { title: { label: "Manual title label" } } },
+      },
+    });
     const patch = {
       ...target,
       baseVersion: original.baseVersion,
