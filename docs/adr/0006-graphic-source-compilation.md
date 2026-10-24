@@ -97,3 +97,13 @@ Serialize draft autosaves using acknowledged revisions. A conflicting agent writ
 Preview renders a requested draft frame through the existing isolated native path and retains the last good image on syntax or runtime failure. Apply uses the guarded native promotion job, reports progress/cancellation and defaults to one instance; shared scope shows its affected instance count. Successful Apply advances the saved draft's base to the new active version so editing can continue. Monaco draft undo remains independent from project undo. Schema migration mappings are explicit; per-instance content and positioning remain in Properties.
 
 The isolated preview CSP permits `fetch` of embedded `data:` font resources because the pinned font loader reads those bytes before constructing the font. Network connections remain denied by the CSP and namespace boundary. A real owned-font preview regression covers this grant.
+
+## Located runtime failures
+
+Emit an inline esbuild source map with each checked bundle, without copying source contents into that map. The existing 2 MiB compiled-output limit includes the map. Give evaluated project bundles the fixed `forgecut-component.js` source URL. Retain the original exception stack through the isolated Player error path.
+
+Use `@jridgewell/trace-mapping` 0.3.31's `TraceMap` and `originalPositionFor` API to translate the first project stack frame, accounting for the Function constructor's two wrapper lines. This follows the library's maintained source-map consumer pattern instead of implementing a mapping decoder. The dependency is MIT licensed; the prepared preview worker's dependencies now participate in the runtime notice collection.
+
+Only relative workspace source names produce a location. Missing, malformed or unresolvable mappings retain the ordinary runtime error. Bounded optional diagnostics travel through the worker, native command and MCP error contracts. Monaco receives the same typed locations as compilation diagnostics, with clickable navigation for Preview and Apply failures. A late response is associated with its requested draft epoch rather than newer typing.
+
+A real isolated-render regression throws inside an imported helper and checks its original file, line and column. UI service tests cover both Preview and Apply failures preserving active state. The packaged smoke clicks the runtime diagnostic and verifies focus returns to the source editor.
