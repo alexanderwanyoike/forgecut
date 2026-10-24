@@ -98,3 +98,29 @@ it("shows a cleanup diagnostic without misreporting a published export as failed
     "Temporary export files could not be removed.",
   );
 });
+
+it("keeps cancellation details visible when staging cleanup also fails", async () => {
+  api.save.mockResolvedValue("/result.mp4");
+  api.invoke.mockResolvedValue({
+    id: "cancelled",
+    sessionId: "session",
+    projectRevision: 1,
+    requestId: "export",
+    kind: "export",
+    label: "Export",
+    status: "cancelled",
+    progress: 0.5,
+    result: {
+      ok: false,
+      error: {
+        code: "CANCELLED",
+        message:
+          "Export cancelled. Staging cleanup failed at /temporary/export.",
+      },
+    },
+  });
+  render(<ExportDialog open onClose={() => {}} />);
+  fireEvent.click(screen.getByRole("button", { name: "Export" }));
+  await screen.findByText("Export cancelled");
+  expect(screen.getByText(/Staging cleanup failed at/)).toBeTruthy();
+});
