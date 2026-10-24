@@ -1,24 +1,26 @@
-import { Layers3, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, Layers3, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import ActionButton from "./ActionButton";
+import SequenceNameForm, {
+  variantSizes,
+  type NameEdit,
+} from "./SequenceNameForm";
 import { projectSequences } from "../../electron/domain/project-sequences";
-import type {
-  ProjectSnapshot,
-  ProjectSettings,
-} from "../../electron/shared/ipc-contract";
-import { invoke } from "../lib/bridge";
+import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
+import { invoke, invokeInContext } from "../lib/bridge";
 import "./sequence-controls.css";
-
-type NameEdit =
-  | { kind: "create"; name: string; settings: ProjectSettings }
-  | { kind: "rename"; name: string; sequenceId: string };
 
 type Props = {
   snapshot: ProjectSnapshot;
   beforeChange: () => Promise<boolean>;
+  selectedItemId: string | null;
 };
 
-export default function SequenceControls({ snapshot, beforeChange }: Props) {
+export default function SequenceControls({
+  snapshot,
+  beforeChange,
+  selectedItemId,
+}: Props) {
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState<NameEdit | null>(null);
   const sequences = projectSequences(snapshot.project);
@@ -48,14 +50,34 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
         });
       } else {
         if (!(await canChangeProject())) return;
-        const sequence = await invoke("create_sequence", {
-          name: form.name,
-          settings: form.settings,
-        });
-        await invoke("select_sequence", {
-          sessionId: snapshot.sessionId,
-          sequenceId: sequence.id,
-        });
+        const sequence =
+          form.kind === "variant"
+            ? await invokeInContext(
+                {
+                  sessionId: snapshot.sessionId,
+                  sequenceId: form.sourceSequenceId,
+                },
+                "create_sequence_variant",
+                {
+                  sourceSequenceId: form.sourceSequenceId,
+                  name: form.name,
+                  ...(form.format === "source"
+                    ? {}
+                    : { settings: variantSizes[form.format] }),
+                },
+              )
+            : await invoke("create_sequence", {
+                name: form.name,
+                settings: form.settings,
+              });
+        await invokeInContext(
+          { sessionId: snapshot.sessionId, sequenceId: sequence.id },
+          "select_sequence",
+          {
+            sessionId: snapshot.sessionId,
+            sequenceId: sequence.id,
+          },
+        );
       }
       setForm(null);
     } finally {
@@ -114,6 +136,24 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
         New sequence
       </ActionButton>
       <ActionButton
+        icon={Copy}
+        iconOnly
+        tooltip="Create sequence variant"
+        disabled={busy || form !== null}
+        onClick={() =>
+          setForm({
+            kind: "variant",
+            name: `${selected.name.slice(0, 192)} variant`,
+            sourceSequenceId: selected.id,
+            sourceName: selected.name,
+            format:
+              selected.settings.width >= selected.settings.height
+                ? "portrait"
+                : "landscape",
+          })
+        }
+      />
+      <ActionButton
         icon={Pencil}
         iconOnly
         tooltip="Rename sequence"
@@ -125,7 +165,7 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
             sequenceId: selected.id,
           })
         }
-      ></ActionButton>
+      />
       <ActionButton
         icon={Trash2}
         iconOnly
@@ -134,49 +174,37 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
         onClick={() => {
           void remove().catch(() => {});
         }}
-      ></ActionButton>
-      {form && (
-        <form
-          className="sequence-name-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void save().catch(() => {});
+      />
+      {selected.variant_source && (
+        <ActionButton
+          icon={RefreshCw}
+          tooltip="Copy selected item timing from the source sequence, keeping local content and crop"
+          disabled={busy || form !== null || !selectedItemId}
+          onClick={() => {
+            if (!selectedItemId) return;
+            setBusy(true);
+            void invokeInContext(
+              { sessionId: snapshot.sessionId, sequenceId: selected.id },
+              "sync_variant_timing",
+              { itemIds: [selectedItemId] },
+            )
+              .catch(() => {})
+              .finally(() => setBusy(false));
           }}
         >
-          <label>
-            Sequence name
-            <input
-              aria-label="Sequence name"
-              maxLength={200}
-              autoFocus
-              disabled={busy}
-              value={form.name}
-              onChange={(event) => {
-                const name = event.currentTarget.value;
-                setForm((current) => (current ? { ...current, name } : null));
-              }}
-            />
-          </label>
-          <div className="sequence-form-actions">
-            <ActionButton
-              type="submit"
-
-              disabled={busy || !form.name.trim()}
-            >
-              {form.kind === "create"
-                ? "Create sequence"
-                : "Save sequence name"}
-            </ActionButton>
-            <ActionButton
-              type="button"
-
-              disabled={busy}
-              onClick={() => setForm(null)}
-            >
-              Cancel
-            </ActionButton>
-          </div>
-        </form>
+          Sync timing
+        </ActionButton>
+      )}
+      {form && (
+        <SequenceNameForm
+          form={form}
+          busy={busy}
+          onChange={setForm}
+          onSubmit={() => {
+            void save().catch(() => {});
+          }}
+          onCancel={() => setForm(null)}
+        />
       )}
     </div>
   );
