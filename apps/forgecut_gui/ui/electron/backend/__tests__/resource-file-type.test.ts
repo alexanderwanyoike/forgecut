@@ -9,7 +9,7 @@ import { EditingService } from "../editing-service";
 
 const available =
   process.platform !== "win32" &&
-  spawnSync("mkfifo", ["--version"]).status === 0;
+  spawnSync("mkfifo", ["--version"]).error === undefined;
 afterEach(() => vi.unstubAllEnvs());
 for (const source of ["resource", "license"] as const) {
   it.skipIf(!available)(
