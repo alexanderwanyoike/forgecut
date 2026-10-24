@@ -33,23 +33,23 @@ it.skipIf(spawnSync("ffprobe", ["-version"]).status !== 0)(
         requestId: "import-one",
         paths: [path],
       };
-      const started = await callBridge<JobSnapshot>(bridge.session, request);
+      const started = await callBridge(bridge.session, request);
       expect(started.ok).toBe(true);
       if (!started.ok) throw new Error(started.error.message);
-      let job = started.value;
+      let job = started.value as JobSnapshot;
       for (
         let attempt = 0;
         attempt < 100 && ["queued", "running"].includes(job.status);
         attempt += 1
       ) {
         await new Promise((resolve) => setTimeout(resolve, 10));
-        const read = await callBridge<JobSnapshot>(bridge.session, {
+        const read = await callBridge(bridge.session, {
           action: "job",
           sessionId: state.sessionId,
           jobId: job.id,
         });
         if (!read.ok) throw new Error(read.error.message);
-        job = read.value;
+        job = read.value as JobSnapshot;
       }
       expect(job).toMatchObject({
         status: "completed",
