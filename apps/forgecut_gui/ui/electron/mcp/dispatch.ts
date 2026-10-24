@@ -19,8 +19,10 @@ import {
   importRequestSchema,
   jobRequestSchema,
   frameRequestSchema,
+  exportRequestSchema,
 } from "./job-schema.js";
 import { startMediaJob } from "../backend/media-jobs.js";
+import { startExportJob } from "../backend/export-jobs.js";
 
 export const pageFields = {
   sessionId: idSchema,
@@ -37,6 +39,7 @@ export const projectFileRequestSchema = z.strictObject({
     .refine(isAbsolute, "Use an absolute project path"),
 });
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
+  exportRequestSchema.extend({ action: z.literal("export") }),
   frameRequestSchema.extend({ action: z.literal("frame") }),
   importRequestSchema.extend({ action: z.literal("import") }),
   jobRequestSchema.extend({ action: z.literal("job") }),
@@ -104,6 +107,8 @@ export async function dispatchLocal(
   const request = parsed.data;
   const { state } = service;
   try {
+    if (request.action === "export")
+      return startExportJob(state, service.jobs, request);
     if (request.action === "job")
       return service.jobs.read(request.jobId, request.sessionId);
     if (request.action === "cancel")

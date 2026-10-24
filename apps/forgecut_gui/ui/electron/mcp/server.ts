@@ -1,5 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import {
+  exportRequestSchema,
+  importRequestSchema,
+  jobRequestSchema,
+  frameRequestSchema,
+  frameJobSchema,
+} from "./job-schema.js";
 import { editingCapabilities } from "./capabilities.js";
 import {
   editRequestSchema,
@@ -9,12 +16,6 @@ import { idSchema, timeSchema } from "../backend/project-schema.js";
 import { pageFields, projectFileRequestSchema } from "./dispatch.js";
 import { callBridge, listSessions, sessionDirectory } from "./sessions.js";
 import type { BridgeResult, LocalSession } from "./contract.js";
-import {
-  importRequestSchema,
-  jobRequestSchema,
-  frameRequestSchema,
-  frameJobSchema,
-} from "./job-schema.js";
 
 function toolResult(result: BridgeResult) {
   const frame = result.ok ? frameJobSchema.safeParse(result.value) : undefined;
@@ -233,6 +234,15 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
       inputSchema: frameRequestSchema,
     },
     async (request) => call({ action: "frame", ...request }),
+  );
+  server.registerTool(
+    "start_export",
+    {
+      description:
+        "Queue an MP4 export of the explicitly identified project revision. The immutable snapshot remains unchanged while editing continues. Poll get_job; cancel_job stops rendering before publication. A committing job is finishing its atomic output replacement and can no longer be cancelled.",
+      inputSchema: exportRequestSchema,
+    },
+    async (request) => call({ action: "export", ...request }),
   );
   return server;
 }
