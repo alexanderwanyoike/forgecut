@@ -3,7 +3,8 @@ import type { JobSnapshot } from "../../electron/shared/jobs";
 import { invoke, save } from "../lib/bridge";
 
 const active = (job: JobSnapshot | null) =>
-  !!job && ["queued", "running", "cancelling", "committing"].includes(job.status);
+  !!job &&
+  ["queued", "running", "cancelling", "committing"].includes(job.status);
 
 function acceptJob(
   current: JobSnapshot | null,
@@ -40,9 +41,17 @@ export default function ExportDialog(props: {
           sessionId: job.sessionId,
           jobId: job.id,
         });
-        if (!disposed) setJob((current) => acceptJob(current, next));
+        if (!disposed) {
+          setJob((current) => acceptJob(current, next));
+          setError(null);
+        }
       } catch (cause) {
-        if (!disposed) setError(String(cause));
+        if (!disposed) {
+          const code = cause instanceof Error && "code" in cause ? cause.code : null;
+          if (code === "CONFLICT" || code === "PROJECT_CHANGED") return;
+          setError(String(cause));
+          if (code === "NOT_FOUND") setJob(null);
+        }
       } finally {
         pending = false;
       }
@@ -174,7 +183,9 @@ export default function ExportDialog(props: {
           {exporting && (
             <button
               className="preview-btn"
-              disabled={job?.status === "cancelling" || job?.status === "committing"}
+              disabled={
+                job?.status === "cancelling" || job?.status === "committing"
+              }
               onClick={cancel}
             >
               Cancel export
