@@ -6,7 +6,7 @@ import type {
 } from "../../electron/shared/ipc-contract";
 import { itemData, itemVariant } from "../../electron/domain/timeline-item";
 import { resolveVisualPlacement } from "../../electron/domain/visual-placement";
-import PropertyInput from "./PropertyInput";
+import NumberProperty from "./NumberProperty";
 
 type Props = {
   project: Project;
@@ -26,28 +26,6 @@ export default function VisualProperties({ project, item, update }: Props) {
       });
     return update({ kind: "ImageOverlay", changes });
   };
-  const numberField = (
-    label: string,
-    value: number,
-    onChange: (next: number) => void,
-    min?: number,
-  ) => (
-    <label className="inspector-row" key={label}>
-      <span className="inspector-label">{label}</span>
-      <PropertyInput
-        className="inspector-input-sm"
-        type="number"
-        min={min}
-        value={value}
-        onValueChange={(raw) => {
-          if (raw === "") return;
-          const next = Number(raw);
-          if (Number.isFinite(next) && (min === undefined || next >= min))
-            onChange(next);
-        }}
-      />
-    </label>
-  );
   const trackIndex = project.timeline.tracks.findIndex(
     (track) => track.id === data.track_id,
   );
@@ -57,28 +35,44 @@ export default function VisualProperties({ project, item, update }: Props) {
     <>
       {placement && (
         <>
-          {numberField("X", placement.x, (x) => {
-            void change({ x });
-          })}
-          {numberField("Y", placement.y, (y) => {
-            void change({ y });
-          })}
-          {numberField(
-            "Width",
-            placement.width,
-            (width) => {
-              void change({ width });
-            },
-            1,
-          )}
-          {numberField(
-            "Height",
-            placement.height,
-            (height) => {
-              void change({ height });
-            },
-            1,
-          )}
+          {
+            <NumberProperty
+              label={"X"}
+              value={placement.x}
+              onValueChange={(x) => {
+                void change({ x });
+              }}
+            />
+          }
+          {
+            <NumberProperty
+              label={"Y"}
+              value={placement.y}
+              onValueChange={(y) => {
+                void change({ y });
+              }}
+            />
+          }
+          {
+            <NumberProperty
+              label={"Width"}
+              value={placement.width}
+              onValueChange={(width) => {
+                void change({ width });
+              }}
+              min={1}
+            />
+          }
+          {
+            <NumberProperty
+              label={"Height"}
+              value={placement.height}
+              onValueChange={(height) => {
+                void change({ height });
+              }}
+              min={1}
+            />
+          }
           <label className="inspector-row">
             <span className="inspector-label">Fit</span>
             <select
@@ -109,10 +103,16 @@ export default function VisualProperties({ project, item, update }: Props) {
           </label>
         </>
       )}
-      {numberField("Layer order", order, (layer_order) => {
-        if (Number.isSafeInteger(layer_order))
-          void update({ kind, changes: { layer_order } });
-      })}
+      {
+        <NumberProperty
+          label={"Layer order"}
+          value={order}
+          onValueChange={(layer_order) => {
+            if (Number.isSafeInteger(layer_order))
+              void update({ kind, changes: { layer_order } });
+          }}
+        />
+      }
     </>
   );
 }
