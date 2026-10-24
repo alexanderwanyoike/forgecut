@@ -185,3 +185,32 @@ it("shows a new agent draft live when the editor has no unsaved buffer", async (
     { timeout: 3000 },
   );
 });
+it("keeps the window open until the latest source buffer is recoverably saved", async () => {
+  const { state, itemId } = await fixture();
+  let release: (() => void) | undefined;
+  const paused = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const execute = bridge.getMockImplementation()!;
+  bridge.mockImplementation(async (command: string, args: unknown) => {
+    if (command === "save_graphic_draft") await paused;
+    return execute(command, args);
+  });
+  const close = vi.spyOn(window, "close").mockImplementation(() => {});
+  const code = "export default function Recoverable(){return null}";
+  fireEvent.change(screen.getByLabelText("Graphic source editor"), {
+    target: { value: code },
+  });
+  const closing = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(closing);
+  expect(closing.defaultPrevented).toBe(true);
+  expect(close).not.toHaveBeenCalled();
+  release!();
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  const saved = await service.execute("get_graphic_draft", { itemId });
+  expect(saved).toMatchObject({
+    ok: true,
+    value: { component: { source: { files: { "main.tsx": code } } } },
+  });
+  expect(state.project.components).toHaveLength(1);
+});
