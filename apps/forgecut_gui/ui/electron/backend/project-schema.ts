@@ -1,3 +1,11 @@
+import {
+  fitSchema,
+  visualPlacementSchema,
+} from "../shared/visual-placement-schema.js";
+export {
+  fitSchema,
+  visualPlacementSchema,
+} from "../shared/visual-placement-schema.js";
 import { stylePresetSchema } from "./style-preset-schema.js";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -43,14 +51,6 @@ export const audioSettingsShape = {
   fade_out_us: timeSchema.optional(),
 };
 export const layerOrderSchema = z.number().int();
-export const fitSchema = z.enum(["contain", "cover"]);
-export const visualPlacementSchema = z.strictObject({
-  ...position,
-  width: positive,
-  height: positive,
-  opacity: z.number().min(0).max(1),
-  fit: fitSchema,
-});
 const clip = z.strictObject({
   origin_item_id: idSchema.optional(),
   id: idSchema,

@@ -1,3 +1,4 @@
+import { visualPlacementSchema } from "../shared/visual-placement-schema.js";
 import { z } from "zod";
 import {
   graphicValuesSchema,
@@ -10,16 +11,7 @@ export const stylePresetSchema = z.strictObject({
     height: z.number().int().positive().max(16384),
   }),
   layer_states: graphicLayerStatesSchema.optional(),
-  transform: z
-    .strictObject({
-      x: z.number(),
-      y: z.number(),
-      width: z.number().positive(),
-      height: z.number().positive(),
-      opacity: z.number().min(0).max(1),
-      fit: z.enum(["contain", "cover"]),
-    })
-    .optional(),
+  transform: visualPlacementSchema.optional(),
   id: z.uuid(),
   name: z.string().trim().min(1).max(200),
   purpose: z.enum(["card", "ending"]),
