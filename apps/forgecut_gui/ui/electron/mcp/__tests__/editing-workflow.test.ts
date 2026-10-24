@@ -1,6 +1,6 @@
 /** @vitest-environment node */
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
@@ -38,6 +38,9 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
         path,
       ]);
       expect(generated.status, generated.stderr.toString()).toBe(0);
+      await editing.execute("update_project", {
+        settings: { width: 64, height: 36 },
+      });
       await editing.execute("init_default_tracks");
       await server.connect(st);
       await client.connect(ct);
@@ -161,6 +164,37 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       ).toBe(false);
       expect(state.project).toEqual(manual);
       expect(state.sessionId).not.toBe(oldSession);
+      const outputPath = join(directory, "result.mp4");
+      const started = await client.callTool({
+        name: "start_export",
+        arguments: {
+          sessionId: state.sessionId,
+          expectedRevision: state.revision,
+          requestId: "export-result",
+          outputPath,
+        },
+      });
+      expect(started.isError).toBe(false);
+      let exportJob = (started.structuredContent as { value: JobSnapshot })
+        .value;
+      for (
+        let attempt = 0;
+        attempt < 100 &&
+        ["queued", "running", "committing"].includes(exportJob.status);
+        attempt += 1
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        const result = await client.callTool({
+          name: "get_job",
+          arguments: { sessionId: state.sessionId, jobId: exportJob.id },
+        });
+        exportJob = (result.structuredContent as { value: JobSnapshot }).value;
+      }
+      expect(exportJob).toMatchObject({
+        status: "completed",
+        result: { ok: true, value: { outputPath } },
+      });
+      expect((await stat(outputPath)).size).toBeGreaterThan(0);
     } finally {
       await editing.jobs.close();
       await client.close();

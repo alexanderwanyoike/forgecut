@@ -21,6 +21,15 @@ export const jobRequestSchema = z.strictObject({
   sessionId: idSchema,
   jobId: z.uuid(),
 });
+export const exportRequestSchema = importRequestSchema
+  .omit({ paths: true })
+  .extend({
+    outputPath: z
+      .string()
+      .min(1)
+      .max(4096)
+      .refine(isAbsolute, "Use an absolute output path"),
+  });
 export const frameRequestSchema = importRequestSchema
   .omit({ paths: true })
   .extend({ assetId: idSchema, timeUs: timeSchema });

@@ -23,16 +23,17 @@ import { exportCommands } from "./commands/export.js";
 import { mediaCommands } from "./commands/media.js";
 import { projectCommands } from "./commands/project.js";
 import { timelineCommands } from "./commands/timeline.js";
-import type {
-  CommandArgs,
-  CommandHandler,
-  EventSink,
-} from "./commands/types.js";
+import type { CommandArgs, CommandHandler } from "./commands/types.js";
 
 const handlers: Record<
   Exclude<
     CommandName,
-    "get_project_snapshot" | "apply_edits" | "apply_history"
+    | "get_project_snapshot"
+    | "apply_edits"
+    | "apply_history"
+    | "export_project"
+    | "get_media_job"
+    | "cancel_media_job"
   >,
   CommandHandler
 > = {
@@ -40,7 +41,6 @@ const handlers: Record<
   ...timelineCommands,
   ...mediaCommands,
   ...autosaveCommands,
-  ...exportCommands,
 };
 type CachedEdit = {
   fingerprint: string;
@@ -51,6 +51,8 @@ type CachedEdit = {
 export class EditingService {
   readonly jobs = new JobQueue();
 
+  private readonly handlers = { ...handlers, ...exportCommands(this.jobs) };
+
   private requests = new Map<string, CachedEdit>();
 
   constructor(readonly state: AppState) {}
@@ -59,7 +61,6 @@ export class EditingService {
     command: string,
     input?: unknown,
     metadata?: unknown,
-    emit: EventSink = () => {},
     options: {
       signal?: AbortSignal;
       onProgress?: (progress: number) => void;
@@ -70,8 +71,11 @@ export class EditingService {
         throw new EditingError("INVALID_INPUT", "Command must be a string");
       if (!Object.prototype.hasOwnProperty.call(commandSchemas, command))
         throw new EditingError("NOT_FOUND", `Unknown command: ${command}`);
+      const jobControl =
+        command === "get_media_job" || command === "cancel_media_job";
       const meta = metadataSchema.parse(metadata);
-      if (meta?.sessionId) this.state.assertSession(meta.sessionId);
+      if (meta?.sessionId && !jobControl)
+        this.state.assertSession(meta.sessionId);
       const args = commandSchemas[command as CommandName].parse(
         input,
       ) as CommandArgs;
@@ -109,12 +113,19 @@ export class EditingService {
               ),
             )
           : undefined;
-        value = await handlers[command as keyof typeof handlers](args, {
+        value = await this.handlers[
+          command as
+            | keyof typeof handlers
+            | "export_project"
+            | "get_media_job"
+            | "cancel_media_job"
+        ](args, {
           state: this.state,
-          emit,
           ...options,
         });
         if (
+          !jobControl &&
+          command !== "export_project" &&
           !["create_project", "load_project", "recover_project"].includes(
             command,
           )
@@ -129,6 +140,7 @@ export class EditingService {
               ),
             );
         if (
+          !jobControl &&
           command.startsWith("get_") &&
           revision !== this.state.revision &&
           !assetUnchanged
@@ -244,9 +256,8 @@ export class EditingService {
       const args = editSchemas[operation.command].parse(
         operation.args,
       ) as CommandArgs;
-      const result = handlers[operation.command](args, {
+      const result = this.handlers[operation.command](args, {
         state: draft,
-        emit: () => {},
       });
       if (result instanceof Promise)
         throw new Error("Asynchronous commands cannot be batched");

@@ -1,10 +1,14 @@
 import { z } from "zod";
 import {
+  exportRequestSchema,
+  importRequestSchema,
+  frameRequestSchema,
+} from "./job-schema.js";
+import {
   editSchemas,
   historyRequestSchema,
 } from "../backend/command-schema.js";
 import { MAX_MESSAGE_BYTES } from "./contract.js";
-import { importRequestSchema, frameRequestSchema } from "./job-schema.js";
 
 export const editingCapabilities = {
   schemaVersion: 1,
@@ -16,6 +20,16 @@ export const editingCapabilities = {
   },
   history: z.toJSONSchema(historyRequestSchema),
   jobs: {
+    export: z.toJSONSchema(exportRequestSchema),
+    states: [
+      "queued",
+      "running",
+      "cancelling",
+      "committing",
+      "completed",
+      "failed",
+      "cancelled",
+    ],
     import: z.toJSONSchema(importRequestSchema),
     frame: z.toJSONSchema(frameRequestSchema),
     concurrency: 1,
@@ -23,6 +37,7 @@ export const editingCapabilities = {
     maxRetained: 64,
     retainedBytes: 8 * 1024 * 1024,
     timeoutMs: 120000,
+    exportTimeoutMs: 900000,
   },
   operations: Object.fromEntries(
     Object.entries(editSchemas).map(([command, schema]) => [

@@ -19,6 +19,7 @@ export type RenderProgress = {
 
 type ExportOptions = {
   signal?: AbortSignal;
+  beginCommit?: () => boolean;
   onProgress?: (progress: RenderProgress) => void;
 };
 
@@ -106,6 +107,14 @@ async function renderPrepared(
     return {
       ok: false,
       error: { code: "CANCELLED", message: "Export cancelled." },
+    };
+  if (options.beginCommit && !options.beginCommit())
+    return {
+      ok: false,
+      error: {
+        code: "CANCELLED",
+        message: "Export cancelled before publication.",
+      },
     };
   await rename(plan.outputPath, target.destination);
   if (process.platform === "linux") {

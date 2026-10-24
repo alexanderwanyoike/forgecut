@@ -1,6 +1,6 @@
 # ForgeCut MCP and graphics editing implementation plan
 
-Status: Phase 0 feasibility and Phase 1 shared editing state are implemented and verified on Linux x64. Phase 1 changes the production editor, 23 October 2026. Phase 2 implementation and automated acceptance now pass on Linux: the live MCP bridge, guarded edits/history/files, shared editing context, status and cancellable import/frame jobs. The official SDK workflow assembles three generated source ranges, preserves a manual-service trim, reads current state, changes another range, undoes one agent batch, saves and reopens. Desktop human acceptance remains for stack review. Phase 3 is next.
+Status: Phase 0 feasibility and Phase 1 shared editing state are implemented and verified on Linux x64. Phase 1 changes the production editor, 23 October 2026. Phase 2 implementation and automated acceptance now pass on Linux: the live MCP bridge, guarded edits/history/files, shared editing context, status and cancellable import/frame jobs. The official SDK workflow assembles three generated source ranges, preserves a manual-service trim, reads current state, changes another range, undoes one agent batch, saves and reopens. Desktop human acceptance remains for stack review. Phase 3 is in progress: shared frame timing, timeline-positioned export and queued immutable exports are implemented. Playback, geometry/audio controls and explicit sequence ends remain.
 
 ForgeCut will become the shared editing workspace for videos assembled with Codex. Codex stays in its existing chat and operates the running editor through MCP. The user can change footage, text, images, fonts, colours, positioning and timing directly, then ask Codex to continue from the current project.
 
@@ -20,22 +20,22 @@ The delivery order is: reliable project state, a live MCP editing loop, accurate
 
 Embedded chat, cloud collaboration, a full VS Code workbench, unrestricted package installation from the code tab, automatic interpretation of arbitrary JSX, advanced colour grading and a general keyframe editor are outside this initial delivery. Named animation presets and their exposed parameters are included.
 
-## Existing foundations and gaps
+## Starting foundations and gaps
 
-The implementation starts from these repository modules:
+The implementation started from these repository modules at the planning baseline:
 
-| Area                     | Existing location                                                     | Implication                                                                                                                                                |
-| ------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Domain and command types | `apps/forgecut_gui/ui/electron/shared/ipc-contract.ts`                | Retain UUIDs, snake_case serialized fields, tagged variants and microsecond times                                                                          |
-| Project and history      | `apps/forgecut_gui/ui/electron/backend/state.ts`                      | History snapshots currently cover only the timeline; mutations happen on live state before validation finishes                                             |
-| Command dispatch         | `apps/forgecut_gui/ui/electron/backend/ipc.ts` and `commands/`        | Reuse domain operations, but remove transport dependence on Electron events and `WebContents`                                                              |
-| Editing rules            | `apps/forgecut_gui/ui/electron/backend/timeline-ops.ts`               | Preserve pure domain logic and strengthen invariants and rollback                                                                                          |
-| Playback                 | `apps/forgecut_gui/ui/src/hooks/usePlayback.ts`                       | Add a sequence clock, complete audio playback and project-change subscriptions                                                                             |
-| Graphics controls        | `apps/forgecut_gui/ui/src/components/Inspector.tsx` and `Preview.tsx` | Extend the current basic text/image controls with typed properties and canvas selection                                                                    |
-| Export                   | `apps/forgecut_gui/ui/electron/backend/exporter.ts`                   | Primary clips currently concatenate irrespective of gaps; additional video tracks use fixed PiP placement; every primary input is assumed to contain audio |
-| Packaging                | `apps/forgecut_gui/ui/electron-builder.yml`                           | Explicitly package the MCP executable, component sources, compiler workers, fonts and rendering dependencies                                               |
+| Area                     | Existing location                                                          | Implication                                                                                                                                                |
+| ------------------------ | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domain and command types | `apps/forgecut_gui/ui/electron/shared/ipc-contract.ts`                     | Retain UUIDs, snake_case serialized fields, tagged variants and microsecond times                                                                          |
+| Project and history      | `apps/forgecut_gui/ui/electron/backend/state.ts`                           | History snapshots currently cover only the timeline; mutations happen on live state before validation finishes                                             |
+| Command dispatch         | `apps/forgecut_gui/ui/electron/backend/editing-service.ts` and `commands/` | Reuse domain operations, but remove transport dependence on Electron events and `WebContents`                                                              |
+| Editing rules            | `apps/forgecut_gui/ui/electron/backend/timeline-ops.ts`                    | Preserve pure domain logic and strengthen invariants and rollback                                                                                          |
+| Playback                 | `apps/forgecut_gui/ui/src/hooks/usePlayback.ts`                            | Add a sequence clock, complete audio playback and project-change subscriptions                                                                             |
+| Graphics controls        | `apps/forgecut_gui/ui/src/components/Inspector.tsx` and `Preview.tsx`      | Extend the current basic text/image controls with typed properties and canvas selection                                                                    |
+| Export                   | `apps/forgecut_gui/ui/electron/backend/exporter.ts`                        | Primary clips currently concatenate irrespective of gaps; additional video tracks use fixed PiP placement; every primary input is assumed to contain audio |
+| Packaging                | `apps/forgecut_gui/ui/electron-builder.yml`                                | Explicitly package the MCP executable, component sources, compiler workers, fonts and rendering dependencies                                               |
 
-There is no existing MCP server, Remotion runtime or embedded code editor in the package manifest. Existing project loading casts parsed JSON without a versioned validation/migration boundary. These are planned changes, not existing capabilities.
+At the planning baseline there was no MCP server, Remotion runtime or embedded code editor. Project loading cast parsed JSON without a versioned validation/migration boundary. Phase 1 subsequently added validated shared state and Phase 2 added MCP; later phases add graphics and code editing.
 
 ## Architecture and project contract
 
@@ -129,7 +129,7 @@ Acceptance and tests:
 - Legacy projects migrate, save and reopen; invalid/future formats fail with actionable errors and preserve the current open project.
 - Interrupted saves retain a valid recoverable project.
 
-Primary touchpoints: `state.ts`, `ipc.ts`, `commands/`, `timeline-ops.ts`, `ipc-contract.ts`, renderer subscriptions and project-load tests.
+Primary touchpoints: `state.ts`, `editing-service.ts`, `commands/`, `timeline-ops.ts`, `ipc-contract.ts`, renderer subscriptions and project-load tests.
 
 ## Phase 2 Live MCP editing
 

@@ -897,3 +897,10 @@ body,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.export-detail {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}

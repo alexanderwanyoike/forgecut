@@ -5,6 +5,7 @@ import type { JobRequest, JobSnapshot } from "../shared/jobs.js";
 type Runner = (
   signal: AbortSignal,
   report: (progress: number) => void,
+  beginCommit: () => boolean,
 ) => Promise<Result<unknown>>;
 type Entry = {
   snapshot: JobSnapshot;
@@ -105,6 +106,15 @@ export class JobQueue {
     const found = this.read(id, sessionId);
     if (!found.ok) return found;
     const entry = this.entries.get(id)!;
+    if (entry.snapshot.status === "committing")
+      return {
+        ok: false,
+        error: {
+          code: "COMMITTING",
+          message:
+            "The completed output is being published. Poll for completion.",
+        },
+      };
     if (entry.snapshot.status === "queued") {
       this.pending = this.pending.filter((work) => work.entry !== entry);
       entry.snapshot.status = "cancelled";
@@ -138,10 +148,15 @@ export class JobQueue {
     while (this.pending.length > 0) {
       const work = this.pending.shift()!;
       work.entry.snapshot.status = "running";
-      const timeout = setTimeout(() => {
-        work.entry.timedOut = true;
-        work.entry.controller.abort();
-      }, this.options.timeoutMs ?? 120000);
+      const timeout = setTimeout(
+        () => {
+          if (work.entry.snapshot.status === "committing") return;
+          work.entry.timedOut = true;
+          work.entry.controller.abort();
+        },
+        this.options.timeoutMs ??
+          (work.entry.snapshot.kind === "export" ? 900000 : 120000),
+      );
       timeout.unref();
       try {
         const result = await work.run(
@@ -155,6 +170,11 @@ export class JobQueue {
                 work.entry.snapshot.progress,
                 Math.min(0.99, Math.max(0, progress)),
               );
+          },
+          () => {
+            if (work.entry.controller.signal.aborted) return false;
+            work.entry.snapshot.status = "committing";
+            return true;
           },
         );
         if (result.ok) work.entry.snapshot.progress = 1;
@@ -172,6 +192,15 @@ export class JobQueue {
       }
       clearTimeout(timeout);
       if (work.entry.controller.signal.aborted) {
+        const outcome = work.entry.snapshot.result;
+        let message = work.entry.timedOut
+          ? "Job deadline exceeded."
+          : "Job cancelled.";
+        if (outcome && !outcome.ok) {
+          if (!work.entry.timedOut && outcome.error.code === "CANCELLED")
+            message = outcome.error.message;
+          else message = `${message} ${outcome.error.message}`;
+        }
         work.entry.snapshot.status = work.entry.timedOut
           ? "failed"
           : "cancelled";
@@ -179,9 +208,7 @@ export class JobQueue {
           ok: false,
           error: {
             code: work.entry.timedOut ? "TIMEOUT" : "CANCELLED",
-            message: work.entry.timedOut
-              ? "Job deadline exceeded."
-              : "Job cancelled.",
+            message,
           },
         };
       }
