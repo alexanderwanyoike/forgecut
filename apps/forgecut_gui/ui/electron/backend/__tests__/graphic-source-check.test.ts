@@ -124,3 +124,13 @@ it("rejects unresolved dynamic imports with located diagnostics", async () => {
     },
   });
 }, 20000);
+
+it("enforces the per-file source limit in UTF-8 bytes", async () => {
+  const service = new EditingService(new AppState());
+  const source = `export default function Card(){return <div>${"界".repeat(50000)}</div>}`;
+  const result = await service.execute("check_graphic_source", {
+    source: { entry: "main.tsx", files: { "main.tsx": source } },
+  });
+  expect(result.ok).toBe(false);
+  if (!result.ok) expect(result.error.code).toBe("INVALID_INPUT");
+});
