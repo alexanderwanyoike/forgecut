@@ -221,6 +221,8 @@ export type SequenceFrame = {
 };
 
 export type EditErrorCode =
+  | "QUEUE_FULL"
+  | "QUEUE_CLOSED"
   | "UNAVAILABLE"
   | "RENDER_FAILED"
   | "TIMEOUT"

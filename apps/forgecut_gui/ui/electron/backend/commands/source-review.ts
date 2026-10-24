@@ -15,8 +15,17 @@ export const sourceReviewCommands = {
       jobs,
       args as CommandMap["start_source_review"]["args"],
     );
-    if (!result.ok)
-      throw new EditingError(result.error.code, result.error.message);
+    if (!result.ok) {
+      const code = result.error.code;
+      throw new EditingError(
+        code === "REQUEST_REUSED" ||
+          code === "QUEUE_FULL" ||
+          code === "QUEUE_CLOSED"
+          ? code
+          : "IO_ERROR",
+        result.error.message,
+      );
+    }
     return result.value;
   },
 } satisfies CommandRegistry;
