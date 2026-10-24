@@ -97,6 +97,7 @@ export async function verifySourceSelections(directory, send) {
           await new Promise(resolve => setTimeout(resolve, 50));
           document.querySelector('input[name="appearance-mode"][value="${mode}"]').click();
           document.querySelector('button[aria-label="Close appearance"]').click();
+          document.activeElement?.blur();
           await new Promise(resolve => setTimeout(resolve, 150));
           const panel = document.querySelector('.source-selection-inspector');
           const stage = document.querySelector('.source-media-stage');
