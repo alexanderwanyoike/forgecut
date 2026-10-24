@@ -21,3 +21,11 @@ The asset bin opens a source monitor for probed audio and video. Its inspector c
 Native editing tests cover range validation, unchanged timelines/context, notes, stable updates, undo/redo and save/reopen. The official MCP SDK workflow reads a manually changed note, retains it while adjusting the selected source range, and retries the same guarded request without publishing a second edit. Migration tests retain default sequence identity and reject corrupt metadata.
 
 The packaged Electron workflow decodes generated footage, creates a saved range, preserves manual notes through an agent range patch, inserts and undoes a clip, and reopens the source monitor. Layout checks cover dark/light at 1280 and 1024 pixels.
+
+## Short source previews
+
+Extend the existing source-review queue and fingerprinted cache with `kind: preview`, represented by the `source-preview` job kind. A video source range must be between 100 milliseconds and 5 seconds. The external FFmpeg process produces a WebM with VP8 video at 15 fps within 640 by 360 pixels, preserving aspect ratio without upscaling, plus optional mono Opus audio. Silent sources remain silent. Output is capped at 512 KiB by the existing process reader; cancellation, queue limits, deadline, pre/post source fingerprints and cache eviction remain shared with contact sheets and waveforms. No project/history mutation is performed.
+
+The encoding follows the documented [FFmpeg libvpx and libopus wrappers](https://ffmpeg.org/ffmpeg-codecs.html), using a real-time deadline and bounded rate for quick source review. It uses the already supported external FFmpeg executable; no upstream code is copied and no new dependency is bundled. This preview is a compact review aid, not a final-quality sequence export.
+
+MCP supports the same request and reports preview metadata and byte size through `get_job`, omitting video payloads from chat text. The desktop consumes the bounded video result for playback in a separate visual-controls slice. Agent visual inspection continues to use native image contact sheets and source frames.
