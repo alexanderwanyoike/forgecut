@@ -105,7 +105,7 @@ export async function verifyMcp(directory, send) {
       });
       if (result.isError) throw new Error(JSON.stringify(result));
       job = result.structuredContent.value;
-      if (!["queued", "running"].includes(job.status)) break;
+      if (!["queued", "running", "committing"].includes(job.status)) break;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     if (
@@ -128,6 +128,48 @@ export async function verifyMcp(directory, send) {
     });
     if (assetVisible.result?.result?.value !== true)
       throw new Error("Completed MCP import did not reach the asset bin");
+    const latest = await client.callTool({
+      name: "read_project",
+      arguments: {},
+    });
+    const resourceImport = await client.callTool({
+      name: "start_resource_import",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        expectedRevision: latest.structuredContent.value.revision,
+        requestId: "smoke-resource",
+        resource: {
+          path,
+          kind: "Image",
+          license: { identifier: "test-only", text: "Generated smoke artwork" },
+        },
+      },
+    });
+    if (resourceImport.isError) throw new Error(JSON.stringify(resourceImport));
+    const resourceJobId = resourceImport.structuredContent.value.id;
+    let resourceJob;
+    for (let attempt = 0; attempt < 150; attempt++) {
+      const read = await client.callTool({
+        name: "get_job",
+        arguments: { sessionId: snapshot.sessionId, jobId: resourceJobId },
+      });
+      if (read.isError) throw new Error(JSON.stringify(read));
+      resourceJob = read.structuredContent.value;
+      if (!["queued", "running", "committing"].includes(resourceJob.status))
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    if (resourceJob?.status !== "completed")
+      throw new Error(`Resource import failed: ${JSON.stringify(resourceJob)}`);
+    const resources = await client.callTool({
+      name: "read_graphic_resources",
+      arguments: { sessionId: snapshot.sessionId },
+    });
+    if (
+      resources.isError ||
+      resources.structuredContent.value.resources[0]?.sha256?.length !== 64
+    )
+      throw new Error("Compiled MCP adapter did not discover imported artwork");
   } finally {
     await client.close();
     await transport.close();
