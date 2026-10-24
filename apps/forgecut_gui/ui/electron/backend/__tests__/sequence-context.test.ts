@@ -157,3 +157,65 @@ it("edits an explicit sequence without changing the human active sequence", asyn
   await service.jobs.close();
   await service.closeGraphicsPreview();
 });
+it("creates and resolves graphics using the explicitly targeted sequence settings", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  expect(
+    await service.execute("create_sequence", {
+      name: "Portrait",
+      settings: { width: 360, height: 640, fps: 10 },
+    }),
+  ).toMatchObject({ ok: true });
+  const clip = state.project.sequences![0].id;
+  expect(
+    await service.execute("apply_edits", {
+      sessionId: state.sessionId,
+      expectedRevision: state.revision,
+      requestId: crypto.randomUUID(),
+      sequenceId: clip,
+      operations: [
+        {
+          command: "add_graphic_item",
+          args: {
+            templateId: "title-card",
+            trackId: "graphics",
+            timelineStartUs: 0,
+            durationUs: 1000000,
+            props: { title: "Portrait words", entrance_frames: 0 },
+          },
+        },
+      ],
+    }),
+  ).toMatchObject({ ok: true });
+  expect(state.project.timeline.tracks).toEqual([]);
+  const item = state.project.sequences![0].timeline.tracks[0].items[0];
+  if (!("RemotionGraphic" in item)) throw new Error("Missing graphic");
+  expect(item.RemotionGraphic.props.title_width).toBeLessThanOrEqual(360);
+  expect(
+    await service.execute(
+      "get_sequence_frame",
+      { playheadUs: 0 },
+      { sessionId: state.sessionId, sequenceId: clip },
+    ),
+  ).toMatchObject({
+    ok: true,
+    value: {
+      settings: { width: 360, height: 640, fps: 10 },
+      frameCount: 10,
+      layers: [{ item: { RemotionGraphic: { id: item.RemotionGraphic.id } } }],
+    },
+  });
+  expect(
+    await service.execute("get_graphic_draft", {
+      itemId: item.RemotionGraphic.id,
+    }),
+  ).toMatchObject({
+    ok: true,
+    value: {
+      baseVersion: item.RemotionGraphic.component_version,
+      component: { id: item.RemotionGraphic.component_id },
+    },
+  });
+  await service.jobs.close();
+  await service.closeGraphicsPreview();
+});
