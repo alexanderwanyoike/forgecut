@@ -1,9 +1,14 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { verifyMcp } from "./mcp-smoke.mjs";
 import { spawn } from "node:child_process";
 
 const remoteDebuggingPort = String(19_222 + Math.floor(Math.random() * 1000));
 const remoteDebuggingUrl = `http://127.0.0.1:${remoteDebuggingPort}`;
 const expectedText = ["ASSETS", "INSPECTOR", "TIMELINE"];
 const children = [];
+const mcpDirectory = mkdtempSync(join(tmpdir(), "forgecut-smoke-"));
 
 function spawnChild(command, args, options = {}) {
   const child = spawn(command, args, {
@@ -29,6 +34,7 @@ function shutdown(code = 0) {
       child.kill();
     }
   }
+  rmSync(mcpDirectory, { recursive: true, force: true });
   process.exit(code);
 }
 
@@ -97,6 +103,7 @@ async function main() {
   spawnChild("yarn", ["dev"], {
     env: {
       ...process.env,
+      FORGECUT_MCP_DIR: mcpDirectory,
       ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
       ELECTRON_REMOTE_DEBUGGING_PORT: remoteDebuggingPort,
     },
@@ -162,6 +169,7 @@ async function main() {
       `Shared editing smoke check failed: ${JSON.stringify(editing.result)}`,
     );
   }
+  await verifyMcp(mcpDirectory, send);
   ws.close();
 
   const value = result.result?.result?.value;
@@ -183,7 +191,7 @@ async function main() {
     throw new Error(`Renderer emitted errors:\\n${errors.join("\\n")}`);
   }
 
-  console.log("Electron startup and shared editing verified");
+  console.log("Electron startup, shared editing and live MCP verified");
 }
 
 main()

@@ -80,13 +80,21 @@ export class AppState {
     this.maxHistoryBytes = limits.bytes ?? 32 * 1024 * 1024;
   }
 
+  get canUndo(): boolean {
+    return this.undoStack.length > 0;
+  }
+
+  get canRedo(): boolean {
+    return this.redoStack.length > 0;
+  }
+
   snapshot(): ProjectSnapshot {
     return {
       project: structuredClone(this.project),
       sessionId: this.sessionId,
       revision: this.revision,
-      canUndo: this.undoStack.length > 0,
-      canRedo: this.redoStack.length > 0,
+      canUndo: this.canUndo,
+      canRedo: this.canRedo,
       missingMedia: this.project.assets
         .filter((asset) => this.missingMedia.has(asset.path))
         .map((asset) => asset.id),

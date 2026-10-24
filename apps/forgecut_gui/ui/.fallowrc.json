@@ -3,7 +3,8 @@
     "src/main.tsx",
     "electron/main.ts",
     "electron/preload.cts",
-    "electron/scripts/*.mjs"
+    "electron/scripts/*.mjs",
+    "electron/mcp/stdio.ts"
   ],
   "ignorePatterns": ["dist-installers/**"],
   "health": {
@@ -31,6 +32,10 @@
         "patterns": ["electron/backend/**"]
       },
       {
+        "name": "mcp",
+        "patterns": ["electron/mcp/**"]
+      },
+      {
         "name": "shell",
         "patterns": ["electron/*.ts", "electron/*.cts", "electron/scripts/**"]
       },
@@ -55,11 +60,15 @@
       },
       {
         "from": "shell",
-        "allow": ["backend", "contract"]
+        "allow": ["backend", "contract", "mcp"]
       },
       {
         "from": "tooling",
         "allow": []
+      },
+      {
+        "from": "mcp",
+        "allow": ["backend", "contract"]
       }
     ],
     "coverage": {

@@ -13,7 +13,7 @@
     "dev": "node electron/scripts/dev.mjs",
     "dev:web": "vite",
     "dev:electron": "yarn dev",
-    "build:electron": "tsc -p electron/tsconfig.json",
+    "build:electron": "tsc -p electron/tsconfig.json && yarn build:mcp",
     "build:renderer": "tsc && vite build",
     "build": "yarn build:renderer && yarn build:electron",
     "verify:electron": "node electron/scripts/verify-startup.mjs",
@@ -29,7 +29,9 @@
     "analyze": "fallow",
     "analyze:architecture": "fallow architecture",
     "analyze:health": "fallow health",
-    "lint": "eslint src electron --ext .ts,.tsx,.cts"
+    "lint": "eslint src electron --ext .ts,.tsx,.cts",
+    "mcp": "node electron/dist/mcp-adapter.cjs",
+    "build:mcp": "node electron/scripts/build-mcp.mjs"
   },
   "dependencies": {
     "react": "^18.3.0",
@@ -37,6 +39,8 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
+    "@modelcontextprotocol/server": "2.4.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.1.0",
     "@types/node": "^22.10.2",
@@ -48,6 +52,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "electron": "^33.2.1",
     "electron-builder": "^26.15.3",
+    "esbuild": "0.25.12",
     "eslint": "8.57.1",
     "eslint-config-airbnb-base": "15.0.0",
     "eslint-config-prettier": "10.1.8",

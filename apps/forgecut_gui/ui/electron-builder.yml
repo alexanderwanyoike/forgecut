@@ -12,6 +12,12 @@ files:
   - electron/assets/**
   - package.json
 
+extraResources:
+  - from: electron/dist/mcp-adapter.cjs
+    to: mcp-adapter.cjs
+  - from: electron/dist/mcp-notices.txt
+    to: mcp-notices.txt
+
 npmRebuild: false
 
 linux:

@@ -1,5 +1,6 @@
 import { ZodError } from "zod";
 import { createHash } from "node:crypto";
+import { changedItemIds } from "./project-diff.js";
 import type {
   CommandName,
   CommandResponse,
@@ -178,11 +179,15 @@ export class EditingService {
         "CONFLICT",
         "The project has changed. Read its latest revision and retry.",
       );
+    const before = this.state.project;
     this.applyOperations(
       request.operations as EditOperation[],
       request.editGroup,
     );
-    const snapshot = this.state.snapshot();
+    const snapshot = {
+      ...this.state.snapshot(),
+      changedItemIds: changedItemIds(before, this.state.project),
+    };
     this.requests.set(key, {
       fingerprint,
       snapshot,
