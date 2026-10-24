@@ -216,7 +216,7 @@ export async function verifyCode(send) {
     JSON.stringify(afterDraftUndo.project) !== JSON.stringify(applied.project)
   )
     throw new Error("Draft undo changed the active project");
-  await key("Z", "KeyZ", 90, 3);
+  await key("y", "KeyY", 89, 2);
   await wait(
     `(async()=>{const value=await ${draft()};return value.component.source.files[${JSON.stringify(component.source.entry)}]===${JSON.stringify(edited)};})()`,
     "Monaco draft redo",
