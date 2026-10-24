@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Result as BridgeResult } from "../shared/result.js";
 
 export const sessionSchema = z.strictObject({
   id: z.uuid(),
@@ -7,9 +8,7 @@ export const sessionSchema = z.strictObject({
   secret: z.string().min(32).max(128),
 });
 export type LocalSession = z.infer<typeof sessionSchema>;
-export type BridgeResult<T = unknown> =
-  | { ok: true; value: T }
-  | { ok: false; error: { code: string; message: string } };
+export type { Result as BridgeResult } from "../shared/result.js";
 export const resultSchema = z.discriminatedUnion("ok", [
   z.strictObject({ ok: z.literal(true), value: z.unknown() }),
   z.strictObject({
