@@ -4,6 +4,7 @@ import { mkdtemp, rm, utimes } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { expect, it, vi } from "vitest";
+import { generateReviewSource } from "./source-review-fixture";
 import { AppState } from "../state";
 import { EditingService } from "../editing-service";
 import type { JobSnapshot } from "../../shared/jobs";
@@ -16,34 +17,7 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
     const service = new EditingService(state);
     try {
       const path = join(directory, "source.mp4");
-      const generated = spawnSync("ffmpeg", [
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-y",
-        "-f",
-        "lavfi",
-        "-i",
-        "testsrc2=size=64x36:rate=10",
-        "-f",
-        "lavfi",
-        "-i",
-        "sine=frequency=440:sample_rate=8000",
-        "-t",
-        "2",
-        "-c:v",
-        "libx264",
-        "-threads",
-        "1",
-        "-preset",
-        "ultrafast",
-        "-pix_fmt",
-        "yuv420p",
-        "-c:a",
-        "aac",
-        path,
-      ]);
-      expect(generated.status, generated.stderr?.toString()).toBe(0);
+      generateReviewSource(path);
       const imported = await service.execute("import_assets", {
         paths: [path],
       });
