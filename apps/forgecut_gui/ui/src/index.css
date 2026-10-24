@@ -888,3 +888,12 @@ body,
 .project-notice button {
   margin-left: 12px;
 }
+
+.mcp-status {
+  font-size: 11px;
+  color: var(--text-secondary);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

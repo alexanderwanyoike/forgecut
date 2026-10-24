@@ -133,7 +133,7 @@ Primary touchpoints: `state.ts`, `ipc.ts`, `commands/`, `timeline-ops.ts`, `ipc-
 
 ## Phase 2 Live MCP editing
 
-Status: in progress. The first slice provides authenticated instance discovery, explicit attachment, operation schemas, bounded reads and guarded live edit batches. See the [MCP setup and scope](../mcp.md) and [bridge decision](../adr/0003-live-mcp-bridge.md). Guarded history and save/reopen controls are also implemented. Editing context, visible connection/action status and cancellable media jobs remain before Phase 2 acceptance.
+Status: in progress. The first slice provides authenticated instance discovery, explicit attachment, operation schemas, bounded reads and guarded live edit batches. See the [MCP setup and scope](../mcp.md) and [bridge decision](../adr/0003-live-mcp-bridge.md). Guarded history and save/reopen controls are also implemented. Shared editing context and visible MCP readiness/activity are implemented. Cancellable media jobs remain before Phase 2 acceptance.
 
 **Outcome:** Codex here can inspect and edit a specific running ForgeCut session.
 

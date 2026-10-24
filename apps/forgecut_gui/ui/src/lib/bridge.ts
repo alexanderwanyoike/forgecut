@@ -5,6 +5,7 @@ import type {
   EventPayloads,
   CommandResponse,
   CommandMetadata,
+  McpStatus,
 } from "../../electron/shared/ipc-contract";
 
 type InvokeArgs = Record<string, unknown>;
@@ -16,6 +17,7 @@ type ForgeCutElectronApi = {
     args?: InvokeArgs,
     metadata?: CommandMetadata,
   ) => Promise<CommandResponse<T>>;
+  mcp: { status: () => Promise<McpStatus> };
   dialog: {
     open: <T>(options?: InvokeArgs) => Promise<T>;
     save: <T>(options?: InvokeArgs) => Promise<T>;
@@ -104,7 +106,7 @@ function request<K extends CommandName>(
       return response.value;
     })
     .catch((error: unknown) => {
-      if (!command.startsWith("get_"))
+      if (!command.startsWith("get_") && command !== "set_editing_context")
         window.dispatchEvent(
           new CustomEvent("forgecut:command-error", {
             detail: error instanceof Error ? error.message : String(error),
@@ -146,4 +148,8 @@ export function getCurrentWindow() {
 
 export function mediaUrl(path: string): string {
   return requireElectronApi().mediaUrl(path);
+}
+
+export function getMcpStatus(): Promise<McpStatus> {
+  return requireElectronApi().mcp.status();
 }

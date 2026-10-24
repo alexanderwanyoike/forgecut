@@ -71,6 +71,13 @@ it("keeps the bin, timeline, Inspector and paused preview in sync with edits and
       service.execute(command, args, metadata)) as NonNullable<
       Window["forgecut"]
     >["invoke"],
+    mcp: {
+      status: vi.fn().mockResolvedValue({
+        available: true,
+        statusRevision: 1,
+        lastAction: null,
+      }),
+    },
     dialog: { open: vi.fn(), save: vi.fn() },
     events: {
       listen: ((
@@ -92,6 +99,12 @@ it("keeps the bin, timeline, Inspector and paused preview in sync with edits and
   const clip = view.container.querySelector(".clip")!;
   fireEvent.mouseDown(clip, { clientX: 100, clientY: 100 });
   fireEvent.mouseUp(window, { clientX: 100, clientY: 100 });
+  await waitFor(async () => {
+    expect(await service.execute("get_editing_context")).toMatchObject({
+      ok: true,
+      value: { selectedItemIds: ["title"] },
+    });
+  });
   const textInput = await screen.findByLabelText("Text");
   fireEvent.focus(textInput);
   fireEvent.change(textInput, { target: { value: "a" } });

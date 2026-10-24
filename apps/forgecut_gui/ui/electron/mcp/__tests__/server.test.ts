@@ -67,6 +67,14 @@ it("requires explicit attachment and edits the live owner through the official M
     });
     expect(edit.isError).toBe(false);
     expect(state.project.name).toBe("From Codex");
+    const context = await client.callTool({
+      name: "read_context",
+      arguments: { sessionId: state.sessionId },
+    });
+    expect(context.structuredContent).toMatchObject({
+      ok: true,
+      value: { selectedItemIds: [], playheadUs: 0 },
+    });
     const history = await client.callTool({
       name: "apply_history",
       arguments: {

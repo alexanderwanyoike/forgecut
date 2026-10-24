@@ -26,6 +26,12 @@ Submit `apply_edits` with the current identity, expected revision, a unique requ
 
 If an instance disappears, tools return `UNAVAILABLE`. List sessions and explicitly attach again. Opening another project changes its project session identity; reads and writes using the old identity fail. Local credentials are never returned by MCP tools.
 
+## Editing context and activity
+
+`read_context` requires the current project session identity and returns stable selected item IDs, playhead microseconds and `contextRevision`. UI selection/playhead updates do not change the project revision or history. Deleting an item clears its selection, and switching projects resets transient context. Later edits must target explicit IDs rather than resolving an earlier request against a new selection.
+
+The header reports local MCP bridge readiness and the latest successful action. These updates have their own ordered status revision. Readiness means the application bridge is available; host configuration and explicit instance selection are still separate steps.
+
 ## History and project files
 
 `apply_history` takes `sessionId`, `expectedRevision`, `requestId` and `direction` (`undo` or `redo`). It uses the same bounded retry cache as edits, returns the original response on a retry and rejects reused IDs with different input.
@@ -49,6 +55,6 @@ The default registry is `$XDG_CONFIG_HOME/forgecut/mcp-sessions`, falling back t
 
 ## Scope and verification
 
-This first Phase 2 slice provides session selection, capability discovery, bounded project reads and live guarded edit batches. Guarded `apply_history`, `save_project` and `open_project` controls are also available. Editing-context reads, visible connection/action status and cancellable media jobs remain before Phase 2 acceptance; those tools are not advertised yet.
+This first Phase 2 slice provides session selection, capability discovery, bounded project reads and live guarded edit batches. Guarded `apply_history`, `save_project` and `open_project` controls are also available. `read_context` now reports selection and playhead with an independent context revision. The editor header shows bridge readiness and the latest successful MCP action. Cancellable media jobs remain before Phase 2 acceptance and are not advertised yet.
 
 `yarn --cwd apps/forgecut_gui/ui test` exercises the real local bridge and official SDK. `yarn --cwd apps/forgecut_gui/ui verify:electron` additionally starts a real STDIO child with an isolated copy of the adapter bundle, edits Electron's project and checks the rendered project name. Use Xvfb on headless Linux and an isolated Vite port when another development server is running. This checks the built adapter and development Electron application; full installer validation remains a separate check. Windows/macOS runtime transport has not been manually verified here.

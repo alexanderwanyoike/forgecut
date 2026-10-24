@@ -2,11 +2,9 @@ import { access, mkdir, readFile, readdir, rm } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash, randomUUID } from "node:crypto";
-
-import { atomicWrite, readIfPresent } from "./atomic-file.js";
-import { validateProject } from "./project-schema.js";
-import { EditingError } from "./editing-error.js";
 import type {
+  EditingContext,
+  CommandMap,
   ProjectSnapshot,
   ClipItem,
   ImageOverlayItem,
@@ -14,6 +12,12 @@ import type {
   TextOverlayItem,
   Timeline,
 } from "../shared/ipc-contract.js";
+import { itemData } from "./timeline-ops.js";
+import { SessionContext } from "./session-context.js";
+
+import { atomicWrite, readIfPresent } from "./atomic-file.js";
+import { validateProject } from "./project-schema.js";
+import { EditingError } from "./editing-error.js";
 
 // Domain types live in the shared IPC contract; re-export for backend modules.
 export type {
@@ -49,6 +53,8 @@ type ChangeOptions = { group?: string; availablePaths?: string[] };
 type HistoryLimits = { count?: number; bytes?: number };
 
 export class AppState {
+  private context = new SessionContext();
+
   private currentProject = freezeProject(createProject("Untitled"));
 
   get project(): Project {
@@ -86,6 +92,26 @@ export class AppState {
 
   get canRedo(): boolean {
     return this.redoStack.length > 0;
+  }
+
+  getEditingContext(): EditingContext {
+    return { sessionId: this.sessionId, ...this.context.snapshot() };
+  }
+
+  setEditingContext(
+    input: CommandMap["set_editing_context"]["args"],
+  ): EditingContext {
+    this.assertSession(input.sessionId);
+    const ids = new Set(
+      this.project.timeline.tracks.flatMap((track) =>
+        track.items.map((item) => itemData(item).id),
+      ),
+    );
+    this.context.update(
+      input.selectedItemIds.filter((id) => ids.has(id)),
+      input.playheadUs,
+    );
+    return this.getEditingContext();
   }
 
   snapshot(): ProjectSnapshot {
@@ -276,6 +302,7 @@ export class AppState {
   }
 
   private replaceProject(project: Project): void {
+    this.context.clear();
     this.currentProject = freezeProject(project);
     this.sessionId = randomUUID();
     this.undoStack = [];
@@ -294,6 +321,13 @@ export class AppState {
   }
 
   private changed(): void {
+    this.context.reconcile(
+      new Set(
+        this.project.timeline.tracks.flatMap((track) =>
+          track.items.map((item) => itemData(item).id),
+        ),
+      ),
+    );
     this.revision += 1;
     for (const listener of this.listeners) {
       // Notifications cannot turn a successful commit into a reported failure.

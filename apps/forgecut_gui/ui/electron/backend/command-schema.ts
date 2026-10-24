@@ -134,6 +134,12 @@ export const commandSchemas = {
   recover_project: z.strictObject({ path: z.string().min(1) }),
   get_project_settings: none,
   get_project_snapshot: none,
+  get_editing_context: none,
+  set_editing_context: z.strictObject({
+    sessionId: id,
+    selectedItemIds: z.array(id).max(100),
+    playheadUs: time,
+  }),
   apply_edits: editRequestSchema,
   apply_history: historyRequestSchema,
   autosave: none,

@@ -159,5 +159,15 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
     },
     async (request) => call({ action: "open", ...request }),
   );
+  server.registerTool(
+    "read_context",
+    {
+      description:
+        "Read stable selected item IDs, playhead and an independent context revision for an explicitly identified project session. Target IDs explicitly in later edits; selection changes do not change the project revision.",
+      inputSchema: z.strictObject({ sessionId: idSchema }),
+      annotations: { readOnlyHint: true },
+    },
+    async (request) => call({ action: "context", ...request }),
+  );
   return server;
 }
