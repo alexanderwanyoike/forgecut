@@ -133,15 +133,31 @@ export default function SourceWorkspace({ snapshot, assetId, onClose }: Props) {
               />
             </label>
           </div>
-          <ActionButton
-            icon={Plus}
-            disabled={!asset || !valid || busy}
-            onClick={() => {
-              void create().catch(() => {});
-            }}
-          >
-            New selection
-          </ActionButton>
+          {selected && (
+            <ActionButton
+              icon={Plus}
+              disabled={busy}
+              tooltip="Start another range without changing saved selections"
+              onClick={() => {
+                setDraft({ startUs: 0, endUs: duration });
+                setSelectedId(null);
+                setError(null);
+              }}
+            >
+              New range
+            </ActionButton>
+          )}
+          {!selected && (
+            <ActionButton
+              icon={Plus}
+              disabled={!asset || !valid || busy}
+              onClick={() => {
+                void create().catch(() => {});
+              }}
+            >
+              New selection
+            </ActionButton>
+          )}
           {selected && (
             <label className="source-selection-field">
               Selection name
