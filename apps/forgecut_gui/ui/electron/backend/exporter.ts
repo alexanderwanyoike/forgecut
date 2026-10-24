@@ -44,7 +44,7 @@ export function buildFfmpegArgs(plan: RenderPlan): string[] {
     "1",
     "-filter_complex_threads",
     "1",
-    ...plan.inputs.flatMap((input) => ["-threads", "1", "-i", resolvePath(input.path)]),
+    ...plan.inputs.flatMap((input) => ["-threads", "1", "-i", input.path]),
     "-filter_complex",
     plan.filterGraph,
     ...plan.outputArgs,
