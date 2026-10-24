@@ -211,3 +211,58 @@ it.skipIf(!available)(
   },
   20000,
 );
+it.skipIf(!available)(
+  "locates custom runtime failures in the original imported source file",
+  async () => {
+    const state = new AppState();
+    const service = new EditingService(state);
+    try {
+      await service.execute("update_project", {
+        settings: { width: 64, height: 36, fps: 10 },
+      });
+      await service.execute("add_graphic_item", {
+        templateId: "title-card",
+        trackId: "graphics",
+        timelineStartUs: 0,
+        durationUs: 1000000,
+      });
+      state.executeProjectChange((project) => {
+        const component = project.components![0];
+        component.source.files["helpers.tsx"] =
+          "export function fail(){\n  const message = 'Mapped draft failure';\n  throw new Error(message);\n}";
+        component.source.files[component.source.entry] =
+          'import {fail} from "./helpers";\nexport default function Card(){fail();return null;}';
+        component.version = componentVersion(component);
+        const item = project.timeline.tracks[0].items[0];
+        if (!("RemotionGraphic" in item)) throw new Error("Missing graphic");
+        item.RemotionGraphic.component_version = component.version;
+      });
+      const item = state.project.timeline.tracks[0].items[0];
+      if (!("RemotionGraphic" in item)) throw new Error("Missing graphic");
+      const before = state.snapshot();
+      const failure = await service.execute("get_graphic_preview", {
+        itemId: item.RemotionGraphic.id,
+        frame: 0,
+      });
+      expect(failure).toMatchObject({
+        ok: false,
+        error: {
+          code: "RENDER_FAILED",
+          diagnostics: [
+            expect.objectContaining({
+              file: "helpers.tsx",
+              line: 3,
+              column: 9,
+              message: expect.stringContaining("Mapped draft failure"),
+            }),
+          ],
+        },
+      });
+      expect(state.snapshot()).toEqual(before);
+    } finally {
+      await service.closeGraphicsPreview();
+      await service.jobs.close();
+    }
+  },
+  20000,
+);
