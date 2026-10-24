@@ -1,4 +1,5 @@
 import { importAsset } from "../media-probe.js";
+import { EditingError } from "../editing-error.js";
 import type { Asset } from "../state.js";
 import { extractThumbnailsBase64, extractWaveform } from "../media-derived.js";
 import {
@@ -38,10 +39,17 @@ export const mediaCommands = {
   },
   relink_asset: async (args, { state }) => {
     const sessionId = state.sessionId;
+    const revision = state.revision;
     const id = requiredString(args, "id");
     requireAsset(state.project.assets, id);
     const replacement = await importAsset(requiredString(args, "path"));
     state.assertSession(sessionId);
+    if (state.revision !== revision) {
+      throw new EditingError(
+        "CONFLICT",
+        "The project changed while probing replacement media. Try relinking again.",
+      );
+    }
     state.executeProjectChange(
       (project) => {
         const original = requireAsset(project.assets, id);

@@ -64,9 +64,15 @@ export class EditingService {
         input,
       ) as CommandArgs;
       let value: unknown;
-      if (command === "apply_edits")
-        value = this.applyEdits(args as EditRequest);
-      else if (command === "get_project_snapshot")
+      if (command === "apply_edits") {
+        const snapshot = this.applyEdits(args as EditRequest);
+        return {
+          ok: true,
+          value: snapshot,
+          sessionId: snapshot.sessionId,
+          revision: snapshot.revision,
+        };
+      } else if (command === "get_project_snapshot")
         value = this.state.snapshot();
       else if (Object.prototype.hasOwnProperty.call(editSchemas, command)) {
         this.applyOperations(
