@@ -88,3 +88,28 @@
 .source-selection-inspector .inspector-body {
   padding: 14px 16px;
 }
+.source-review {
+  flex-shrink: 0;
+  max-height: 45%;
+  overflow-y: auto;
+  padding: 12px 16px 0;
+}
+.source-review-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.source-review p,
+.source-review figcaption {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin: 8px 0;
+}
+.source-review figure {
+  margin: 12px 0 0;
+}
+.source-review img {
+  display: block;
+  width: 100%;
+  border-radius: 4px;
+}

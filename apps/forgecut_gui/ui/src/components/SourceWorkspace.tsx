@@ -4,6 +4,7 @@ import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
 import type { SourceSelectionPatch } from "../../electron/shared/source-selection";
 import ActionButton from "./ActionButton";
 import SourceMonitor from "./SourceMonitor";
+import SourceReviewPanel from "./SourceReviewPanel";
 import AppendSourceSelection from "./AppendSourceSelection";
 import PropertyInput from "./PropertyInput";
 import PropertyTextarea from "./PropertyTextarea";
@@ -96,7 +97,16 @@ export default function SourceWorkspace({ snapshot, assetId, onClose }: Props) {
   }
   return (
     <>
-      <SourceMonitor asset={asset} onClose={onClose} />
+      <SourceMonitor asset={asset} onClose={onClose}>
+        {asset && (
+          <SourceReviewPanel
+            snapshot={snapshot}
+            asset={asset}
+            startUs={range.startUs}
+            endUs={range.endUs}
+          />
+        )}
+      </SourceMonitor>
       <aside className="panel inspector source-selection-inspector">
         <div className="panel-header">
           <span>Source selection</span>
