@@ -67,6 +67,28 @@ it("requires explicit attachment and edits the live owner through the official M
     });
     expect(edit.isError).toBe(false);
     expect(state.project.name).toBe("From Codex");
+    const history = await client.callTool({
+      name: "apply_history",
+      arguments: {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        requestId: "undo-rename",
+        direction: "undo",
+      },
+    });
+    expect(history.isError).toBe(false);
+    expect(state.project.name).toBe("Untitled");
+    const redone = await client.callTool({
+      name: "apply_history",
+      arguments: {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        requestId: "redo-rename",
+        direction: "redo",
+      },
+    });
+    expect(redone.isError).toBe(false);
+    expect(state.project.name).toBe("From Codex");
     const current = await client.callTool({
       name: "read_project",
       arguments: {},
