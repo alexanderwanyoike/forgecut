@@ -1,6 +1,6 @@
-import { stylePropertyPageFields } from "./style-schema.js";
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { stylePropertyPageFields } from "./style-schema.js";
 import { registerSourceTools } from "./source-tools.js";
 import { sourceCheckRequestSchema } from "./source-schema.js";
 import {

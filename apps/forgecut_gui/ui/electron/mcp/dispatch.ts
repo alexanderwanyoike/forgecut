@@ -1,6 +1,6 @@
-import { stylePropertyPageFields } from "./style-schema.js";
 import { isAbsolute } from "node:path";
 import { z } from "zod";
+import { stylePropertyPageFields } from "./style-schema.js";
 import { sourceActionSchemas } from "./draft-schema.js";
 import { dispatchGraphicSource } from "./source-actions.js";
 import { sourceCheckRequestSchema } from "./source-schema.js";
