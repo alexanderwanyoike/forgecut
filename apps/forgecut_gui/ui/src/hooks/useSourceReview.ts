@@ -58,7 +58,8 @@ export function useSourceReview(input: Input) {
     };
   }, [input.sessionId, input.assetId, input.startUs, input.endUs]);
   async function start(kind: SourceReviewRequest["kind"]) {
-    const token = ++generation.current;
+    generation.current += 1;
+    const token = generation.current;
     stop(job.current);
     job.current = null;
     setBusy(true);
