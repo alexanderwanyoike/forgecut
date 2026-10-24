@@ -98,6 +98,7 @@ export class GraphicPreviewHost {
       if (!entry) break;
       this.queued.delete(entry.input.key);
       const abort = () => {
+        this.generation += 1;
         this.failure = {
           code: "CANCELLED",
           message: "Graphics preview cancelled",
