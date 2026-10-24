@@ -141,3 +141,49 @@ it("explicitly removes an asset credit and restores it with global undo", async 
   });
   expect(state.project).toEqual(before);
 });
+
+it("keeps a manual credit draft when an agent changes the same metadata and requires explicit reload", async () => {
+  const { state, service } = await fixture();
+  fireEvent.change(screen.getByLabelText("Licence / permission"), {
+    target: { value: "Manual permission" },
+  });
+  fireEvent.change(screen.getByLabelText("Licence notice"), {
+    target: { value: "Manual notice" },
+  });
+  const license = {
+    identifier: "Agent metadata",
+    text: "Agent notice",
+    attribution: "Agent credit",
+  };
+  await act(async () => {
+    await service.execute("set_asset_license", { assetId: "music", license });
+  });
+  await screen.findByText("Credits changed elsewhere. Reload before saving.");
+  expect(
+    (screen.getByLabelText("Licence / permission") as HTMLInputElement).value,
+  ).toBe("Manual permission");
+  expect(
+    (screen.getByRole("button", { name: "Save credits" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Reload credits" }));
+  expect((screen.getByLabelText("Attribution") as HTMLInputElement).value).toBe(
+    "Agent credit",
+  );
+  fireEvent.change(screen.getByLabelText("Attribution"), {
+    target: { value: "Reviewed credit" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save credits" }));
+  await waitFor(() =>
+    expect(state.project.assets[0].license?.attribution).toBe(
+      "Reviewed credit",
+    ),
+  );
+  expect(
+    screen.queryByText("Credits changed elsewhere. Reload before saving."),
+  ).toBeNull();
+  expect(
+    (screen.getByRole("button", { name: "Save credits" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(false);
+});
