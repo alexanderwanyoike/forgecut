@@ -16,11 +16,12 @@ import {
   historyRequestSchema,
 } from "../backend/command-schema.js";
 import { idSchema, timeSchema } from "../backend/project-schema.js";
+import { pageFields, resourcePageFields } from "./page-schema.js";
 import {
-  resourcePageFields,
-  pageFields,
-  projectFileRequestSchema,
-} from "./dispatch.js";
+  sequencePageFields,
+  sequenceSelectionSchema,
+} from "./sequence-schema.js";
+import { projectFileRequestSchema } from "./dispatch.js";
 import { callBridge, listSessions, sessionDirectory } from "./sessions.js";
 import type { BridgeResult, LocalSession } from "./contract.js";
 
@@ -137,12 +138,31 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
     async (args) => call({ action: "assets", ...args }),
   );
   server.registerTool(
+    "read_sequences",
+    {
+      description:
+        "Read a bounded page of sequence IDs, names and settings, with the default and active sequence IDs. Explicitly target sequence IDs in subsequent reads, edits, history and exports.",
+      inputSchema: z.strictObject(pageFields),
+      annotations: { readOnlyHint: true },
+    },
+    async (args) => call({ action: "sequences", ...args }),
+  );
+  server.registerTool(
+    "select_sequence",
+    {
+      description:
+        "Switch the visible editor to a sequence without changing creative history. Requires the sequence revision from read_context or read_sequences; rejects a stale context. Explicit sequence reads and edits do not require switching the editor.",
+      inputSchema: sequenceSelectionSchema,
+    },
+    async (args) => call({ action: "select-sequence", ...args }),
+  );
+  server.registerTool(
     "read_timeline",
     {
       description:
-        "Read a page of items intersecting [startUs, endUs), using integer microseconds.",
+        "Read a page of items intersecting [startUs, endUs), using integer microseconds. Provide sequenceId for multi-sequence projects.",
       inputSchema: z.strictObject({
-        ...pageFields,
+        ...sequencePageFields,
         startUs: timeSchema,
         endUs: timeSchema,
       }),
@@ -153,8 +173,11 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
     "read_sequence_frame",
     {
       description:
-        "Read the current frame, duration and a bounded page of active layers using the same resolver as preview. Times are integer microseconds.",
-      inputSchema: z.strictObject({ ...pageFields, playheadUs: timeSchema }),
+        "Read the current frame, duration and a bounded page of active layers using the same resolver as preview. Times are integer microseconds. Provide sequenceId for multi-sequence projects.",
+      inputSchema: z.strictObject({
+        ...sequencePageFields,
+        playheadUs: timeSchema,
+      }),
       annotations: { readOnlyHint: true },
     },
     async (request) => call({ action: "sequence", ...request }),
@@ -163,8 +186,12 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
     "read_item",
     {
       description:
-        "Read a timeline item by its stable ID in the selected project session.",
-      inputSchema: z.strictObject({ sessionId: idSchema, itemId: idSchema }),
+        "Read a timeline item by its globally unique stable ID and return its owning sequence. An optional sequenceId restricts the lookup to that sequence.",
+      inputSchema: z.strictObject({
+        sessionId: idSchema,
+        sequenceId: idSchema.optional(),
+        itemId: idSchema,
+      }),
     },
     async (args) => call({ action: "item", ...args }),
   );

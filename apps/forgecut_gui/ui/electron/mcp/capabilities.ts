@@ -13,6 +13,10 @@ import {
   importRequestSchema,
   frameRequestSchema,
 } from "./job-schema.js";
+import {
+  sequencePageFields,
+  sequenceSelectionSchema,
+} from "./sequence-schema.js";
 import { MAX_MESSAGE_BYTES } from "./contract.js";
 
 export const editingCapabilities = {
@@ -40,6 +44,13 @@ export const editingCapabilities = {
     maxFiles: 32,
     maxSourceBytes: 524288,
     timeoutMs: 15000,
+  },
+  sequences: {
+    maxSequences: 32,
+    read: z.toJSONSchema(z.strictObject(sequencePageFields)),
+    select: z.toJSONSchema(sequenceSelectionSchema),
+    requireExplicitTargetForMultipleSequences: true,
+    selectionChangesCreativeRevision: false,
   },
   history: z.toJSONSchema(historyRequestSchema),
   jobs: {

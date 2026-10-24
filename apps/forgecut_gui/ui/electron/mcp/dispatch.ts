@@ -4,20 +4,21 @@ import { sourceActionSchemas } from "./draft-schema.js";
 import { dispatchGraphicSource } from "./source-actions.js";
 import { sourceCheckRequestSchema } from "./source-schema.js";
 import type { GraphicComponent } from "../shared/graphics.js";
-import { resolveSequenceFrame } from "../domain/sequence.js";
+import { projectSequences } from "../domain/project-sequences.js";
+import { dispatchSequenceAction } from "./sequence-actions.js";
+import { sequenceActionSchemas } from "./sequence-schema.js";
+import { pageFields, resourcePageFields } from "./page-schema.js";
 import { ensureForgeCutExtension } from "../backend/state.js";
 import type { EditingService } from "../backend/editing-service.js";
-import type { ProjectSnapshot } from "../shared/ipc-contract.js";
+import type {
+  EditingContext,
+  ProjectSnapshot,
+} from "../shared/ipc-contract.js";
 import {
   editRequestSchema,
   historyRequestSchema,
 } from "../backend/command-schema.js";
 import { idSchema, timeSchema } from "../backend/project-schema.js";
-import {
-  itemData,
-  timelineEndUs,
-  timelineStartUs,
-} from "../domain/timeline-item.js";
 import { EditingError } from "../backend/editing-error.js";
 import type { BridgeResult } from "./contract.js";
 import {
@@ -30,15 +31,6 @@ import {
 import { startMediaJob } from "../backend/media-jobs.js";
 import { startExportJob } from "../backend/export-jobs.js";
 
-export const pageFields = {
-  sessionId: idSchema,
-  offset: timeSchema.default(0),
-  limit: z.number().int().min(1).max(100).default(50),
-};
-export const resourcePageFields = {
-  ...pageFields,
-  limit: z.number().int().min(1).max(20).default(10),
-};
 export const projectFileRequestSchema = z.strictObject({
   sessionId: idSchema,
   expectedRevision: timeSchema,
@@ -50,6 +42,7 @@ export const projectFileRequestSchema = z.strictObject({
 });
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
   ...sourceActionSchemas,
+  ...sequenceActionSchemas,
   sourceCheckRequestSchema.extend({ action: z.literal("source-check") }),
   resourceRequestSchema.extend({ action: z.literal("resource") }),
   z.strictObject({ action: z.literal("resources"), ...resourcePageFields }),
@@ -80,22 +73,6 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
   }),
   z.strictObject({ action: z.literal("assets"), ...pageFields }),
   z.strictObject({
-    action: z.literal("sequence"),
-    ...pageFields,
-    playheadUs: timeSchema,
-  }),
-  z.strictObject({
-    action: z.literal("timeline"),
-    ...pageFields,
-    startUs: timeSchema,
-    endUs: timeSchema,
-  }),
-  z.strictObject({
-    action: z.literal("item"),
-    sessionId: idSchema,
-    itemId: idSchema,
-  }),
-  z.strictObject({
     action: z.literal("apply"),
     request: editRequestSchema,
     label: z.string().min(1).max(120),
@@ -106,13 +83,20 @@ type SummarySource = Pick<
   ProjectSnapshot,
   "project" | "sessionId" | "revision" | "canUndo" | "canRedo"
 >;
-function summary(source: SummarySource) {
+function summary(
+  source: SummarySource,
+  context: Pick<EditingContext, "activeSequenceId" | "sequenceRevision">,
+) {
   return {
     projectId: source.project.id,
     sessionId: source.sessionId,
     revision: source.revision,
     name: source.project.name.slice(0, 512),
     settings: source.project.settings,
+    sequenceCount: projectSequences(source.project).length,
+    defaultSequenceId: source.project.default_sequence?.id ?? source.project.id,
+    activeSequenceId: context.activeSequenceId,
+    sequenceRevision: context.sequenceRevision,
     assetCount: source.project.assets.length,
     resourceCount: source.project.resources?.length ?? 0,
     trackCount: source.project.timeline.tracks.length,
@@ -162,7 +146,7 @@ export async function dispatchLocal(
       return startMediaJob(service, request);
     }
     if (request.action === "summary")
-      return { ok: true, value: summary(state) };
+      return { ok: true, value: summary(state, state.getEditingContext()) };
     if (request.action === "apply" || request.action === "history") {
       const response = await service.execute(
         request.action === "apply" ? "apply_edits" : "apply_history",
@@ -173,12 +157,20 @@ export async function dispatchLocal(
       return {
         ok: true,
         value: {
-          ...summary(snapshot),
+          ...summary(snapshot, snapshot),
           changedItemIds: snapshot.changedItemIds ?? [],
         },
       };
     }
     state.assertSession(request.sessionId);
+    if (
+      request.action === "sequences" ||
+      request.action === "select-sequence" ||
+      request.action === "sequence" ||
+      request.action === "timeline" ||
+      request.action === "item"
+    )
+      return dispatchSequenceAction(state, request);
     if (request.action === "resources") {
       const resources = state.project.resources ?? [];
       return {
@@ -255,22 +247,6 @@ export async function dispatchLocal(
         },
       };
     }
-    if (request.action === "sequence") {
-      const { layers, ...frame } = resolveSequenceFrame(
-        state.project,
-        request.playheadUs,
-      );
-      return {
-        ok: true,
-        value: {
-          sessionId: state.sessionId,
-          revision: state.revision,
-          ...frame,
-          layers: layers.slice(request.offset, request.offset + request.limit),
-          total: layers.length,
-        },
-      };
-    }
     if (request.action === "context")
       return { ok: true, value: state.getEditingContext() };
     if (request.action === "save" || request.action === "open") {
@@ -293,60 +269,18 @@ export async function dispatchLocal(
         };
       }
       await state.loadProject(request.path);
-      return { ok: true, value: summary(state) };
+      return { ok: true, value: summary(state, state.getEditingContext()) };
     }
-    if (request.action === "assets")
-      return {
-        ok: true,
-        value: {
-          sessionId: state.sessionId,
-          revision: state.revision,
-          assets: state.project.assets.slice(
-            request.offset,
-            request.offset + request.limit,
-          ),
-          total: state.project.assets.length,
-        },
-      };
-    const items = state.project.timeline.tracks.flatMap((track) => track.items);
-    if (request.action === "item") {
-      const item = items.find(
-        (candidate) => itemData(candidate).id === request.itemId,
-      );
-      return item
-        ? {
-            ok: true,
-            value: {
-              sessionId: state.sessionId,
-              revision: state.revision,
-              item,
-            },
-          }
-        : {
-            ok: false,
-            error: { code: "NOT_FOUND", message: "Timeline item not found." },
-          };
-    }
-    if (request.endUs <= request.startUs)
-      return {
-        ok: false,
-        error: {
-          code: "INVALID_INPUT",
-          message: "Timeline range must have a positive duration.",
-        },
-      };
-    const matching = items.filter(
-      (item) =>
-        timelineStartUs(item) < request.endUs &&
-        timelineEndUs(item) > request.startUs,
-    );
     return {
       ok: true,
       value: {
         sessionId: state.sessionId,
         revision: state.revision,
-        items: matching.slice(request.offset, request.offset + request.limit),
-        total: matching.length,
+        assets: state.project.assets.slice(
+          request.offset,
+          request.offset + request.limit,
+        ),
+        total: state.project.assets.length,
       },
     };
   } catch (error) {

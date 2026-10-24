@@ -34,6 +34,14 @@ If an instance disappears, tools return `UNAVAILABLE`. List sessions and explici
 
 The header reports local MCP bridge readiness and the latest successful action. These updates have their own ordered status revision. Readiness means the application bridge is available; host configuration and explicit instance selection are still separate steps.
 
+## Named sequences
+
+`read_project` includes `sequenceCount`, `defaultSequenceId`, `activeSequenceId` and `sequenceRevision`. `read_sequences` returns a bounded page of stable IDs, names and settings. This follows the existing MCP SDK tools and paginated read pattern; the editor remains the only project owner.
+
+For projects with multiple sequences, pass `sequenceId` to `read_timeline`, `read_sequence_frame`, sequence edits, history and exports. Omitting it from timeline/frame reads returns `INVALID_INPUT` rather than inferring a target from the visible editor. Single-sequence reads retain their original defaults. `read_item` searches globally unique item IDs and returns their owning `sequenceId`; supply a sequence ID to restrict the lookup.
+
+Explicit reads and edits leave the user's active sequence unchanged. To intentionally switch the visible editor, call `select_sequence` with the project session, target sequence ID and `expectedSequenceRevision` from a fresh context or sequence read. A stale activation epoch returns `CONFLICT`, including when the user switched away and back. Selection changes transient context, not the creative revision or undo history. Ordinary edit and history requests retain their existing revision and retry guards.
+
 ## History and project files
 
 `apply_history` takes `sessionId`, `expectedRevision`, `requestId` and `direction` (`undo` or `redo`). It uses the same bounded retry cache as edits, returns the original response on a retry and rejects reused IDs with different input.
@@ -81,7 +89,7 @@ This first Phase 2 slice provides session selection, capability discovery, bound
 
 ## Resolved sequence reads
 
-`read_sequence_frame` takes an explicit `sessionId`, `playheadUs` and optional `offset`/`limit` (maximum 100). It returns the current revision, project frame/duration/settings and a page of active layers. Frame-snapped source positions support paused picture inspection; continuous playback positions and audio gains support the running sequence. A black gap has no visual layers. This read uses the same pure resolver as preview and does not change history.
+`read_sequence_frame` takes an explicit `sessionId`, `sequenceId` for multi-sequence projects, `playheadUs` and optional `offset`/`limit` (maximum 100). It returns the current revision, project frame/duration/settings and a page of active layers. Frame-snapped source positions support paused picture inspection; continuous playback positions and audio gains support the running sequence. A black gap has no visual layers. This read uses the same pure resolver as preview and does not change history.
 
 Source and music gain, mute and fades are exposed through the typed `update_item` patches advertised by `get_capabilities`. Time fields remain integer microseconds, and manual changes use the same guarded history as MCP edits.
 
