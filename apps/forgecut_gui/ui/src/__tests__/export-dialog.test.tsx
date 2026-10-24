@@ -5,7 +5,6 @@ import ExportDialog from "../components/ExportDialog";
 const api = vi.hoisted(() => ({
   invoke: vi.fn(),
   save: vi.fn(),
-  listen: vi.fn(async () => () => {}),
 }));
 vi.mock("../lib/bridge", () => api);
 

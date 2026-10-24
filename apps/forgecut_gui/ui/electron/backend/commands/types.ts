@@ -1,14 +1,7 @@
 import type { AppState } from "../state.js";
-import type { EventPayloads } from "../../shared/ipc-contract.js";
-
 export type CommandArgs = Record<string, unknown> | undefined;
-export type EventSink = <E extends keyof EventPayloads>(
-  event: E,
-  payload: EventPayloads[E],
-) => void;
 export type CommandContext = {
   state: AppState;
-  emit: EventSink;
   signal?: AbortSignal;
   onProgress?: (progress: number) => void;
 };

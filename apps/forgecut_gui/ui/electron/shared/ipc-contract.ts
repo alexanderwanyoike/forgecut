@@ -3,7 +3,7 @@ import type { JobSnapshot } from "./jobs.js";
  * Single source of truth for the renderer <-> main IPC surface.
  *
  * Imported by the Electron backend (runtime) and by the renderer bridge
- * (types only). Keep this file free of imports so both TypeScript projects
+ * (types only). Keep this file free of runtime imports so both TypeScript projects
  * can consume it unchanged. Field names are snake_case where they are
  * serialized into `.forgecut` project files.
  */
@@ -228,14 +228,6 @@ export type WaveformData = {
   samples_per_peak: number;
 };
 
-export type RenderProgress = {
-  percent: number;
-  frame: number;
-  fps: number;
-  speed: string;
-  eta_seconds: number | null;
-};
-
 /**
  * Every IPC command with its argument and result shape.
  * `args: undefined` means the command takes no arguments.
@@ -345,9 +337,15 @@ export type CommandMap = {
   get_clip_thumbnails: { args: { assetId: string }; result: Thumbnail[] };
   get_waveform: { args: { assetId: string }; result: WaveformData };
 
-  // Export (progress arrives via forgecut:event:export-progress events)
-  cancel_media_job: {args: {sessionId: string; jobId: string}; result: JobSnapshot};
-  get_media_job: {args: {sessionId: string; jobId: string}; result: JobSnapshot};
+  // Export jobs
+  cancel_media_job: {
+    args: { sessionId: string; jobId: string };
+    result: JobSnapshot;
+  };
+  get_media_job: {
+    args: { sessionId: string; jobId: string };
+    result: JobSnapshot;
+  };
   export_project: { args: { outputPath: string }; result: JobSnapshot };
 };
 
@@ -363,6 +361,9 @@ export type CommandResultOf<K extends CommandName> = CommandMap[K]["result"];
 export type EventPayloads = {
   "project-changed": ProjectSnapshot;
   "mcp-status": McpStatus;
-  "export-progress": RenderProgress;
-  "export-complete": { output_path: string };
 };
+
+export type EventSink = <E extends keyof EventPayloads>(
+  event: E,
+  payload: EventPayloads[E],
+) => void;

@@ -61,7 +61,6 @@ export function startMediaJob(
         "import_assets",
         { paths: request.paths },
         { sessionId: request.sessionId },
-        undefined,
         { signal, onProgress },
       );
       if (!imported.ok) return imported;

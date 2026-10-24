@@ -8,10 +8,10 @@ import { describe, expect, it } from "vitest";
 import { projectCommands } from "../commands/project";
 import { timelineCommands } from "../commands/timeline";
 import { AppState, type Asset, type Timeline } from "../state";
-import type { CommandContext } from "../ipc";
+import type { CommandContext } from "../commands/types";
 
 function context(state = new AppState()): CommandContext {
-  return { state, emit: () => {} };
+  return { state };
 }
 
 function videoAsset(overrides: Partial<Asset> = {}): Asset {

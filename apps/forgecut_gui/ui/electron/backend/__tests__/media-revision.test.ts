@@ -89,7 +89,6 @@ it("does not publish a cancelled media import", async () => {
       "import_assets",
       { paths: ["/cancelled.png"] },
       undefined,
-      undefined,
       { signal: controller.signal },
     ),
   ).toMatchObject({ ok: false, error: { code: "CANCELLED" } });

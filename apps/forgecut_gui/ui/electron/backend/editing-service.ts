@@ -23,16 +23,17 @@ import { exportCommands } from "./commands/export.js";
 import { mediaCommands } from "./commands/media.js";
 import { projectCommands } from "./commands/project.js";
 import { timelineCommands } from "./commands/timeline.js";
-import type {
-  CommandArgs,
-  CommandHandler,
-  EventSink,
-} from "./commands/types.js";
+import type { CommandArgs, CommandHandler } from "./commands/types.js";
 
 const handlers: Record<
   Exclude<
     CommandName,
-    "get_project_snapshot" | "apply_edits" | "apply_history" | "export_project" | "get_media_job" | "cancel_media_job"
+    | "get_project_snapshot"
+    | "apply_edits"
+    | "apply_history"
+    | "export_project"
+    | "get_media_job"
+    | "cancel_media_job"
   >,
   CommandHandler
 > = {
@@ -50,7 +51,7 @@ type CachedEdit = {
 export class EditingService {
   readonly jobs = new JobQueue();
 
-  private readonly handlers = {...handlers, ...exportCommands(this.jobs)};
+  private readonly handlers = { ...handlers, ...exportCommands(this.jobs) };
 
   private requests = new Map<string, CachedEdit>();
 
@@ -60,7 +61,6 @@ export class EditingService {
     command: string,
     input?: unknown,
     metadata?: unknown,
-    emit: EventSink = () => {},
     options: {
       signal?: AbortSignal;
       onProgress?: (progress: number) => void;
@@ -110,9 +110,14 @@ export class EditingService {
               ),
             )
           : undefined;
-        value = await this.handlers[command as keyof typeof handlers | "export_project" | "get_media_job" | "cancel_media_job" | "get_media_job" | "cancel_media_job"](args, {
+        value = await this.handlers[
+          command as
+            | keyof typeof handlers
+            | "export_project"
+            | "get_media_job"
+            | "cancel_media_job"
+        ](args, {
           state: this.state,
-          emit,
           ...options,
         });
         if (
@@ -247,7 +252,6 @@ export class EditingService {
       ) as CommandArgs;
       const result = this.handlers[operation.command](args, {
         state: draft,
-        emit: () => {},
       });
       if (result instanceof Promise)
         throw new Error("Asynchronous commands cannot be batched");

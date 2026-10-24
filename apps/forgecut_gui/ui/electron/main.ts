@@ -4,12 +4,10 @@ import { stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
-import type { EventSink } from "./backend/commands/types.js";
-import type { McpStatus } from "./shared/ipc-contract.js";
+import type { McpStatus, EventSink } from "./shared/ipc-contract.js";
 import { startLocalBridge } from "./mcp/local-bridge.js";
 import { AppState } from "./backend/state.js";
 import { EditingService } from "./backend/editing-service.js";
-import { dispatchCommand } from "./backend/ipc.js";
 import { mediaResponseInit } from "./backend/media-protocol.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -90,8 +88,8 @@ function createWindow(): void {
 
 ipcMain.handle(
   "forgecut:invoke",
-  (event, command: string, args: unknown, metadata: unknown) =>
-    dispatchCommand(event, editing, command, args, metadata),
+  (_event, command: string, args: unknown, metadata: unknown) =>
+    editing.execute(command, args, metadata),
 );
 
 ipcMain.handle(

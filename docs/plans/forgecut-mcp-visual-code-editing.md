@@ -24,16 +24,16 @@ Embedded chat, cloud collaboration, a full VS Code workbench, unrestricted packa
 
 The implementation starts from these repository modules:
 
-| Area                     | Existing location                                                     | Implication                                                                                                                                                |
-| ------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Domain and command types | `apps/forgecut_gui/ui/electron/shared/ipc-contract.ts`                | Retain UUIDs, snake_case serialized fields, tagged variants and microsecond times                                                                          |
-| Project and history      | `apps/forgecut_gui/ui/electron/backend/state.ts`                      | History snapshots currently cover only the timeline; mutations happen on live state before validation finishes                                             |
-| Command dispatch         | `apps/forgecut_gui/ui/electron/backend/ipc.ts` and `commands/`        | Reuse domain operations, but remove transport dependence on Electron events and `WebContents`                                                              |
-| Editing rules            | `apps/forgecut_gui/ui/electron/backend/timeline-ops.ts`               | Preserve pure domain logic and strengthen invariants and rollback                                                                                          |
-| Playback                 | `apps/forgecut_gui/ui/src/hooks/usePlayback.ts`                       | Add a sequence clock, complete audio playback and project-change subscriptions                                                                             |
-| Graphics controls        | `apps/forgecut_gui/ui/src/components/Inspector.tsx` and `Preview.tsx` | Extend the current basic text/image controls with typed properties and canvas selection                                                                    |
-| Export                   | `apps/forgecut_gui/ui/electron/backend/exporter.ts`                   | Primary clips currently concatenate irrespective of gaps; additional video tracks use fixed PiP placement; every primary input is assumed to contain audio |
-| Packaging                | `apps/forgecut_gui/ui/electron-builder.yml`                           | Explicitly package the MCP executable, component sources, compiler workers, fonts and rendering dependencies                                               |
+| Area                     | Existing location                                                          | Implication                                                                                                                                                |
+| ------------------------ | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domain and command types | `apps/forgecut_gui/ui/electron/shared/ipc-contract.ts`                     | Retain UUIDs, snake_case serialized fields, tagged variants and microsecond times                                                                          |
+| Project and history      | `apps/forgecut_gui/ui/electron/backend/state.ts`                           | History snapshots currently cover only the timeline; mutations happen on live state before validation finishes                                             |
+| Command dispatch         | `apps/forgecut_gui/ui/electron/backend/editing-service.ts` and `commands/` | Reuse domain operations, but remove transport dependence on Electron events and `WebContents`                                                              |
+| Editing rules            | `apps/forgecut_gui/ui/electron/backend/timeline-ops.ts`                    | Preserve pure domain logic and strengthen invariants and rollback                                                                                          |
+| Playback                 | `apps/forgecut_gui/ui/src/hooks/usePlayback.ts`                            | Add a sequence clock, complete audio playback and project-change subscriptions                                                                             |
+| Graphics controls        | `apps/forgecut_gui/ui/src/components/Inspector.tsx` and `Preview.tsx`      | Extend the current basic text/image controls with typed properties and canvas selection                                                                    |
+| Export                   | `apps/forgecut_gui/ui/electron/backend/exporter.ts`                        | Primary clips currently concatenate irrespective of gaps; additional video tracks use fixed PiP placement; every primary input is assumed to contain audio |
+| Packaging                | `apps/forgecut_gui/ui/electron-builder.yml`                                | Explicitly package the MCP executable, component sources, compiler workers, fonts and rendering dependencies                                               |
 
 There is no existing MCP server, Remotion runtime or embedded code editor in the package manifest. Existing project loading casts parsed JSON without a versioned validation/migration boundary. These are planned changes, not existing capabilities.
 
@@ -129,7 +129,7 @@ Acceptance and tests:
 - Legacy projects migrate, save and reopen; invalid/future formats fail with actionable errors and preserve the current open project.
 - Interrupted saves retain a valid recoverable project.
 
-Primary touchpoints: `state.ts`, `ipc.ts`, `commands/`, `timeline-ops.ts`, `ipc-contract.ts`, renderer subscriptions and project-load tests.
+Primary touchpoints: `state.ts`, `editing-service.ts`, `commands/`, `timeline-ops.ts`, `ipc-contract.ts`, renderer subscriptions and project-load tests.
 
 ## Phase 2 Live MCP editing
 

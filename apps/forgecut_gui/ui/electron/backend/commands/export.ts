@@ -7,21 +7,42 @@ import { requiredString, type CommandRegistry } from "./types.js";
 export function exportCommands(jobs: JobQueue) {
   return {
     cancel_media_job: (args) => {
-      const result = jobs.cancel(requiredString(args, "jobId"), requiredString(args, "sessionId"));
+      const result = jobs.cancel(
+        requiredString(args, "jobId"),
+        requiredString(args, "sessionId"),
+      );
       if (!result.ok) {
         let code: "COMMITTING" | "PROJECT_CHANGED" | "NOT_FOUND" = "NOT_FOUND";
-        if (result.error.code === "COMMITTING" || result.error.code === "PROJECT_CHANGED") code = result.error.code;
+        if (
+          result.error.code === "COMMITTING" ||
+          result.error.code === "PROJECT_CHANGED"
+        )
+          code = result.error.code;
         throw new EditingError(code, result.error.message);
       }
       return result.value;
     },
     get_media_job: (args) => {
-      const result = jobs.read(requiredString(args, "jobId"), requiredString(args, "sessionId"));
-      if (!result.ok) throw new EditingError(result.error.code === "PROJECT_CHANGED" ? "PROJECT_CHANGED" : "NOT_FOUND", result.error.message);
+      const result = jobs.read(
+        requiredString(args, "jobId"),
+        requiredString(args, "sessionId"),
+      );
+      if (!result.ok)
+        throw new EditingError(
+          result.error.code === "PROJECT_CHANGED"
+            ? "PROJECT_CHANGED"
+            : "NOT_FOUND",
+          result.error.message,
+        );
       return result.value;
     },
-    export_project: (args, {state, emit}) => {
-      const result = startExportJob(state, jobs, {sessionId: state.sessionId, expectedRevision: state.revision, requestId: randomUUID(), outputPath: requiredString(args, "outputPath")}, progress => emit("export-progress", progress));
+    export_project: (args, { state }) => {
+      const result = startExportJob(state, jobs, {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        requestId: randomUUID(),
+        outputPath: requiredString(args, "outputPath"),
+      });
       if (!result.ok) throw new EditingError("IO_ERROR", result.error.message);
       return result.value;
     },
