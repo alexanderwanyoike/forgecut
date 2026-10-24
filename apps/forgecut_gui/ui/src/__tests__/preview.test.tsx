@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -178,6 +179,25 @@ describe("Preview component", () => {
     rerender(<Preview {...props} project={next} projectVersion={1} />);
     fireEvent.loadedMetadata(old);
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  });
+  it("does not report a play request interrupted by a normal pause", async () => {
+    let rejectPlay: (error: Error) => void = () => {};
+    vi.mocked(HTMLMediaElement.prototype.play).mockImplementation(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectPlay = reject;
+        }),
+    );
+    const project = videoProject();
+    const { rerender } = render(
+      <Preview {...idle} project={project} playing />,
+    );
+    rerender(<Preview {...idle} project={project} playing={false} />);
+    await act(async () => {
+      rejectPlay(new DOMException("Interrupted by pause", "AbortError"));
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
   });
   it("replaces a removed item immediately when the owner publishes another snapshot", () => {
     const project = videoProject();
