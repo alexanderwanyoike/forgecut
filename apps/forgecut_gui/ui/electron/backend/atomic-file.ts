@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 
 export async function atomicWrite(
   path: string,
-  content: string,
+  content: string | Uint8Array,
 ): Promise<void> {
   const temporary = `${path}.${randomUUID()}.tmp`;
   try {

@@ -22,6 +22,7 @@ import { autosaveCommands } from "./commands/autosave.js";
 import { exportCommands } from "./commands/export.js";
 import { mediaCommands } from "./commands/media.js";
 import { projectCommands } from "./commands/project.js";
+import { graphicResourceCommands } from "./commands/graphic-resources.js";
 import { graphicsCommands } from "./commands/graphics.js";
 import { timelineCommands } from "./commands/timeline.js";
 import type { CommandArgs, CommandHandler } from "./commands/types.js";
@@ -41,6 +42,7 @@ const handlers: Record<
   ...projectCommands,
   ...timelineCommands,
   ...graphicsCommands,
+  ...graphicResourceCommands,
   ...mediaCommands,
   ...autosaveCommands,
 };

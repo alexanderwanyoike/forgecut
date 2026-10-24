@@ -1,5 +1,5 @@
 import { access, mkdir, readFile, readdir, rm } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { dirname, extname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash, randomUUID } from "node:crypto";
 import type {
@@ -12,6 +12,10 @@ import type {
 import { itemData } from "./timeline-ops.js";
 import { SessionContext } from "./session-context.js";
 
+import {
+  saveGraphicResources,
+  loadGraphicResources,
+} from "./graphic-resource-persistence.js";
 import { atomicWrite, readIfPresent } from "./atomic-file.js";
 import { validateProject } from "./project-schema.js";
 import { EditingError } from "./editing-error.js";
@@ -140,8 +144,10 @@ export class AppState {
 
   saveProject(path: string): Promise<void> {
     const outputPath = ensureForgeCutExtension(path);
-    const content = `${JSON.stringify(validateProject(this.project), null, 2)}\n`;
+    const project = validateProject(this.project);
+    const content = `${JSON.stringify(project, null, 2)}\n`;
     const save = this.saveQueue.then(async () => {
+      await saveGraphicResources(project.resources ?? [], dirname(outputPath));
       const previous = await readIfPresent(outputPath);
       if (previous !== undefined) {
         // A corrupt primary must not replace the last known valid recovery file.
@@ -166,6 +172,7 @@ export class AppState {
       "utf8",
     );
     const project = validateProject(JSON.parse(content));
+    await loadGraphicResources(project.resources ?? [], dirname(path));
     const missing = new Set<string>();
     await Promise.all(
       project.assets.map(async (asset) => {
@@ -335,6 +342,7 @@ export class AppState {
 function createProject(name: string): Project {
   return {
     schema_version: 2,
+    resources: [],
     components: [],
     id: randomUUID(),
     name,
