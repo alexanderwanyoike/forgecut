@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { expect, it } from "vitest";
 import { AppState } from "../state";
 import { EditingService } from "../editing-service";
+import { dispatchLocal } from "../../mcp/dispatch";
 
 it("creates an editable title with a pinned component version and keeps instance edits separate from source", async () => {
   const directory = await mkdtemp(join(tmpdir(), "forgecut-graphics-"));
@@ -105,4 +106,18 @@ it("creates an editable title with a pinned component version and keeps instance
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+it("rejects a project switch before an asynchronous graphics read can return a new session identity", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  const reading = dispatchLocal(service, {
+    action: "templates",
+    sessionId: state.sessionId,
+  });
+  queueMicrotask(() => state.createProject());
+  expect(await reading).toMatchObject({
+    ok: false,
+    error: { code: "PROJECT_CHANGED" },
+  });
 });
