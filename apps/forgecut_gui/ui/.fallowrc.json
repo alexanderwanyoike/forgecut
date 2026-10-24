@@ -5,7 +5,8 @@
     "electron/preload.cts",
     "electron/scripts/*.mjs",
     "electron/mcp/stdio.ts",
-    "electron/graphics/*.tsx"
+    "electron/graphics/*.tsx",
+    "electron/source/worker.ts"
   ],
   "ignorePatterns": ["dist-installers/**"],
   "health": {
@@ -31,6 +32,10 @@
       {
         "name": "domain",
         "patterns": ["electron/domain/**"]
+      },
+      {
+        "name": "compiler",
+        "patterns": ["electron/source/**"]
       },
       {
         "name": "graphics",
@@ -88,6 +93,10 @@
         "from": "graphics",
         "allow": [],
         "allowTypeOnly": ["contract"]
+      },
+      {
+        "from": "compiler",
+        "allow": ["contract"]
       }
     ],
     "coverage": {

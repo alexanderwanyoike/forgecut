@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { graphicPackages } from "../shared/graphic-source.js";
+import { sourceCheckRequestSchema } from "./source-schema.js";
 import {
   resourceRequestSchema,
   exportRequestSchema,
@@ -20,6 +22,13 @@ export const editingCapabilities = {
     graphicResourcesPerPage: 20,
     graphicResourceBytes: 8 * 1024 * 1024,
     messageBytes: MAX_MESSAGE_BYTES,
+  },
+  sourceChecks: {
+    request: z.toJSONSchema(sourceCheckRequestSchema),
+    packages: graphicPackages,
+    maxFiles: 32,
+    maxSourceBytes: 524288,
+    timeoutMs: 15000,
   },
   history: z.toJSONSchema(historyRequestSchema),
   jobs: {

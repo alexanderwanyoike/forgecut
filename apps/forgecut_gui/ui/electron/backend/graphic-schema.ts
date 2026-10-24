@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { graphicSourceSchema } from "../shared/graphic-source-schema.js";
 
 export const graphicValueSchema = z.union([
   z.string().max(32768),
@@ -56,14 +57,6 @@ const property = z.discriminatedUnion("type", [
     default: z.boolean(),
   }),
 ]);
-const fileName = z
-  .string()
-  .min(1)
-  .max(256)
-  .regex(/^[a-z\d_.-]+(?:\/[a-z\d_.-]+)*$/i)
-  .refine((path) =>
-    path.split("/").every((part) => part !== ".." && part !== "."),
-  );
 export const graphicComponentSchema = z.strictObject({
   id: z.uuid(),
   template_id: key,
@@ -73,20 +66,7 @@ export const graphicComponentSchema = z.strictObject({
     width: z.number().positive().int().max(16384),
     height: z.number().positive().int().max(16384),
   }),
-  source: z.strictObject({
-    entry: fileName,
-    files: z
-      .record(fileName, z.string().max(131072))
-      .refine(
-        (files) =>
-          Object.keys(files).length > 0 &&
-          Object.keys(files).length <= 32 &&
-          Object.values(files).reduce(
-            (sum, content) => sum + Buffer.byteLength(content),
-            0,
-          ) <= 524288,
-      ),
-  }),
+  source: graphicSourceSchema,
   dependencies: z.strictObject({
     packages: z.record(key, z.string().min(1).max(128)),
     assets: z.array(z.string()).max(100),

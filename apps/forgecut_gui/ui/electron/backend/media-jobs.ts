@@ -1,3 +1,5 @@
+import type { GraphicCompilation } from "../shared/graphic-source.js";
+import type { GraphicComponent } from "../shared/graphics.js";
 import type {
   GraphicResource,
   GraphicResourceImport,
@@ -11,6 +13,7 @@ type MediaJobRequest = {
   expectedRevision: number;
   requestId: string;
 } & (
+  | { action: "source-check"; source: GraphicComponent["source"] }
   | { action: "import"; paths: string[] }
   | { action: "frame"; assetId: string; timeUs: number }
   | {
@@ -30,8 +33,16 @@ export function startMediaJob(
       sessionId: request.sessionId,
       projectRevision: request.expectedRevision,
       requestId: request.requestId,
-      kind: request.action === "resource" ? "import" : request.action,
+      kind: (
+        {
+          "source-check": "compile",
+          resource: "import",
+          frame: "frame",
+          import: "import",
+        } as const
+      )[request.action],
       label: {
+        "source-check": "Check graphic source",
         frame: "Source frame",
         import: "Import media",
         resource: "Import graphic resource",
@@ -56,6 +67,19 @@ export function startMediaJob(
               "The project changed before the media job started. Read it again and retry.",
           },
         };
+      if (request.action === "source-check") {
+        const checked = await service.execute(
+          "check_graphic_source",
+          { source: request.source },
+          { sessionId: request.sessionId },
+          { signal },
+        );
+        if (!checked.ok) return checked;
+        const compilation = checked.value as GraphicCompilation;
+        return compilation.ok
+          ? { ok: true, value: { valid: true, diagnostics: [] } }
+          : compilation;
+      }
       if (request.action === "frame") {
         const asset = state.project.assets.find(
           (candidate) => candidate.id === request.assetId,
