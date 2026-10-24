@@ -4,8 +4,8 @@
   margin: auto;
   padding: 0;
   color: var(--text-primary);
-  background: var(--panel-bg);
-  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
   border-radius: 10px;
   box-shadow: 0 24px 72px rgb(0 0 0 / 35%);
 }
@@ -25,7 +25,7 @@
 .credits-header {
   justify-content: space-between;
   padding: 18px 24px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
 }
 .credits-header h2 {
   margin: 0;
@@ -57,7 +57,7 @@
 .credit-picker {
   padding-bottom: 20px;
   margin-bottom: 20px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
 }
 .credit-form {
   display: grid;
