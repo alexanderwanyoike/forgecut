@@ -125,6 +125,7 @@ export type ProjectSnapshot = {
 };
 
 export type EditErrorCode =
+  | "CANCELLED"
   | "INVALID_INPUT"
   | "CONFLICT"
   | "PROJECT_CHANGED"
