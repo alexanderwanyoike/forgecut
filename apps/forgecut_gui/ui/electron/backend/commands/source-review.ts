@@ -16,7 +16,7 @@ export const sourceReviewCommands = {
       args as CommandMap["start_source_review"]["args"],
     );
     if (!result.ok) {
-      const code = result.error.code;
+      const { code } = result.error;
       throw new EditingError(
         code === "REQUEST_REUSED" ||
           code === "QUEUE_FULL" ||
