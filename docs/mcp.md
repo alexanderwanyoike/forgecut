@@ -26,6 +26,12 @@ Submit `apply_edits` with the current identity, expected revision, a unique requ
 
 If an instance disappears, tools return `UNAVAILABLE`. List sessions and explicitly attach again. Opening another project changes its project session identity; reads and writes using the old identity fail. Local credentials are never returned by MCP tools.
 
+## History and project files
+
+`apply_history` takes `sessionId`, `expectedRevision`, `requestId` and `direction` (`undo` or `redo`). It uses the same bounded retry cache as edits, returns the original response on a retry and rejects reused IDs with different input.
+
+`save_project` and `open_project` require the current session identity, expected revision and an absolute project path. Saving captures a snapshot before waiting for file I/O and returns the saved revision, which may precede later edits. It preserves the existing atomic save/recovery behavior. Opening validates the file before replacing the owner and returns a new project session identity. A failed open preserves the current project, and concurrent edits during loading reject replacement. File errors use structured `IO_ERROR` results.
+
 ## Packaged adapter
 
 Packaging copies `mcp-adapter.cjs` and `mcp-notices.txt` into the installation's resources directory, beside `app.asar`. The standalone CommonJS adapter contains its JavaScript dependencies. Start it with Node 22, passing the absolute path to `resources/mcp-adapter.cjs`; its working directory does not need to contain the source checkout. Build dependencies are not duplicated in the installed application's Node modules.
@@ -43,6 +49,6 @@ The default registry is `$XDG_CONFIG_HOME/forgecut/mcp-sessions`, falling back t
 
 ## Scope and verification
 
-This first Phase 2 slice provides session selection, capability discovery, bounded project reads and live guarded edit batches. MCP history commands, save/load controls, editing-context reads, visible connection/action status and cancellable media jobs are the next Phase 2 slice. These tools are not advertised yet.
+This first Phase 2 slice provides session selection, capability discovery, bounded project reads and live guarded edit batches. Guarded `apply_history`, `save_project` and `open_project` controls are also available. Editing-context reads, visible connection/action status and cancellable media jobs remain before Phase 2 acceptance; those tools are not advertised yet.
 
 `yarn --cwd apps/forgecut_gui/ui test` exercises the real local bridge and official SDK. `yarn --cwd apps/forgecut_gui/ui verify:electron` additionally starts a real STDIO child with an isolated copy of the adapter bundle, edits Electron's project and checks the rendered project name. Use Xvfb on headless Linux and an isolated Vite port when another development server is running. This checks the built adapter and development Electron application; full installer validation remains a separate check. Windows/macOS runtime transport has not been manually verified here.
