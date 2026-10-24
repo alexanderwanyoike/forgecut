@@ -94,3 +94,44 @@ it("selects a layer and edits visibility locking and order without changing sour
     ),
   );
 });
+
+it("disables locked bindings even when viewing all properties", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  await service.execute("add_graphic_item", {
+    templateId: "title-card",
+    trackId: "graphics",
+    timelineStartUs: 0,
+    durationUs: 1000000,
+  });
+  const item = state.project.timeline.tracks[0].items[0];
+  if (!("RemotionGraphic" in item)) throw new Error("Missing graphic");
+  await service.execute("update_item", {
+    itemId: item.RemotionGraphic.id,
+    patch: {
+      kind: "RemotionGraphic",
+      changes: {
+        layer_states: {
+          [state.project.components![0].layers[1].id]: { locked: true },
+        },
+      },
+    },
+  });
+  render(
+    <Inspector
+      project={state.project}
+      selectedClipId={item.RemotionGraphic.id}
+    />,
+  );
+  expect(
+    (screen.getByLabelText("Title").closest("fieldset") as HTMLFieldSetElement)
+      .disabled,
+  ).toBe(true);
+  expect(
+    (
+      screen
+        .getByLabelText("Background opacity")
+        .closest("fieldset") as HTMLFieldSetElement
+    ).disabled,
+  ).toBe(false);
+});
