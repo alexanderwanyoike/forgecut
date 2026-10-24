@@ -66,3 +66,61 @@ it.each([
   },
   20000,
 );
+
+it.each(["main.js", "main.jsx"])(
+  "checks accepted executable workspace file %s",
+  async (entry) => {
+    const state = new AppState();
+    const service = new EditingService(state);
+    expect(
+      await service.execute("check_graphic_source", {
+        source: {
+          entry,
+          files: {
+            [entry]:
+              'const color: number = "red"; export default function Card(){return <div>{color}</div>}',
+          },
+        },
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        ok: false,
+        error: {
+          diagnostics: expect.arrayContaining([
+            expect.objectContaining({ file: entry, line: 1 }),
+          ]),
+        },
+      },
+    });
+  },
+  20000,
+);
+it("rejects unresolved dynamic imports with located diagnostics", async () => {
+  const service = new EditingService(new AppState());
+  expect(
+    await service.execute("check_graphic_source", {
+      source: {
+        entry: "main.tsx",
+        files: {
+          "main.tsx":
+            "const path=globalThis.location.hash.slice(1); void import(path); export default function Card(){return <div/>}",
+        },
+      },
+    }),
+  ).toMatchObject({
+    ok: true,
+    value: {
+      ok: false,
+      error: {
+        diagnostics: expect.arrayContaining([
+          expect.objectContaining({
+            file: "main.tsx",
+            line: 1,
+            message: expect.stringContaining("literal"),
+          }),
+        ]),
+      },
+    },
+  });
+}, 20000);
