@@ -29,8 +29,8 @@ export default function CreditsDialog({
       type: "resource" as const,
     })),
   ];
-  const [selectedId, setSelectedId] = useState(entries[0]?.id ?? "");
-  const target = entries.find((value) => value.id === selectedId);
+  const [selected, setSelected] = useState(entries[0]);
+  const target = entries.find((value) => value.id === selected?.id);
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
@@ -57,13 +57,22 @@ export default function CreditsDialog({
         <p className="credits-intro">
           Keep the source, permission and attribution with your project.
         </p>
-        {entries.length > 0 ? (
+        {entries.length > 0 || selected ? (
           <label className="credit-picker">
             Credit for
             <select
-              value={selectedId}
-              onChange={(event) => setSelectedId(event.target.value)}
+              value={selected?.id ?? ""}
+              onChange={(event) =>
+                setSelected(
+                  entries.find((value) => value.id === event.target.value),
+                )
+              }
             >
+              {!target && (
+                <option value={selected?.id ?? ""}>
+                  {selected ? `${selected.name} (unavailable)` : "Choose media"}
+                </option>
+              )}
               {entries.map((value) => (
                 <option key={value.id} value={value.id}>
                   {value.name} · {value.kind}
@@ -74,8 +83,13 @@ export default function CreditsDialog({
         ) : (
           <p>Import media to record its credits.</p>
         )}
-        {target && (
-          <CreditForm key={target.id} snapshot={snapshot} target={target} />
+        {selected && (
+          <CreditForm
+            key={selected.id}
+            snapshot={snapshot}
+            target={target ?? selected}
+            available={!!target}
+          />
         )}
       </div>
     </dialog>

@@ -17,9 +17,11 @@ export type CreditTarget = {
 export default function CreditForm({
   snapshot,
   target,
+  available,
 }: {
   snapshot: ProjectSnapshot;
   target: CreditTarget;
+  available: boolean;
 }) {
   const [draft, setDraft] = useState<ResourceLicense>(
     target.license ?? { identifier: "", text: "" },
@@ -35,7 +37,7 @@ export default function CreditForm({
     setMessage("");
   };
   const commit = async (license: ResourceLicense | null) => {
-    if (changed) return;
+    if (changed || !available) return;
     let operation: EditOperation;
     if (target.type === "asset")
       operation = {
@@ -131,7 +133,12 @@ export default function CreditForm({
           onChange={(event) => set("text", event.target.value)}
         />
       </label>
-      {changed && (
+      {!available && (
+        <p role="alert">
+          This media is no longer available. Choose another credit above.
+        </p>
+      )}
+      {available && changed && (
         <div className="credit-conflict" role="alert">
           <p>Credits changed elsewhere. Reload before saving.</p>
           <ActionButton
@@ -155,14 +162,16 @@ export default function CreditForm({
           type="submit"
           icon={Save}
           className="primary-action"
-          disabled={busy || changed || !draft.identifier || !draft.text}
+          disabled={
+            busy || changed || !available || !draft.identifier || !draft.text
+          }
         >
           Save credits
         </ActionButton>
         {target.type === "asset" && target.license && (
           <ActionButton
             icon={Trash2}
-            disabled={busy || changed}
+            disabled={busy || changed || !available}
             onClick={() => {
               void commit(null);
             }}
