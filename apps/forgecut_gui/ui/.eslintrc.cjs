@@ -24,6 +24,16 @@ module.exports = {
     "**/__tests__/**",
     "electron/scripts/",
   ],
+  overrides: [
+    {
+      files: ["electron/graphics/runtime/compiled-component.tsx"],
+      // The execution zone is loaded only by the restricted graphics worker.
+      rules: {
+        "no-new-func": "off",
+        "@typescript-eslint/no-implied-eval": "off",
+      },
+    },
+  ],
   rules: {
     "@typescript-eslint/no-explicit-any": "error",
     "no-use-before-define": "off",

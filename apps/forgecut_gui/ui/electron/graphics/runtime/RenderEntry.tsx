@@ -1,15 +1,22 @@
+import { useMemo } from "react";
 import { Composition, registerRoot } from "remotion";
-import TitleCard, { type TitleCardProps } from "./TitleCard";
+import { compiledComponent } from "./compiled-component";
+import TitleCard, { type TitleCardProps } from "../TitleCard";
 
 type Input = TitleCardProps & {
+  code?: string;
   width: number;
   height: number;
   fps: number;
   duration: number;
 };
-function Graphic({ values, resources, layerStates }: Input) {
+function Graphic({ values, resources, layerStates, code }: Input) {
+  const Component = useMemo(
+    () => (code ? compiledComponent(code) : TitleCard),
+    [code],
+  );
   return (
-    <TitleCard
+    <Component
       values={values}
       resources={resources}
       layerStates={layerStates}

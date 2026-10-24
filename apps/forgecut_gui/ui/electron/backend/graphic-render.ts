@@ -36,6 +36,11 @@ export async function renderGraphic(
     };
   const path = join(directory, "graphic-job.json");
   await writeFile(path, JSON.stringify(job));
-  const rendered = await runGraphicWorker(runtime, path, signal);
+  const rendered = await runGraphicWorker(
+    runtime,
+    path,
+    signal,
+    job.code !== undefined,
+  );
   return rendered.ok ? { ok: true, value: job.output } : rendered;
 }
