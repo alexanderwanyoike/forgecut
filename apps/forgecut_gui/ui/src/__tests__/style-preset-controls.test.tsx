@@ -129,6 +129,13 @@ it("replaces a saved look from the current graphic and undoes it without changin
     name: "Updated card",
   });
   expect(state.project.timeline).toEqual(before.project.timeline);
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Replace style" })).toBeNull(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save project style" }));
+  const reopened = await screen.findByRole("button", { name: "Replace style" });
+  expect((reopened as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   fireEvent.click(screen.getByRole("button", { name: "Undo" }));
   await waitFor(() => expect(state.project).toEqual(before.project));
 });
