@@ -17,3 +17,9 @@ Allow at most 32 sequences including the default. Reuse one timeline/settings sc
 ## Verification
 
 Maintained tests cover all three legacy input forms, stable migration identities, missing media references and duplicate identities in additional sequences. A public AppState save/reopen workflow retains sequence names, dimensions, markers and item content. Existing atomic-file recovery checks now expect the current format 3.
+
+## Shared sequence commands
+
+Native create, list, rename and delete commands use stable sequence IDs. Creation generates a UUID and inherits project settings unless the request supplies overrides. The list response contains identity, name and settings; timelines remain available through project/timeline reads. Default-sequence deletion is rejected, and deleting an additional sequence retains shared assets and component/resource definitions.
+
+Creation, renaming and deletion participate in the existing guarded batch and project history. One batch renaming several sequences creates one revision and one undo action. The editing service returns each native handler's declared result after publishing its validated working copy, allowing creation to return the new sequence identity. No additional state owner or history store is introduced.
