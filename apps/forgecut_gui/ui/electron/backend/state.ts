@@ -17,6 +17,8 @@ import type {
 } from "../shared/ipc-contract.js";
 import { itemData } from "./timeline-ops.js";
 import { SessionContext } from "./session-context.js";
+import { ProjectHistory } from "./project-history.js";
+import type { HistoryChange, HistoryLimits } from "./project-history.js";
 
 import {
   saveGraphicResources,
@@ -44,20 +46,7 @@ export type {
   Track,
 } from "../shared/ipc-contract.js";
 
-type ProjectSnapshotEntry = {
-  before: Project;
-  after: Project;
-  group?: string;
-  sequenceId?: string;
-  bytes: number;
-};
-
-type ChangeOptions = {
-  group?: string;
-  availablePaths?: string[];
-  sequenceId?: string;
-};
-type HistoryLimits = { count?: number; bytes?: number };
+type ChangeOptions = HistoryChange & { availablePaths?: string[] };
 
 export class AppState {
   private context = new SessionContext();
@@ -72,9 +61,7 @@ export class AppState {
 
   revision = 0;
 
-  private undoStack: ProjectSnapshotEntry[] = [];
-
-  private redoStack: ProjectSnapshotEntry[] = [];
+  private readonly history: ProjectHistory;
 
   private listeners = new Set<(snapshot: ProjectSnapshot) => void>();
 
@@ -82,16 +69,11 @@ export class AppState {
 
   private saveQueue: Promise<void> = Promise.resolve();
 
-  private readonly maxHistorySize: number;
-
-  private readonly maxHistoryBytes: number;
-
   constructor(limits: HistoryLimits = {}, initialProject?: Project) {
     if (initialProject)
       this.currentProject = freezeProject(validateProject(initialProject));
     this.context.selectSequence(projectSequences(this.project)[0].id);
-    this.maxHistorySize = limits.count ?? 100;
-    this.maxHistoryBytes = limits.bytes ?? 32 * 1024 * 1024;
+    this.history = new ProjectHistory(limits);
   }
 
   get activeSequence(): ProjectSequence {
@@ -128,25 +110,19 @@ export class AppState {
   }
 
   get undoSequenceId(): string | undefined {
-    return this.undoStack.at(-1)?.sequenceId;
+    return this.history.undoSequenceId;
   }
 
   get redoSequenceId(): string | undefined {
-    return this.redoStack.at(-1)?.sequenceId;
+    return this.history.redoSequenceId;
   }
 
   get canUndo(): boolean {
-    return (
-      this.undoStack.length > 0 &&
-      (!this.undoSequenceId || this.undoSequenceId === this.activeSequence.id)
-    );
+    return this.history.canUndo(this.activeSequence.id);
   }
 
   get canRedo(): boolean {
-    return (
-      this.redoStack.length > 0 &&
-      (!this.redoSequenceId || this.redoSequenceId === this.activeSequence.id)
-    );
+    return this.history.canRedo(this.activeSequence.id);
   }
 
   getEditingContext(): EditingContext {
@@ -307,29 +283,9 @@ export class AppState {
       }
       return this.project;
     }
-    const previous = this.undoStack.at(-1);
-    const entryBefore =
-      options.group &&
-      previous?.group === options.group &&
-      previous.sequenceId === options.sequenceId &&
-      this.redoStack.length === 0
-        ? previous.before
-        : before;
-    const entry = {
-      before: structuredClone(entryBefore),
-      after: structuredClone(after),
-      group: options.group,
-      sequenceId: options.sequenceId,
-      bytes:
-        Buffer.byteLength(JSON.stringify(entryBefore)) +
-        Buffer.byteLength(JSON.stringify(after)),
-    };
-    if (entryBefore !== before) this.undoStack.pop();
-    this.undoStack.push(entry);
-    this.redoStack = [];
+    this.history.record(before, after, options);
     this.currentProject = freezeProject(after);
     options.availablePaths?.forEach((path) => this.missingMedia.delete(path));
-    this.trimHistory();
     this.changed();
     return this.project;
   }
@@ -346,31 +302,19 @@ export class AppState {
   }
 
   undo(sequenceId = this.activeSequence.id): Timeline {
-    const entry = this.undoStack.at(-1);
-    if (!entry) throw new EditingError("NOTHING_TO_UNDO", "Nothing to undo");
-    if (entry.sequenceId && entry.sequenceId !== sequenceId)
-      throw new EditingError(
-        "CONFLICT",
-        "This history action belongs to a different sequence",
-      );
-    this.undoStack.pop();
-    this.currentProject = freezeProject(structuredClone(entry.before));
-    this.redoStack.push({ ...entry, group: undefined });
+    const restored = this.history.undo(sequenceId);
+    if (!restored.ok)
+      throw new EditingError(restored.error.code, restored.error.message);
+    this.currentProject = freezeProject(restored.value);
     this.changed();
     return this.activeSequence.timeline;
   }
 
   redo(sequenceId = this.activeSequence.id): Timeline {
-    const entry = this.redoStack.at(-1);
-    if (!entry) throw new EditingError("NOTHING_TO_UNDO", "Nothing to redo");
-    if (entry.sequenceId && entry.sequenceId !== sequenceId)
-      throw new EditingError(
-        "CONFLICT",
-        "This history action belongs to a different sequence",
-      );
-    this.redoStack.pop();
-    this.currentProject = freezeProject(structuredClone(entry.after));
-    this.undoStack.push({ ...entry, group: undefined });
+    const restored = this.history.redo(sequenceId);
+    if (!restored.ok)
+      throw new EditingError(restored.error.code, restored.error.message);
+    this.currentProject = freezeProject(restored.value);
     this.changed();
     return this.activeSequence.timeline;
   }
@@ -400,19 +344,8 @@ export class AppState {
     this.currentProject = freezeProject(project);
     this.context.selectSequence(projectSequences(this.project)[0].id);
     this.sessionId = randomUUID();
-    this.undoStack = [];
-    this.redoStack = [];
+    this.history.clear();
     this.changed();
-  }
-
-  private trimHistory(): void {
-    let bytes = this.undoStack.reduce((total, entry) => total + entry.bytes, 0);
-    while (
-      this.undoStack.length > this.maxHistorySize ||
-      bytes > this.maxHistoryBytes
-    ) {
-      bytes -= this.undoStack.shift()!.bytes;
-    }
   }
 
   private selectedGraphicLayers(itemIds: string[]): Set<string> {
