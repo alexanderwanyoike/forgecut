@@ -278,6 +278,23 @@ export function useGraphicSourceDraft(
       clearInterval(timer);
     };
   }, [sessionId, itemId]);
+  useEffect(() => {
+    let closing = false;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (closing || (!pending.current && epoch.current === savedEpoch.current))
+        return;
+      event.preventDefault();
+      event.returnValue = "Saving source draft";
+      void flush().then((result) => {
+        if (result.ok) {
+          closing = true;
+          window.close();
+        }
+      });
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [sessionId, itemId]);
   return {
     draft,
     status,
