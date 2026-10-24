@@ -136,3 +136,38 @@ it.skipIf(
     }
   },
 );
+
+it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
+  "preserves the destination when final publication is declined",
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), "forgecut-publication-"));
+    try {
+      const outputPath = join(directory, "result.mp4");
+      await writeFile(outputPath, "existing export");
+      const state = new AppState();
+      const editing = new EditingService(state);
+      await editing.execute("update_project", {
+        settings: { width: 64, height: 36, fps: 10 },
+      });
+      await editing.execute("add_text_overlay", {
+        trackId: "titles",
+        timelineStartUs: 0,
+        durationUs: 1000000,
+        text: "Card",
+        fontSize: 10,
+        color: "#ffffff",
+        x: 0,
+        y: 0,
+      });
+      expect(
+        await exportProject(state.project, outputPath, {
+          beginCommit: () => false,
+        }),
+      ).toMatchObject({ ok: false, error: { code: "CANCELLED" } });
+      expect(await readFile(outputPath, "utf8")).toBe("existing export");
+      expect(await readdir(directory)).toEqual(["result.mp4"]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
