@@ -35,7 +35,10 @@ export const timelineCommands = {
       addItem(
         timeline,
         trackId,
-        createTimelineItem(asset, trackId, timelineStartUs),
+        createTimelineItem(asset, trackId, timelineStartUs, {
+          inUs: args?.sourceInUs as number | undefined,
+          outUs: args?.sourceOutUs as number | undefined,
+        }),
       );
     }),
   trim_clip: (args, { state }) =>
@@ -204,6 +207,7 @@ function createTimelineItem(
   asset: Asset,
   trackId: string,
   timelineStartUs: number,
+  range: { inUs?: number; outUs?: number },
 ): TimelineItem {
   const duration = asset.probe?.duration_us ?? 5_000_000;
   if (asset.kind === "Audio") {
@@ -213,13 +217,15 @@ function createTimelineItem(
         asset_id: asset.id,
         track_id: trackId,
         timeline_start_us: timelineStartUs,
-        source_in_us: 0,
-        source_out_us: duration,
+        source_in_us: range.inUs ?? 0,
+        source_out_us: range.outUs ?? duration,
         volume: 1,
       },
     };
   }
   if (asset.kind === "Image") {
+    if (range.inUs !== undefined || range.outUs !== undefined)
+      throw new Error("Source ranges require video or audio media");
     return {
       ImageOverlay: {
         id: randomUUID(),
@@ -241,8 +247,8 @@ function createTimelineItem(
       asset_id: asset.id,
       track_id: trackId,
       timeline_start_us: timelineStartUs,
-      source_in_us: 0,
-      source_out_us: duration,
+      source_in_us: range.inUs ?? 0,
+      source_out_us: range.outUs ?? duration,
     },
   };
 }
