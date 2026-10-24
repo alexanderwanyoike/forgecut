@@ -86,3 +86,12 @@ jobs:
         run: xvfb-run --auto-servernum yarn --cwd apps/forgecut_gui/ui verify:electron
         env:
           ELECTRON_DISABLE_SANDBOX: "1"
+
+      - name: Build unpacked desktop application
+        run: yarn --cwd apps/forgecut_gui/ui electron-builder --linux --dir --publish never
+
+      - name: Verify packaged desktop application
+        run: xvfb-run --auto-servernum yarn --cwd apps/forgecut_gui/ui verify:electron
+        env:
+          ELECTRON_DISABLE_SANDBOX: "1"
+          FORGECUT_VERIFY_EXECUTABLE: ${{ github.workspace }}/apps/forgecut_gui/ui/dist-installers/linux-unpacked/forgecut
