@@ -100,6 +100,7 @@ export default function SourceWorkspace({ snapshot, assetId, onClose }: Props) {
       <SourceMonitor asset={asset} onClose={onClose}>
         {asset && (
           <SourceReviewPanel
+            key={JSON.stringify([asset.path, asset.probe])}
             snapshot={snapshot}
             asset={asset}
             startUs={range.startUs}
