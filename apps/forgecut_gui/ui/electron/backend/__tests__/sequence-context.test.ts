@@ -260,3 +260,66 @@ it("rejects stale context writes after the human selects a different sequence", 
   await service.jobs.close();
   await service.closeGraphicsPreview();
 });
+it("targets chronological undo explicitly and never groups edits across sequences", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  await service.execute("create_sequence", { name: "Clip" });
+  const root = state.project.default_sequence!.id;
+  const clip = state.project.sequences![0].id;
+  const add = async (sequenceId: string, trackId: string, text: string) =>
+    service.execute("apply_edits", {
+      sessionId: state.sessionId,
+      expectedRevision: state.revision,
+      requestId: crypto.randomUUID(),
+      sequenceId,
+      editGroup: "typing",
+      operations: [
+        {
+          command: "add_text_overlay",
+          args: {
+            trackId,
+            timelineStartUs: 0,
+            durationUs: 1000000,
+            text,
+            fontSize: 48,
+            color: "#ffffff",
+            x: 10,
+            y: 20,
+          },
+        },
+      ],
+    });
+  expect(await add(root, "root-titles", "Root text")).toMatchObject({
+    ok: true,
+  });
+  expect(await add(clip, "clip-titles", "Clip text")).toMatchObject({
+    ok: true,
+  });
+  const before = state.snapshot();
+  expect(
+    await service.execute("undo", undefined, { sequenceId: root }),
+  ).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  expect(state.snapshot()).toEqual(before);
+  expect(before.canUndo).toBe(false);
+  expect(before.undoSequenceId).toBe(clip);
+  const history = async (sequenceId: string, direction: "undo" | "redo") =>
+    service.execute("apply_history", {
+      sessionId: state.sessionId,
+      expectedRevision: state.revision,
+      requestId: crypto.randomUUID(),
+      sequenceId,
+      direction,
+    });
+  expect(await history(clip, "undo")).toMatchObject({ ok: true });
+  expect(state.project.timeline.tracks[0].items).toHaveLength(1);
+  expect(state.project.sequences![0].timeline.tracks).toEqual([]);
+  expect(state.snapshot().activeSequenceId).toBe(root);
+  expect(await history(clip, "redo")).toMatchObject({ ok: true });
+  expect(state.project.sequences![0].timeline.tracks[0].items).toHaveLength(1);
+  expect(await history(clip, "undo")).toMatchObject({ ok: true });
+  expect(await history(root, "undo")).toMatchObject({ ok: true });
+  expect(state.project.timeline.tracks).toEqual([]);
+  expect(state.project.sequences).toHaveLength(1);
+  await service.jobs.close();
+  await service.closeGraphicsPreview();
+});
