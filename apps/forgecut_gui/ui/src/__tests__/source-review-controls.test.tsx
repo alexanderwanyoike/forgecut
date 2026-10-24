@@ -1,4 +1,3 @@
-import type { JobSnapshot } from "../../electron/shared/jobs";
 import { spawnSync } from "node:child_process";
 import { copyFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -11,6 +10,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import type { JobSnapshot } from "../../electron/shared/jobs";
 import type {
   CommandMetadata,
   CommandResponse,
