@@ -60,7 +60,7 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       const job = started.value as JobSnapshot;
       expect(
         await editing.execute("get_media_job", {
-          sessionId: state.sessionId,
+          sessionId: job.sessionId,
           jobId: job.id,
         }),
       ).toMatchObject({ ok: true, value: { id: job.id, status: "queued" } });

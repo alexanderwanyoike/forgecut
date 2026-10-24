@@ -95,7 +95,7 @@ function request<K extends CommandName>(
           code: response.error.code,
         });
       if (
-        !jobControl && response.revision < activeRevision &&
+        !jobControl && command !== "export_project" && response.revision < activeRevision &&
         (command.startsWith("get_") || response.sessionId !== activeSession)
       ) {
         throw Object.assign(

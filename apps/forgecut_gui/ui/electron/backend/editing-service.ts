@@ -122,7 +122,7 @@ export class EditingService {
           ...options,
         });
         if (
-          !jobControl && !["create_project", "load_project", "recover_project"].includes(
+          !jobControl && command !== "export_project" && !["create_project", "load_project", "recover_project"].includes(
             command,
           )
         )
