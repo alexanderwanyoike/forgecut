@@ -21,6 +21,15 @@ afterEach(async () => {
 async function fixture() {
   const value = await sequenceWorkspaceFixture();
   value.state.executeProjectChange((project) => {
+    project.resources!.push({
+      id: "00000000-0000-4000-8000-000000000051",
+      name: "Project font",
+      kind: "Font",
+      mime: "font/ttf",
+      sha256: "a".repeat(64),
+      path: `.forgecut-resources/${"a".repeat(64)}`,
+      license: { identifier: "OFL-1.1", text: "Original font notice" },
+    });
     project.assets.push({
       id: "music",
       name: "Low-profile heartbeat",
@@ -76,4 +85,28 @@ it("saves a music credit from the project menu and restores it through project u
   fireEvent.click(screen.getByRole("button", { name: "Undo" }));
   await waitFor(() => expect(state.project).toEqual(before));
   expect(await service.execute("redo")).toMatchObject({ ok: true });
+});
+
+it("updates a font attribution while retaining the imported font identity and notice", async () => {
+  const { state } = await fixture();
+  const original = structuredClone(state.project.resources![0]);
+  expect(
+    screen.getByRole("option", { name: "Project font · Font" }),
+  ).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Credit for"), {
+    target: { value: original.id },
+  });
+  expect(
+    (screen.getByLabelText("Licence / permission") as HTMLInputElement).value,
+  ).toBe("OFL-1.1");
+  fireEvent.change(screen.getByLabelText("Attribution"), {
+    target: { value: "Font designer" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save credits" }));
+  await waitFor(() =>
+    expect(state.project.resources![0]).toEqual({
+      ...original,
+      license: { ...original.license, attribution: "Font designer" },
+    }),
+  );
 });
