@@ -147,6 +147,7 @@ export type SequenceFrame = {
     trackIndex: number;
     asset: Asset | null;
     sourceTimeUs?: TimeUs;
+    playbackTimeUs?: TimeUs;
     audioGain?: number;
   }[];
 };

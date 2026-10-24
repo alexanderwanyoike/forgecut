@@ -31,7 +31,9 @@ export default function PreviewMedia(props: Props) {
     if (gain.current) props.mixer.setGain(gain.current, props.audioGain ?? 0);
     if (media.readyState < 1) return;
     const target = usToSeconds(props.timeUs);
-    const tolerance = props.playing ? Math.max(0.03, 1 / props.fps) : 0.001;
+    const tolerance = props.playing
+      ? Math.max(0.03, Math.min(0.05, 1 / props.fps))
+      : 0.001;
     if (Math.abs(media.currentTime - target) > tolerance)
       media.currentTime = target;
     if (!props.playing) media.pause();

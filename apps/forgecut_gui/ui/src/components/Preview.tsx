@@ -73,7 +73,11 @@ export default function Preview(props: PreviewProps) {
                   mixer={mixer}
                   audioGain={layer.audioGain}
                   path={asset.path}
-                  timeUs={layer.sourceTimeUs ?? 0}
+                  timeUs={
+                    (playback.playing
+                      ? layer.playbackTimeUs
+                      : layer.sourceTimeUs) ?? 0
+                  }
                   playing={playback.playing}
                   version={props.projectVersion}
                   fps={settings.fps}
@@ -96,7 +100,7 @@ export default function Preview(props: PreviewProps) {
                   audioOnly
                   audioGain={layer.audioGain}
                   path={asset.path}
-                  timeUs={layer.sourceTimeUs ?? 0}
+                  timeUs={layer.playbackTimeUs ?? 0}
                   playing={playback.playing}
                   version={props.projectVersion}
                   fps={settings.fps}

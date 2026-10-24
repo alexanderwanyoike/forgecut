@@ -2,6 +2,7 @@ import type {
   Project,
   SequenceFrame,
   TimelineItem,
+  TimelineItemDetail,
 } from "../shared/ipc-contract.js";
 import {
   assetIdOf,
@@ -55,13 +56,12 @@ export function resolveSequenceFrame(
       const range = itemFrameRange(item, fps);
       if (frame < range.start || frame >= range.end) return [];
       const data = itemData(item);
-      const sourceTimeUs =
-        "source_in_us" in data
-          ? Math.min(
-              data.source_out_us - 1,
-              data.source_in_us + frameTimeUs(frame - range.start, fps),
-            )
-          : undefined;
+      const elapsedUs = Math.max(0, playheadUs - frameTimeUs(range.start, fps));
+      const sourceTimeUs = sourceTimeAt(
+        data,
+        frameTimeUs(frame - range.start, fps),
+      );
+      const playbackTimeUs = sourceTimeAt(data, elapsedUs);
       const asset =
         project.assets.find((candidate) => candidate.id === assetIdOf(item)) ??
         null;
@@ -76,11 +76,12 @@ export function resolveSequenceFrame(
           audioGain: audible
             ? audioGainAt(
                 item,
-                frameTimeUs(frame - range.start, fps),
+                elapsedUs,
                 frameTimeUs(range.end - range.start, fps),
               )
             : undefined,
           sourceTimeUs,
+          playbackTimeUs,
         },
       ];
     }),
@@ -92,4 +93,13 @@ export function resolveSequenceFrame(
     settings: project.settings,
     layers,
   };
+}
+
+function sourceTimeAt(
+  data: TimelineItemDetail,
+  offsetUs: number,
+): number | undefined {
+  return "source_in_us" in data
+    ? Math.min(data.source_out_us - 1, data.source_in_us + offsetUs)
+    : undefined;
 }
