@@ -37,15 +37,22 @@ export const graphicsCommands = {
       const sx = project.settings.width / component.design_size.width;
       const sy = project.settings.height / component.design_size.height;
       for (const layer of component.layers) {
-        for (const [key, scale] of [
+        const scaled: [string, number][] = [
           [layer.bindings.x, sx],
           [layer.bindings.width, sx],
           [layer.bindings.y, sy],
           [layer.bindings.height, sy],
-          [layer.bindings.font_size, Math.min(sx, sy)],
-        ] as const) {
+        ];
+        if (layer.kind === "text")
+          scaled.push([layer.bindings.font_size, Math.min(sx, sy)]);
+        for (const [key, scale] of scaled) {
           const value = defaults[key];
-          if (typeof value === "number") defaults[key] = value * scale;
+          const property = component.properties[key];
+          if (typeof value === "number" && property.type === "number")
+            defaults[key] = Math.max(
+              property.min ?? -Infinity,
+              Math.min(property.max ?? Infinity, value * scale),
+            );
         }
       }
       const props = validateGraphicProperties(component, {

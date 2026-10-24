@@ -1,19 +1,19 @@
 import { useMemo, useState } from "react";
 import { loadFont } from "@remotion/fonts";
-import { interpolate, useCurrentFrame } from "remotion";
+import { Img, interpolate, useCurrentFrame } from "remotion";
 
 type GraphicValues = Record<string, string | number | boolean | null>;
 
-type FontResource = { url: string; sha256: string; mime: string };
+type ResourceInput = { url: string; sha256: string; mime: string };
 export type TitleCardProps = {
   values: GraphicValues;
-  resources?: Record<string, FontResource>;
+  resources?: Record<string, ResourceInput>;
 };
 const fontLoads = new Map<string, Promise<void>>();
-export function fontFamily(font: FontResource): string {
+export function fontFamily(font: ResourceInput): string {
   return `ForgeCut_${font.sha256}`;
 }
-export function prepareFont(font: FontResource): Promise<void> {
+export function prepareFont(font: ResourceInput): Promise<void> {
   let loading = fontLoads.get(font.sha256);
   if (!loading) {
     let format: "woff2" | "woff" | "opentype" | "truetype" = "truetype";
@@ -38,6 +38,9 @@ export default function TitleCard({ values, resources = {} }: TitleCardProps) {
   const frame = useCurrentFrame();
   const font =
     typeof values.font === "string" ? resources[values.font] : undefined;
+  const image =
+    typeof values.image === "string" ? resources[values.image] : undefined;
+  const [artworkError, setArtworkError] = useState("");
   const [fontError, setFontError] = useState<{
     hash: string;
     message: string;
@@ -51,6 +54,10 @@ export default function TitleCard({ values, resources = {} }: TitleCardProps) {
         }),
       );
   }, [font]);
+  if (values.image && !image)
+    throw new Error("The selected artwork resource is unavailable");
+  if (image && artworkError === image.sha256)
+    throw new Error("Artwork could not load");
   if (values.font && !font)
     throw new Error("The selected font resource is unavailable");
   if (fontError && fontError.hash === font?.sha256)
@@ -72,6 +79,25 @@ export default function TitleCard({ values, resources = {} }: TitleCardProps) {
           opacity: numeric(values, "background_opacity"),
         }}
       />
+      {image && (
+        <Img
+          data-graphic-layer="1c1dfd1c-520b-4c83-8a82-b00fdf9b8d90"
+          alt="Artwork"
+          src={image.url}
+          onError={() => setArtworkError(image.sha256)}
+          style={{
+            position: "absolute",
+            left: numeric(values, "image_x"),
+            top: numeric(values, "image_y"),
+            width: numeric(values, "image_width"),
+            height: numeric(values, "image_height"),
+            opacity: numeric(values, "image_opacity"),
+            objectFit:
+              text(values, "image_fit") === "contain" ? "contain" : "cover",
+            zIndex: 0,
+          }}
+        />
+      )}
       <div
         data-graphic-layer="3aa35212-adf2-46b6-b406-2c4b1bb4f93a"
         style={{
@@ -82,6 +108,7 @@ export default function TitleCard({ values, resources = {} }: TitleCardProps) {
           height: numeric(values, "title_height"),
           opacity: numeric(values, "opacity"),
           fontSize: numeric(values, "font_size"),
+          zIndex: 1,
           fontFamily: font ? fontFamily(font) : "sans-serif",
           fontWeight: 700,
           lineHeight: 1.05,

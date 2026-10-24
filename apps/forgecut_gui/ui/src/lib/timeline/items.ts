@@ -36,7 +36,8 @@ export function getItemData(item: TimelineItem): ItemView {
     ...("RemotionGraphic" in item
       ? {
           text:
-            typeof item.RemotionGraphic.props.title === "string"
+            typeof item.RemotionGraphic.props.title === "string" &&
+            item.RemotionGraphic.props.title.trim()
               ? item.RemotionGraphic.props.title
               : "Graphic",
         }

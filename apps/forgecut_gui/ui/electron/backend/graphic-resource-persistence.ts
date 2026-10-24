@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { GraphicResource } from "../shared/graphic-resources.js";
+import { inspectGraphicResource } from "./graphic-resource-format.js";
 import { atomicWrite } from "./atomic-file.js";
 import {
   readGraphicResource,
@@ -29,10 +30,12 @@ export async function loadGraphicResources(
 ): Promise<void> {
   for (const resource of resources) {
     try {
-      await storeResource(
-        await readResourceFile(join(directory, resource.path)),
-        resource.sha256,
-      );
+      const bytes = await readResourceFile(join(directory, resource.path));
+      const inspected = inspectGraphicResource(bytes, resource.kind);
+      if (!inspected.ok) throw new Error(inspected.error.message);
+      if (inspected.value.mime !== resource.mime)
+        throw new Error("Resource media type does not match its content");
+      await storeResource(bytes, resource.sha256);
     } catch (failure) {
       throw new Error(
         `Graphic resource unavailable: ${resource.name}. ${failure instanceof Error ? failure.message : String(failure)}`,

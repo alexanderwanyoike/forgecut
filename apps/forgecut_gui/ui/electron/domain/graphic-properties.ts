@@ -28,11 +28,19 @@ export function validateGraphicProperties(
       ? values[name]
       : property.default;
     let valid = false;
-    if (property.type === "text" || property.type === "font")
+    if (
+      property.type === "text" ||
+      property.type === "font" ||
+      property.type === "image"
+    )
       valid = typeof value === "string" && value.length <= 32768;
     if (property.type === "color")
       valid =
         typeof value === "string" && /^#[\da-f]{6}([\da-f]{2})?$/i.test(value);
+    if (property.type === "select")
+      valid =
+        typeof value === "string" &&
+        property.options.some((option) => option.value === value);
     if (property.type === "boolean") valid = typeof value === "boolean";
     if (property.type === "number")
       valid =

@@ -16,6 +16,8 @@ export type GraphicResource = {
     | "font/otf"
     | "font/woff"
     | "font/woff2";
+  width?: number;
+  height?: number;
   sha256: string;
   path: string;
   license: ResourceLicense;

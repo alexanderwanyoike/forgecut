@@ -33,10 +33,14 @@ export default function GraphicProperties({
     <>
       {Object.entries(component.properties).map(([key, property]) => {
         const value = item.props[key] ?? property.default;
-        if (property.type === "font" && typeof value === "string")
+        if (
+          (property.type === "font" || property.type === "image") &&
+          typeof value === "string"
+        )
           return (
             <ResourceProperty
               key={`${item.id}:${property.id}`}
+              kind={property.type === "font" ? "Font" : "Image"}
               origin={origin}
               itemId={item.id}
               property={key}
@@ -47,6 +51,25 @@ export default function GraphicProperties({
                 void change(key, next);
               }}
             />
+          );
+        if (property.type === "select" && typeof value === "string")
+          return (
+            <label key={property.id} className="inspector-row">
+              <span className="inspector-label">{property.label}</span>
+              <select
+                className="inspector-input"
+                value={value}
+                onChange={(event) => {
+                  void change(key, event.currentTarget.value);
+                }}
+              >
+                {property.options.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           );
         if (property.type === "number" && typeof value === "number")
           return (

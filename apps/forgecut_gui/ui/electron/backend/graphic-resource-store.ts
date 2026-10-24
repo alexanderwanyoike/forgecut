@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdir, open } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
+import { inspectGraphicResource } from "./graphic-resource-format.js";
 import { EditingError } from "./editing-error.js";
 import { atomicWrite } from "./atomic-file.js";
 import type { GraphicResource } from "../shared/graphic-resources.js";
@@ -81,6 +82,16 @@ export async function readGraphicResource(
         error: {
           code: "INVALID_RESOURCE",
           message: `Graphic resource content changed: ${resource.name}`,
+        },
+      };
+    const inspected = inspectGraphicResource(bytes, resource.kind);
+    if (!inspected.ok) return inspected;
+    if (inspected.value.mime !== resource.mime)
+      return {
+        ok: false,
+        error: {
+          code: "INVALID_RESOURCE",
+          message: "Resource media type does not match its content",
         },
       };
     return { ok: true, value: bytes };
