@@ -32,6 +32,15 @@ export const audioSettingsShape = {
   fade_in_us: timeSchema.optional(),
   fade_out_us: timeSchema.optional(),
 };
+export const layerOrderSchema = z.number().int();
+export const fitSchema = z.enum(["contain", "cover"]);
+export const visualPlacementSchema = z.strictObject({
+  ...position,
+  width: positive,
+  height: positive,
+  opacity: z.number().min(0).max(1),
+  fit: fitSchema,
+});
 const clip = z.strictObject({
   id: idSchema,
   asset_id: idSchema,
@@ -42,6 +51,8 @@ const clip = z.strictObject({
   ...audioSettingsShape,
 });
 const image = z.strictObject({
+  fit: fitSchema.optional(),
+  layer_order: layerOrderSchema.optional(),
   id: idSchema,
   asset_id: idSchema,
   track_id: idSchema,
@@ -53,6 +64,7 @@ const image = z.strictObject({
   opacity: z.number().min(0).max(1),
 });
 const text = z.strictObject({
+  layer_order: layerOrderSchema.optional(),
   id: idSchema,
   track_id: idSchema,
   timeline_start_us: timeSchema,
@@ -99,7 +111,12 @@ const projectSchema = z.strictObject({
         kind: trackKindSchema,
         items: z.array(
           z.union([
-            z.strictObject({ VideoClip: clip }),
+            z.strictObject({
+              VideoClip: clip.extend({
+                transform: visualPlacementSchema.optional(),
+                layer_order: layerOrderSchema.optional(),
+              }),
+            }),
             z.strictObject({
               AudioClip: clip.extend({
                 volume: z.number().nonnegative().max(4),

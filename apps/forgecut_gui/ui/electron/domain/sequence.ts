@@ -13,6 +13,11 @@ import {
 
 import { audioGainAt } from "./audio.js";
 
+import {
+  orderedTimelineItems,
+  resolveVisualPlacement,
+} from "./visual-placement.js";
+
 // Serialized frame boundaries can differ by half a microsecond after rounding.
 export function frameAtOrAfter(timeUs: number, fps: number): number {
   return Math.ceil(((timeUs - 0.5) * fps) / 1_000_000 - 1e-9);
@@ -51,8 +56,8 @@ export function resolveSequenceFrame(
   const { fps } = project.settings;
   const frame = Math.floor(((playheadUs + 0.5) * fps) / 1_000_000 + 1e-9);
   const durationUs = sequenceDurationUs(project);
-  const layers = project.timeline.tracks.flatMap((track, trackIndex) =>
-    track.items.flatMap((item) => {
+  const layers = orderedTimelineItems(project).flatMap(
+    ({ item, trackIndex }) => {
       const range = itemFrameRange(item, fps);
       if (
         frame >= frameAtOrAfter(durationUs, fps) ||
@@ -77,6 +82,7 @@ export function resolveSequenceFrame(
         {
           item,
           trackIndex,
+          placement: resolveVisualPlacement(project, item),
           asset,
           audioGain: audible
             ? audioGainAt(
@@ -89,7 +95,7 @@ export function resolveSequenceFrame(
           playbackTimeUs,
         },
       ];
-    }),
+    },
   );
   return {
     frame,
