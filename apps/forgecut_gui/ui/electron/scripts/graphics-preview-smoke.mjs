@@ -9,6 +9,21 @@ export async function verifyGraphicsPreview(directory, send) {
     process.env.FORGECUT_CHECK_FONT_LICENSE ??
     "/usr/share/doc/fonts-dejavu-core/copyright";
   const checkFont = existsSync(font) && existsSync(fontLicense);
+  const artwork = join(directory, "native-artwork.png");
+  const generated = spawnSync("ffmpeg", [
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "color=c=0x20342d:s=64x36",
+    "-frames:v",
+    "1",
+    "-threads",
+    "1",
+    artwork,
+  ]);
+  if (generated.status !== 0) throw new Error(generated.stderr.toString());
   const output = join(directory, "native-graphic.mp4");
   const result = await send("Runtime.evaluate", {
     expression: `(async () => {
@@ -25,7 +40,7 @@ export async function verifyGraphicsPreview(directory, send) {
         const graphic = snapshot.project.timeline.tracks.flatMap(track => track.items).find(item => item.RemotionGraphic).RemotionGraphic;
         const imported = await invoke('import_graphic_resource', { path: ${JSON.stringify(font)}, kind: 'Font', licensePath: ${JSON.stringify(fontLicense)}, target: { itemId: graphic.id, property: 'font', sessionId: snapshot.sessionId, expectedRevision: snapshot.revision } });
         for (let attempt = 0; attempt < 200; attempt++) {
-          const layer = document.querySelector('[data-graphic-layer]');
+          const layer = document.querySelector('[data-graphic-layer="3aa35212-adf2-46b6-b406-2c4b1bb4f93a"]');
           if (layer && getComputedStyle(layer).fontFamily.includes(imported.sha256) && document.fonts.check('700 40px "ForgeCut_' + imported.sha256 + '"')) break;
           if (attempt === 199) throw new Error('The selected local font did not load in Player');
           await new Promise(resolve => setTimeout(resolve, 20));
@@ -36,9 +51,18 @@ export async function verifyGraphicsPreview(directory, send) {
         await invoke('init_default_tracks');
         await invoke('load_project', { path });
       }
+      const current = await invoke('get_project_snapshot');
+      const graphic = current.project.timeline.tracks.flatMap(track => track.items).find(item => item.RemotionGraphic).RemotionGraphic;
+      await invoke('import_graphic_resource', { path: ${JSON.stringify(artwork)}, kind: 'Image', license: { identifier: 'test-only', text: 'Generated artwork' }, target: { itemId: graphic.id, property: 'image', sessionId: current.sessionId, expectedRevision: current.revision } });
+      for (let attempt = 0; attempt < 200; attempt++) {
+        const image = document.querySelector('[data-graphic-layer="1c1dfd1c-520b-4c83-8a82-b00fdf9b8d90"]');
+        if (image?.complete && image.naturalWidth === 64) break;
+        if (attempt === 199) throw new Error('Owned artwork did not load in Player');
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
       let visible = false;
       for (let attempt = 0; attempt < 200; attempt++) {
-        const layer = document.querySelector('[data-graphic-layer]');
+        const layer = document.querySelector('[data-graphic-layer="3aa35212-adf2-46b6-b406-2c4b1bb4f93a"]');
         if (layer?.textContent === 'Graphics runtime check' && layer.getBoundingClientRect().width > 0) { visible = true; break; }
         await new Promise(resolve => setTimeout(resolve, 20));
       }

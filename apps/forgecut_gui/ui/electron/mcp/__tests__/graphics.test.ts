@@ -36,7 +36,10 @@ it("discovers graphic properties and preserves manual values while MCP edits a p
             template_id: "title-card",
             version: expect.any(String),
             properties: { title: { type: "text" } },
-            layers: [{ name: "title" }],
+            layers: [
+              { name: "artwork", kind: "image" },
+              { name: "title", kind: "text" },
+            ],
           },
         ],
       },
