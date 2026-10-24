@@ -82,6 +82,7 @@ async function fixture() {
     if (!result.ok)
       throw Object.assign(new Error(result.error.message), {
         code: result.error.code,
+        diagnostics: result.error.diagnostics,
       });
     return result.value;
   });
@@ -463,4 +464,27 @@ it("retains typing made after Revert starts while its acknowledgement is delayed
     (screen.getByLabelText("Graphic source editor") as HTMLTextAreaElement)
       .value,
   ).toBe(latest);
+});
+
+it("offers a source location for an isolated draft runtime failure", async () => {
+  await fixture();
+  vi.spyOn(GraphicPreviewService.prototype, "render").mockResolvedValueOnce({
+    ok: false,
+    error: {
+      code: "RENDER_FAILED",
+      message: "Mapped runtime failure",
+      diagnostics: [
+        {
+          file: "main.tsx",
+          line: 1,
+          column: 40,
+          message: "Mapped runtime failure",
+        },
+      ],
+    },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Preview draft" }));
+  await screen.findByRole("button", {
+    name: "main.tsx:1:40 Mapped runtime failure",
+  });
 });
