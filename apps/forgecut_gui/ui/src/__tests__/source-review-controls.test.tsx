@@ -9,7 +9,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import type {
   CommandMetadata,
   CommandResponse,
@@ -171,5 +171,35 @@ mediaTest(
     expect((video as HTMLVideoElement).controls).toBe(true);
     expect(screen.getByText("0.000 to 2.000 seconds")).toBeTruthy();
     expect(state.snapshot()).toEqual(before);
+  },
+);
+
+mediaTest(
+  "pauses the other source player and stops the preview when its range changes",
+  async () => {
+    await reviewFixture();
+    fireEvent.click(screen.getByRole("button", { name: "Short preview" }));
+    const preview = (await screen.findByLabelText(
+      "Source preview",
+    )) as HTMLVideoElement;
+    const source = document.querySelector<HTMLVideoElement>(
+      ".source-media-stage video",
+    )!;
+    const stopSource = vi.spyOn(source, "pause").mockImplementation(() => {});
+    const stopPreview = vi.spyOn(preview, "pause").mockImplementation(() => {});
+    fireEvent.play(preview);
+    expect(stopSource).toHaveBeenCalled();
+    fireEvent.play(source);
+    expect(stopPreview).toHaveBeenCalled();
+    stopPreview.mockClear();
+    fireEvent.focus(screen.getByLabelText("Source out (s)"));
+    fireEvent.change(screen.getByLabelText("Source out (s)"), {
+      target: { value: "1" },
+    });
+    fireEvent.blur(screen.getByLabelText("Source out (s)"));
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Source preview")).toBeNull(),
+    );
+    expect(stopPreview).toHaveBeenCalled();
   },
 );
