@@ -37,6 +37,7 @@ export const editingCapabilities = {
     maxRetained: 64,
     retainedBytes: 8 * 1024 * 1024,
     timeoutMs: 120000,
+    exportTimeoutMs: 900000,
   },
   operations: Object.fromEntries(
     Object.entries(editSchemas).map(([command, schema]) => [

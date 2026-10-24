@@ -106,7 +106,15 @@ export class JobQueue {
     const found = this.read(id, sessionId);
     if (!found.ok) return found;
     const entry = this.entries.get(id)!;
-    if (entry.snapshot.status === "committing") return {ok: false, error: {code: "COMMITTING", message: "The completed output is being published. Poll for completion."}};
+    if (entry.snapshot.status === "committing")
+      return {
+        ok: false,
+        error: {
+          code: "COMMITTING",
+          message:
+            "The completed output is being published. Poll for completion.",
+        },
+      };
     if (entry.snapshot.status === "queued") {
       this.pending = this.pending.filter((work) => work.entry !== entry);
       entry.snapshot.status = "cancelled";
@@ -144,7 +152,7 @@ export class JobQueue {
         if (work.entry.snapshot.status === "committing") return;
         work.entry.timedOut = true;
         work.entry.controller.abort();
-      }, this.options.timeoutMs ?? 120000);
+      }, this.options.timeoutMs ?? (work.entry.snapshot.kind === "export" ? 900000 : 120000));
       timeout.unref();
       try {
         const result = await work.run(
