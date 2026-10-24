@@ -80,8 +80,7 @@ it("binds UI edits to the accepted active sequence snapshot", async () => {
     unlisten();
   }
 });
-it("keeps the newer sequence target when an older snapshot read arrives late", async () => {
-  const { state, bridge, unlisten } = await fixture();
+function holdSnapshotRead() {
   let release: (() => void) | undefined;
   let began: (() => void) | undefined;
   const paused = new Promise<void>((resolve) => {
@@ -103,6 +102,12 @@ it("keeps the newer sequence target when an older snapshot read arrives late", a
     }
     return response;
   };
+  return { started, release: () => release!() };
+}
+
+it("keeps the newer sequence target when an older snapshot read arrives late", async () => {
+  const { state, bridge, unlisten } = await fixture();
+  const { started, release } = holdSnapshotRead();
   try {
     const old = bridge.invoke("get_project_snapshot");
     await started;
@@ -111,7 +116,7 @@ it("keeps the newer sequence target when an older snapshot read arrives late", a
       sessionId: state.sessionId,
       sequenceId: clip,
     });
-    release!();
+    release();
     await old;
     await bridge.invoke("add_text_overlay", {
       trackId: "clip-titles",
@@ -128,7 +133,7 @@ it("keeps the newer sequence target when an older snapshot read arrives late", a
       state.project.sequences![0].timeline.tracks[0].items[0],
     ).toMatchObject({ TextOverlay: { text: "Latest sequence" } });
   } finally {
-    release!();
+    release();
     unlisten();
   }
 });
