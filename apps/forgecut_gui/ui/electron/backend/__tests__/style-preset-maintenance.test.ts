@@ -79,3 +79,22 @@ it("replaces a saved style explicitly without changing previously created instan
   ).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
   expect(state.snapshot()).toEqual(updated);
 });
+
+it("deletes a saved style without changing its instances and restores it with one global undo", async () => {
+  const { state, service, preset } = await fixture();
+  const before = state.snapshot();
+  expect(
+    await service.execute("delete_style_preset", { presetId: preset.id }),
+  ).toMatchObject({ ok: true });
+  expect(state.project.style_presets).toEqual([]);
+  expect(state.project.timeline).toEqual(before.project.timeline);
+  expect(state.snapshot().undoSequenceId).toBeUndefined();
+  await service.execute("undo");
+  expect(state.project).toEqual(before.project);
+  await service.execute("redo");
+  const deleted = state.snapshot();
+  expect(
+    await service.execute("delete_style_preset", { presetId: preset.id }),
+  ).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+  expect(state.snapshot()).toEqual(deleted);
+});
