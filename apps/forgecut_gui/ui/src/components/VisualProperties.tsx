@@ -22,7 +22,9 @@ export default function VisualProperties({ project, item, update }: Props) {
     if ("VideoClip" in item && placement)
       return update({
         kind: "VideoClip",
-        changes: { transform: { ...placement, ...changes } },
+        changes: {
+          transform: { ...(item.VideoClip.transform ?? placement), ...changes },
+        },
       });
     return update({ kind: "ImageOverlay", changes });
   };
