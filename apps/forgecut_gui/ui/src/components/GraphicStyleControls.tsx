@@ -25,13 +25,16 @@ export default function GraphicStyleControls({
   component,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [presetId, setPresetId] = useState("");
+  const styles = project.style_presets ?? [];
+  const missing = !!presetId && !styles.some((style) => style.id === presetId);
   const [name, setName] = useState(`${component.name.slice(0, 190)} style`);
   const [purpose, setPurpose] = useState<StylePreset["purpose"]>(
     component.template_id === "ending-card" ? "ending" : "card",
   );
   const [busy, setBusy] = useState(false);
   async function save() {
-    if (!name.trim() || busy) return;
+    if (!name.trim() || busy || missing) return;
     setBusy(true);
     const sequenceId = project.default_sequence?.id ?? project.id;
     try {
@@ -44,6 +47,7 @@ export default function GraphicStyleControls({
           {
             command: "save_style_preset",
             args: {
+              ...(presetId ? { presetId } : {}),
               sourceSequenceId: sequenceId,
               itemId: item.id,
               name,
@@ -62,7 +66,8 @@ export default function GraphicStyleControls({
       <ActionButton
         icon={Save}
         aria-label="Save project style"
-        tooltip="Save this graphic's look as an independent project style"
+        tooltip="Save the applied graphic as an independent project style"
+        disabled={busy}
         onClick={() => setOpen(!open)}
       >
         Save style
@@ -75,6 +80,36 @@ export default function GraphicStyleControls({
             void save().catch(() => {});
           }}
         >
+          {styles.length > 0 && (
+            <label>
+              Style destination
+              <select
+                value={presetId}
+                disabled={busy}
+                onChange={(event) => {
+                  const id = event.currentTarget.value;
+                  const style = styles.find((value) => value.id === id);
+                  setPresetId(id);
+                  setName(
+                    style?.name ?? `${component.name.slice(0, 190)} style`,
+                  );
+                  setPurpose(
+                    style?.purpose ??
+                      (component.template_id === "ending-card"
+                        ? "ending"
+                        : "card"),
+                  );
+                }}
+              >
+                <option value="">New style</option>
+                {styles.map((style) => (
+                  <option key={style.id} value={style.id}>
+                    {style.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             Style name
             <input
@@ -103,9 +138,9 @@ export default function GraphicStyleControls({
             <ActionButton
               icon={Save}
               type="submit"
-              disabled={busy || !name.trim()}
+              disabled={busy || !name.trim() || missing}
             >
-              Create style
+              {presetId ? "Replace style" : "Create style"}
             </ActionButton>
             <ActionButton
               icon={X}
