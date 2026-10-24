@@ -1,3 +1,4 @@
+import { verifySourceSelections } from "./source-selection-smoke.mjs";
 import { verifyVariants } from "./variant-smoke.mjs";
 import { verifyAppearance } from "./appearance-smoke.mjs";
 import { mkdtempSync } from "node:fs";
@@ -215,6 +216,7 @@ async function main() {
   await verifyCode(send);
   await verifySequences(send);
   await verifyVariants(send);
+  await verifySourceSelections(mcpDirectory, send);
   ws.close();
 
   const value = result.result?.result?.value;
