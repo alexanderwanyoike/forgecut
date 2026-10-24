@@ -82,6 +82,27 @@ export class JobQueue {
     return { ok: true, value: structuredClone(entry.snapshot) };
   }
 
+  cancel(id: string, sessionId: string): Result<JobSnapshot> {
+    const found = this.read(id, sessionId);
+    if (!found.ok) return found;
+    const entry = this.entries.get(id)!;
+    if (entry.snapshot.status === "queued") {
+      this.pending = this.pending.filter((work) => work.entry !== entry);
+      entry.snapshot.status = "cancelled";
+      entry.snapshot.result = {
+        ok: false,
+        error: {
+          code: "CANCELLED",
+          message: "Job cancelled before it started.",
+        },
+      };
+    } else if (entry.snapshot.status === "running") {
+      entry.snapshot.status = "cancelling";
+      entry.controller.abort();
+    }
+    return { ok: true, value: structuredClone(entry.snapshot) };
+  }
+
   private async drain(): Promise<void> {
     if (this.running) return;
     this.running = true;
@@ -101,6 +122,13 @@ export class JobQueue {
           },
         };
         work.entry.snapshot.status = "failed";
+      }
+      if (work.entry.controller.signal.aborted) {
+        work.entry.snapshot.status = "cancelled";
+        work.entry.snapshot.result = {
+          ok: false,
+          error: { code: "CANCELLED", message: "Job cancelled." },
+        };
       }
       this.prune();
     }
