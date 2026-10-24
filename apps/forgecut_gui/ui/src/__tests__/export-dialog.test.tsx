@@ -46,3 +46,28 @@ it("shows a queued export and cancels the same scoped job", async () => {
     jobId: "job",
   });
 });
+
+it("allows a new export when an old job result is no longer retained", async () => {
+  api.save.mockResolvedValue("/result.mp4");
+  api.invoke.mockImplementation(async (command: string) => {
+    if (command === "export_project")
+      return {
+        id: "evicted",
+        sessionId: "session",
+        projectRevision: 1,
+        requestId: "export",
+        kind: "export",
+        label: "Export",
+        status: "queued",
+        progress: 0,
+        result: null,
+      };
+    throw Object.assign(new Error("Job result is no longer retained."), {
+      code: "NOT_FOUND",
+    });
+  });
+  render(<ExportDialog open onClose={() => {}} />);
+  fireEvent.click(screen.getByRole("button", { name: "Export" }));
+  await screen.findByRole("alert");
+  expect(screen.getByRole("button", { name: "Export" })).toBeTruthy();
+});
