@@ -77,7 +77,7 @@ it("seeks the real Player from sequence time and exposes typed instance controls
     }),
   );
 });
-it("reports an unavailable component rather than substituting different source", async () => {
+it("shows isolated custom frames without evaluating source in the editor", async () => {
   const state = new AppState();
   const service = new EditingService(state);
   await service.execute("add_graphic_item", {
@@ -87,21 +87,37 @@ it("reports an unavailable component rather than substituting different source",
     durationUs: 2000000,
   });
   const project = structuredClone(state.project);
-  project.components![0].source.files["main.tsx"] += "\n// different source";
+  const component = project.components![0];
+  component.source.files[component.source.entry] =
+    'export default function Card(){throw new Error("Never execute in editor");}';
+  component.version = componentVersion(component);
+  const item = project.timeline.tracks[0].items[0];
+  if (!("RemotionGraphic" in item)) throw new Error("Invalid fixture");
+  item.RemotionGraphic.component_version = component.version;
+  vi.mocked(invoke).mockResolvedValueOnce({
+    mimeType: "image/png",
+    data: "aXNvbGF0ZWQ=",
+    width: 64,
+    height: 36,
+  });
   render(
     <Preview
       project={project}
       projectVersion={1}
-      playheadUs={0}
+      playheadUs={500000}
       playing={false}
       onPlayingChange={vi.fn()}
       onPlayheadChange={vi.fn()}
     />,
   );
   await waitFor(() =>
-    expect(screen.getByRole("alert").textContent).toContain(
-      "component version",
+    expect(screen.getByAltText("Graphic preview").getAttribute("src")).toBe(
+      "data:image/png;base64,aXNvbGF0ZWQ=",
     ),
+  );
+  expect(invoke).toHaveBeenCalledWith(
+    "get_graphic_preview",
+    expect.objectContaining({ itemId: item.RemotionGraphic.id, frame: 15 }),
   );
 });
 
@@ -209,7 +225,10 @@ it("shows RGBA colours accurately and preserves alpha when the picker changes RG
   );
 });
 
-it("rejects a component with known source but a different property contract", async () => {
+it("shows component validation failures from the isolated preview", async () => {
+  vi.mocked(invoke).mockRejectedValueOnce(
+    new Error("Invalid component version"),
+  );
   const state = new AppState();
   await new EditingService(state).execute("add_graphic_item", {
     templateId: "title-card",
