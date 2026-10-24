@@ -5,6 +5,7 @@ import type {
   EventPayloads,
   CommandResponse,
   CommandMetadata,
+  ProjectSnapshot,
   McpStatus,
 } from "../../electron/shared/ipc-contract";
 
@@ -47,12 +48,20 @@ const electronApi = () =>
 
 let activeSession: string | undefined;
 let activeRevision = -1;
+let activeSequenceId: string | undefined;
 
 function acceptVersion(sessionId: string, revision: number): void {
   if (revision >= activeRevision) {
     activeSession = sessionId;
     activeRevision = revision;
   }
+}
+
+function acceptSnapshot(snapshot: ProjectSnapshot): void {
+  if (snapshot.revision < activeRevision) return;
+  acceptVersion(snapshot.sessionId, snapshot.revision);
+  activeSequenceId =
+    snapshot.activeSequenceId ?? snapshot.project.default_sequence?.id;
 }
 
 function requireElectronApi(): ForgeCutElectronApi {
@@ -92,6 +101,7 @@ function request<K extends CommandName>(
           ? undefined
           : activeSession,
       editGroup,
+      sequenceId: jobControl ? undefined : activeSequenceId,
     })
     .then((response) => {
       if (!response.ok)
@@ -112,7 +122,9 @@ function request<K extends CommandName>(
           { code: "CONFLICT" },
         );
       }
-      acceptVersion(response.sessionId, response.revision);
+      if (command === "get_project_snapshot")
+        acceptSnapshot(response.value as ProjectSnapshot);
+      else acceptVersion(response.sessionId, response.revision);
       return response.value;
     })
     .catch((error: unknown) => {
@@ -145,7 +157,7 @@ export function listen<E extends keyof EventPayloads>(
       if (event === "project-changed") {
         const snapshot = message.payload as EventPayloads["project-changed"];
         if (snapshot.revision < activeRevision) return;
-        acceptVersion(snapshot.sessionId, snapshot.revision);
+        acceptSnapshot(snapshot);
       }
       callback(message);
     }),
