@@ -52,6 +52,7 @@ export default function PreviewMedia(props: Props) {
     if (!media || !audible) return undefined;
     const connection = props.mixer.connect(media);
     if (!connection.ok) {
+      media.muted = true;
       props.onError(connection.error.message);
       return undefined;
     }
@@ -89,6 +90,7 @@ export default function PreviewMedia(props: Props) {
       className={props.audioOnly ? undefined : "preview-video"}
       hidden={props.audioOnly}
       crossOrigin="anonymous"
+      muted={!audible}
       src={mediaUrl(props.path)}
       playsInline
       preload="auto"
