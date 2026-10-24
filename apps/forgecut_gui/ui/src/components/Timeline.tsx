@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import ActionButton from "./ActionButton";
+import type { StylePreset } from "../../electron/shared/style-presets";
 import { invoke } from "../lib/bridge";
 import {
   LABEL_W,
@@ -44,6 +45,7 @@ interface TimelineProps {
   onSelectedClipChange: (id: string | null) => void;
   projectVersion: number;
   projectTimeline?: TimelineData;
+  projectStylePresets?: StylePreset[];
   projectMediaVersion?: string;
 }
 
@@ -63,6 +65,12 @@ export default function Timeline(props: TimelineProps) {
   const [scrollLeft, setScrollLeft] = useState(0);
   const [viewWidth, setViewWidth] = useState(0);
   const [graphicPreset, setGraphicPreset] = useState("title-card");
+  const styles = props.projectStylePresets ?? [];
+  const choice =
+    graphicPreset.startsWith("style:") &&
+    !styles.some((style) => `style:${style.id}` === graphicPreset)
+      ? "title-card"
+      : graphicPreset;
   const [newTrackKind, setNewTrackKind] = useState<"Video" | "Audio">("Video");
   const [snapping, setSnapping] = useState(true);
 
@@ -273,9 +281,22 @@ export default function Timeline(props: TimelineProps) {
 
   const handleAddGraphic = async () => {
     try {
+      if (choice.startsWith("style:")) {
+        setTimeline(
+          await invoke("add_graphic_from_preset", {
+            presetId: choice.slice(6),
+            trackId:
+              timeline.tracks.find((track) => track.kind === "Graphics")?.id ??
+              crypto.randomUUID(),
+            timelineStartUs: props.playheadUs,
+            durationUs: 3000000,
+          }),
+        );
+        return;
+      }
       setTimeline(
         await invoke("add_graphic_item", {
-          templateId: graphicPreset,
+          templateId: choice,
           trackId:
             timeline.tracks.find((track) => track.kind === "Graphics")?.id ??
             crypto.randomUUID(),
@@ -312,14 +333,25 @@ export default function Timeline(props: TimelineProps) {
         <div className="control-group">
           <select
             aria-label="Graphic template"
-            value={graphicPreset}
+            value={choice}
             onChange={(event) => setGraphicPreset(event.currentTarget.value)}
           >
-            {graphicPresets.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.label}
-              </option>
-            ))}
+            <optgroup label="Templates">
+              {graphicPresets.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.label}
+                </option>
+              ))}
+            </optgroup>
+            {styles.length > 0 && (
+              <optgroup label="Project styles">
+                {styles.map((style) => (
+                  <option key={style.id} value={`style:${style.id}`}>
+                    {style.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
           <ActionButton
             icon={Plus}
