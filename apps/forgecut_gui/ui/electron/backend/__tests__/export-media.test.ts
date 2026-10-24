@@ -1,0 +1,155 @@
+/** @vitest-environment node */
+import { spawnSync } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { expect, it } from "vitest";
+import { AppState } from "../state";
+import { EditingService } from "../editing-service";
+import { exportProject } from "../exporter";
+
+function ffmpeg(args: string[]) {
+  const run = spawnSync("ffmpeg", [
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-threads",
+    "1",
+    "-filter_threads",
+    "1",
+    ...args,
+  ]);
+  if (run.status !== 0) throw new Error(run.stderr.toString());
+  return run.stdout;
+}
+
+it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
+  "renders leading gaps, silent cuts, an independent music bed and a title-only ending at their timeline positions",
+  async () => {
+    const dir = await mkdtemp(join(tmpdir(), "forgecut-render-"));
+    try {
+      const source = join(dir, "source.mkv");
+      const music = join(dir, "music.wav");
+      ffmpeg([
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=red:s=64x36:r=10:d=2",
+        "-c:v",
+        "ffv1",
+        "-threads",
+        "1",
+        source,
+      ]);
+      ffmpeg([
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=440:sample_rate=48000:duration=4",
+        music,
+      ]);
+      const state = new AppState();
+      const editing = new EditingService(state);
+      expect(
+        (
+          await editing.execute("update_project", {
+            settings: { width: 64, height: 36, fps: 10 },
+          })
+        ).ok,
+      ).toBe(true);
+      await editing.execute("init_default_tracks");
+      expect(
+        (await editing.execute("import_assets", { paths: [source, music] })).ok,
+      ).toBe(true);
+      const [video, audio] = state.project.assets;
+      const [picture, sound] = state.project.timeline.tracks;
+      for (const start of [1000000, 2000000])
+        expect(
+          (
+            await editing.execute("add_clip_to_timeline", {
+              assetId: video.id,
+              trackId: picture.id,
+              timelineStartUs: start,
+              sourceInUs: 0,
+              sourceOutUs: 1000000,
+            })
+          ).ok,
+        ).toBe(true);
+      await editing.execute("add_clip_to_timeline", {
+        assetId: audio.id,
+        trackId: sound.id,
+        timelineStartUs: 0,
+      });
+      await editing.execute("add_text_overlay", {
+        trackId: "titles",
+        timelineStartUs: 3000000,
+        durationUs: 1000000,
+        text: "End",
+        fontSize: 14,
+        color: "#ffffff",
+        x: 3,
+        y: 3,
+      });
+      const output = join(dir, "output.mp4");
+      await exportProject(state.project, output);
+      const probe = spawnSync("ffprobe", [
+        "-v",
+        "error",
+        "-count_frames",
+        "-show_streams",
+        "-of",
+        "json",
+        output,
+      ]);
+      const streams = JSON.parse(probe.stdout.toString()).streams;
+      expect(
+        Number(
+          streams.find(
+            (stream: { codec_type: string }) => stream.codec_type === "video",
+          ).nb_read_frames,
+        ),
+      ).toBe(40);
+      const pixels = ffmpeg([
+        "-i",
+        output,
+        "-an",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "pipe:1",
+      ]);
+      const stride = 64 * 36 * 3;
+      expect([...pixels.subarray(5 * stride, 5 * stride + 3)]).toEqual([
+        0, 0, 0,
+      ]);
+      expect(pixels[15 * stride]).toBeGreaterThan(200);
+      expect(pixels[25 * stride]).toBeGreaterThan(200);
+      expect(pixels[35 * stride]).toBeLessThan(10);
+      expect(
+        Math.max(...pixels.subarray(35 * stride, 36 * stride)),
+      ).toBeGreaterThan(150);
+      const pcm = ffmpeg([
+        "-i",
+        output,
+        "-vn",
+        "-ac",
+        "1",
+        "-ar",
+        "48000",
+        "-f",
+        "s16le",
+        "pipe:1",
+      ]);
+      for (const second of [0.5, 1.5, 2.5, 3.5]) {
+        const sample = Math.floor(second * 48000);
+        let energy = 0;
+        for (let offset = 0; offset < 1000; offset += 1)
+          energy += Math.abs(pcm.readInt16LE((sample + offset) * 2));
+        expect(energy / 1000).toBeGreaterThan(500);
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);
