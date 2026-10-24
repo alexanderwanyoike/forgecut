@@ -18,4 +18,4 @@ Project format 6 adds `style_presets`, limited to 100 records. Supported older f
 
 Native editing workflows cover save/reopen, independent instance values and overrides, portrait geometry, layer settings and placement, invalid property rollback, explicit replacement/deletion with global undo, and component retention during shared source promotion. Existing project migration tests include format 5.
 
-The visual controls and bounded MCP read surface are separate dependent delivery slices. Existing guarded edit batches expose the native style commands through the common command schema.
+The bounded MCP read surface pages up to 20 style identities/layout records or five saved property values. The lower value-page limit accommodates maximum-length text without exceeding local transport bounds. Existing guarded edit batches expose the native style commands through the common command schema. Visual controls remain a separate dependent delivery slice.

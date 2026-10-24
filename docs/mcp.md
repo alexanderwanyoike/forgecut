@@ -140,3 +140,13 @@ Resource and licence imports accept regular files only. Nonblocking opens reject
 `get_job` returns a 4 by 3 contact sheet as native JPEG image content, with the asset/range, twelve sample-target times and byte count in its metadata. Sampling can repeat source frames when the source frame rate is lower than the sample rate. A waveform contains at most 512 min/max bins at an 8 kHz sample rate, with its range and samples per bin. Both operations retain the project and its history.
 
 The implementation composes [FFmpeg's documented fps, scale, pad and tile filters](https://www.ffmpeg.org/ffmpeg-filters.html) through the existing cancellable media-process runner. Outputs are bounded to 512 KiB. An in-memory cache retains at most 64 results and 8 MiB; keys include source path/identity, size, modification time, range and review kind. Source bounds are checked before cache lookup. Changed files invalidate cached results, including a file change detected while rendering. Restarting the app clears this derived cache. Existing job timeout, retry and cancellation rules apply.
+
+## Project styles
+
+`read_style_presets` returns up to 20 card/ending style identities, canvas sizes, exact component versions and captured layer/placement settings. The project summary includes `stylePresetCount`.
+
+`read_style_preset` pages the saved property values for one preset ID, with at most five properties per response. Use `offset` and the returned `total` to inspect the complete style without creating a timeline item. This lower bound keeps maximum-length text properties within the local transport limit. Both reads require the current project session and return its creative revision.
+
+Use `save_style_preset` in `apply_edits` with an explicit `sourceSequenceId`, graphic `itemId`, `name` and `purpose` (`card` or `ending`). An optional `presetId` deliberately replaces an existing style. `delete_style_preset` takes its preset ID. These are global history actions; existing instances retain their own values and component versions.
+
+`add_graphic_from_preset` takes `presetId`, `trackId`, `timelineStartUs`, `durationUs` and optional property `overrides`. Target the destination `sequenceId` in the guarded batch. Bound geometry adapts from the captured canvas; explicit overrides apply last. Later instance edits remain independent of the saved style.

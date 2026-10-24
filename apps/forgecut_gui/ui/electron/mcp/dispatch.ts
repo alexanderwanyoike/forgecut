@@ -1,5 +1,6 @@
 import { isAbsolute } from "node:path";
 import { z } from "zod";
+import { stylePropertyPageFields } from "./style-schema.js";
 import { sourceActionSchemas } from "./draft-schema.js";
 import { dispatchGraphicSource } from "./source-actions.js";
 import { sourceCheckRequestSchema } from "./source-schema.js";
@@ -77,6 +78,11 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
     request: historyRequestSchema,
   }),
   z.strictObject({ action: z.literal("assets"), ...pageFields }),
+  z.strictObject({ action: z.literal("style-presets"), ...resourcePageFields }),
+  z.strictObject({
+    action: z.literal("style-preset-values"),
+    ...stylePropertyPageFields,
+  }),
   z.strictObject({
     action: z.literal("source-selections"),
     ...resourcePageFields,
@@ -109,6 +115,7 @@ function summary(
     sequenceRevision: context.sequenceRevision,
     assetCount: source.project.assets.length,
     resourceCount: source.project.resources?.length ?? 0,
+    stylePresetCount: source.project.style_presets?.length ?? 0,
     trackCount: source.project.timeline.tracks.length,
     tracks: source.project.timeline.tracks.slice(0, 100).map((track) => ({
       id: track.id,
@@ -188,6 +195,63 @@ export async function dispatchLocal(
       request.action === "item"
     )
       return dispatchSequenceAction(state, request);
+    if (request.action === "style-preset-values") {
+      const preset = state.project.style_presets?.find(
+        (value) => value.id === request.presetId,
+      );
+      if (!preset)
+        return {
+          ok: false,
+          error: { code: "NOT_FOUND", message: "Style preset not found" },
+        };
+      const entries = Object.entries(preset.props);
+      return {
+        ok: true,
+        value: {
+          sessionId: state.sessionId,
+          revision: state.revision,
+          presetId: preset.id,
+          total: entries.length,
+          props: Object.fromEntries(
+            entries.slice(request.offset, request.offset + request.limit),
+          ),
+        },
+      };
+    }
+    if (request.action === "style-presets") {
+      const presets = state.project.style_presets ?? [];
+      return {
+        ok: true,
+        value: {
+          sessionId: state.sessionId,
+          revision: state.revision,
+          total: presets.length,
+          presets: presets
+            .slice(request.offset, request.offset + request.limit)
+            .map(
+              ({
+                id,
+                name,
+                purpose,
+                canvas_size,
+                component_id,
+                component_version,
+                layer_states,
+                transform,
+              }) => ({
+                id,
+                name,
+                purpose,
+                canvas_size,
+                component_id,
+                component_version,
+                ...(layer_states ? { layer_states } : {}),
+                ...(transform ? { transform } : {}),
+              }),
+            ),
+        },
+      };
+    }
     if (request.action === "source-selections") {
       if (
         request.assetId &&

@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { stylePropertyPageFields } from "./style-schema.js";
 import { registerSourceTools } from "./source-tools.js";
 import { sourceCheckRequestSchema } from "./source-schema.js";
 import {
@@ -160,6 +161,26 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
       inputSchema: sequenceSelectionSchema,
     },
     async (args) => call({ action: "select-sequence", ...args }),
+  );
+  server.registerTool(
+    "read_style_presets",
+    {
+      description:
+        "Read up to 20 project card/ending style identities with names, canvas sizes and exact component versions. Use add_graphic_from_preset in apply_edits to create an independently editable instance with optional property overrides. This bounded metadata page excludes property payloads; use read_style_preset to inspect saved values without editing the timeline.",
+      inputSchema: z.strictObject(resourcePageFields),
+      annotations: { readOnlyHint: true },
+    },
+    async (args) => call({ action: "style-presets", ...args }),
+  );
+  server.registerTool(
+    "read_style_preset",
+    {
+      description:
+        "Read a page of at most five saved property values for an exact project style ID without creating a timeline item. Read all pages before replacing a style if preserving existing values. The small page bound keeps maximum-size text properties within the local transport limit.",
+      inputSchema: z.strictObject(stylePropertyPageFields),
+      annotations: { readOnlyHint: true },
+    },
+    async (args) => call({ action: "style-preset-values", ...args }),
   );
   server.registerTool(
     "read_source_selections",
