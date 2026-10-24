@@ -46,7 +46,17 @@ The header reports local MCP bridge readiness and the latest successful action. 
 
 `start_source_frame` takes the current project session/revision, a request ID, an imported visual asset ID and `timeUs`. Poll `get_job`; a completed frame returns a native JPEG image with metadata, rather than duplicating base64 into JSON. Images fit within 640 by 360 and 512 KiB. Missing assets, invalid source times and missing media tools return typed job failures.
 
-`cancel_job` takes a job ID and its original project session. Queued jobs are removed immediately; running jobs enter `cancelling` until their process stops. Reads and cancellation remain scoped to the job's original session, even after a project switch. One worker runs at a time, with at most 16 active jobs and a two-minute deadline. Results are retained in memory within 64 jobs/8 MiB; old results may return `NOT_FOUND`. Normal application shutdown cancels and drains the queue. Export jobs and persistent queue recovery are added in later phases.
+`cancel_job` takes a job ID and its original project session. Queued jobs are removed immediately; running jobs enter `cancelling` until their process stops. Reads and cancellation remain scoped to the job's original session, even after a project switch. One worker runs at a time, with at most 16 active jobs and a two-minute deadline. Results are retained in memory within 64 jobs/8 MiB; old results may return `NOT_FOUND`. Normal application shutdown cancels and drains the queue. Export jobs are now available; persistent queue recovery remains Phase 7 work.
+
+## Export jobs
+
+`start_export` takes `sessionId`, `expectedRevision`, `requestId` and an absolute `outputPath`. It captures that immutable revision immediately and returns a job, so manual editing and project switches cannot alter its output. Identical retained requests return the same job. `get_job` and `cancel_job` use the job's original session identity. Export rendering has a 15-minute deadline; the shared queue remains serial.
+
+A render writes staging files beside its destination and publishes the complete MP4 by atomic rename. Cancel before publication to preserve an existing destination. A `committing` job is finishing publication; cancellation returns `COMMITTING`, and callers should poll for its final result. Normal application shutdown cancels active renders and waits for publication already in progress.
+
+The UI export dialog uses the same queue, shows status/progress and supports cancellation. Close it to keep editing, then reopen it to inspect the retained job. An evicted result leaves the dialog available for another export.
+
+The Linux systemd user-manager path enforces the resource profile documented in [ADR 0004](adr/0004-sequence-timing-and-composition.md), verified here against real cgroup files. Other environments retain thread/deadline/serial limits without claiming equivalent hard memory/CPU controls. Untrusted custom component execution has a separate fail-closed boundary.
 
 ## Packaged adapter
 
