@@ -136,6 +136,7 @@ export async function startLocalBridge(
         resource: "Import graphic resource",
         resources: "Read graphic resources",
         "resource-details": "Read graphic resource",
+        "asset-credit": "Read asset credit",
       };
       let label = labels[request.action];
       if (request.action === "apply") label = request.label;
