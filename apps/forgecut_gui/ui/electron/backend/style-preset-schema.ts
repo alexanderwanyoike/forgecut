@@ -1,5 +1,5 @@
-import { visualPlacementSchema } from "../shared/visual-placement-schema.js";
 import { z } from "zod";
+import { visualPlacementSchema } from "../shared/visual-placement-schema.js";
 import {
   graphicValuesSchema,
   graphicLayerStatesSchema,

@@ -1,5 +1,5 @@
-import { scaleGraphicProperties } from "../../domain/graphic-scale.js";
 import { randomUUID } from "node:crypto";
+import { scaleGraphicProperties } from "../../domain/graphic-scale.js";
 import type { GraphicValues } from "../../shared/graphics.js";
 import { graphicTemplates } from "../graphic-catalog.js";
 import { validateGraphicProperties } from "../../domain/graphic-properties.js";

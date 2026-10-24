@@ -1,14 +1,10 @@
+import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import {
   fitSchema,
   visualPlacementSchema,
 } from "../shared/visual-placement-schema.js";
-export {
-  fitSchema,
-  visualPlacementSchema,
-} from "../shared/visual-placement-schema.js";
 import { stylePresetSchema } from "./style-preset-schema.js";
-import { randomUUID } from "node:crypto";
-import { z } from "zod";
 import type { Project } from "../shared/ipc-contract.js";
 import {
   durationUs,
@@ -25,6 +21,11 @@ import {
 } from "./graphic-schema.js";
 import { graphicResourceSchema } from "./graphic-resource-schema.js";
 import { validateProjectGraphics } from "./project-graphics.js";
+
+export {
+  fitSchema,
+  visualPlacementSchema,
+} from "../shared/visual-placement-schema.js";
 
 export const idSchema = z
   .string()
