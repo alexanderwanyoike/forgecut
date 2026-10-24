@@ -15,7 +15,11 @@ export class SessionContext {
     Omit<ContextValues, "contextRevision" | "activeSequenceId">
   >();
 
-  sequenceRevision = 0;
+  private sequenceVersion = 0;
+
+  get sequenceRevision(): number {
+    return this.sequenceVersion;
+  }
 
   selectSequence(sequenceId: string): boolean {
     if (this.value.activeSequenceId === sequenceId) return false;
@@ -26,7 +30,7 @@ export class SessionContext {
         selectedLayerIds: this.value.selectedLayerIds,
         playheadUs: this.value.playheadUs,
       });
-      this.sequenceRevision += 1;
+      this.sequenceVersion += 1;
     }
     const stored = this.sequences.get(sequenceId) ?? {
       selectedItemIds: [],
@@ -83,7 +87,7 @@ export class SessionContext {
 
   clear(): void {
     this.sequences.clear();
-    this.sequenceRevision += 1;
+    this.sequenceVersion += 1;
     this.value = {
       contextRevision: this.value.contextRevision + 1,
       selectedItemIds: [],

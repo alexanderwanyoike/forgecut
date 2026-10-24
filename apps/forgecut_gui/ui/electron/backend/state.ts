@@ -11,6 +11,7 @@ import type {
   EditingContext,
   CommandMap,
   ProjectSnapshot,
+  ProjectSequence,
   Project,
   Timeline,
 } from "../shared/ipc-contract.js";
@@ -88,14 +89,17 @@ export class AppState {
     this.maxHistoryBytes = limits.bytes ?? 32 * 1024 * 1024;
   }
 
-  get activeSequence() {
+  get activeSequence(): ProjectSequence {
     const id =
       this.context.snapshot().activeSequenceId ??
       projectSequences(this.project)[0].id;
     return this.sequenceIn(this.project, id);
   }
 
-  sequenceIn(project: Project, sequenceId = this.activeSequence.id) {
+  sequenceIn(
+    project: Project,
+    sequenceId = this.activeSequence.id,
+  ): ProjectSequence {
     const found = findProjectSequence(project, sequenceId);
     if (!found.ok) throw new EditingError("NOT_FOUND", found.error.message);
     return found.value;
