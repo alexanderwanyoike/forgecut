@@ -1,3 +1,7 @@
+import {
+  projectSequences,
+  findProjectSequence,
+} from "../domain/project-sequences.js";
 import { access, mkdir, readFile, readdir, rm } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { tmpdir } from "node:os";
@@ -78,8 +82,29 @@ export class AppState {
   constructor(limits: HistoryLimits = {}, initialProject?: Project) {
     if (initialProject)
       this.currentProject = freezeProject(validateProject(initialProject));
+    this.context.selectSequence(projectSequences(this.project)[0].id);
     this.maxHistorySize = limits.count ?? 100;
     this.maxHistoryBytes = limits.bytes ?? 32 * 1024 * 1024;
+  }
+
+  get activeSequence() {
+    const id =
+      this.context.snapshot().activeSequenceId ??
+      projectSequences(this.project)[0].id;
+    const found = findProjectSequence(this.project, id);
+    if (!found.ok) throw new EditingError("NOT_FOUND", found.error.message);
+    return found.value;
+  }
+
+  selectSequence(sessionId: string, sequenceId: string): EditingContext {
+    this.assertSession(sessionId);
+    const found = findProjectSequence(this.project, sequenceId);
+    if (!found.ok) throw new EditingError("NOT_FOUND", found.error.message);
+    if (this.context.selectSequence(sequenceId)) {
+      this.reconcileContext();
+      this.notify();
+    }
+    return this.getEditingContext();
   }
 
   get canUndo(): boolean {
@@ -99,7 +124,7 @@ export class AppState {
   ): EditingContext {
     this.assertSession(input.sessionId);
     const ids = new Set(
-      this.project.timeline.tracks.flatMap((track) =>
+      this.activeSequence.timeline.tracks.flatMap((track) =>
         track.items.map((item) => itemData(item).id),
       ),
     );
@@ -116,6 +141,8 @@ export class AppState {
   snapshot(): ProjectSnapshot {
     return {
       project: structuredClone(this.project),
+      activeSequenceId: this.activeSequence.id,
+      sequenceRevision: this.context.sequenceRevision,
       sessionId: this.sessionId,
       revision: this.revision,
       canUndo: this.canUndo,
@@ -306,6 +333,7 @@ export class AppState {
   private replaceProject(project: Project): void {
     this.context.clear();
     this.currentProject = freezeProject(project);
+    this.context.selectSequence(projectSequences(this.project)[0].id);
     this.sessionId = randomUUID();
     this.undoStack = [];
     this.redoStack = [];
@@ -324,7 +352,7 @@ export class AppState {
 
   private selectedGraphicLayers(itemIds: string[]): Set<string> {
     return new Set(
-      this.project.timeline.tracks
+      this.activeSequence.timeline.tracks
         .flatMap((track) => track.items)
         .flatMap((item) => {
           if (
@@ -346,16 +374,31 @@ export class AppState {
     );
   }
 
-  private changed(): void {
+  private reconcileContext(): void {
+    const sequences = projectSequences(this.project);
+    const active = this.context.snapshot().activeSequenceId;
+    if (!sequences.some((sequence) => sequence.id === active))
+      this.context.selectSequence(sequences[0].id);
+    this.context.retainSequences(
+      new Set(sequences.map((sequence) => sequence.id)),
+    );
     this.context.reconcile(
       new Set(
-        this.project.timeline.tracks.flatMap((track) =>
+        this.activeSequence.timeline.tracks.flatMap((track) =>
           track.items.map((item) => itemData(item).id),
         ),
       ),
       this.selectedGraphicLayers(this.context.snapshot().selectedItemIds),
     );
+  }
+
+  private changed(): void {
+    this.reconcileContext();
     this.revision += 1;
+    this.notify();
+  }
+
+  private notify(): void {
     for (const listener of this.listeners) {
       // Notifications cannot turn a successful commit into a reported failure.
       try {

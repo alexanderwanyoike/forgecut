@@ -8,6 +8,10 @@ import type { CommandMap, ProjectSequence } from "../../shared/ipc-contract.js";
 import type { CommandRegistry } from "./types.js";
 
 export const sequenceCommands = {
+  select_sequence: (args, { state }) => {
+    const input = args as CommandMap["select_sequence"]["args"];
+    return state.selectSequence(input.sessionId, input.sequenceId);
+  },
   delete_sequence: (args, { state }) => {
     const input = args as CommandMap["delete_sequence"]["args"];
     state.executeProjectChange((project) => {

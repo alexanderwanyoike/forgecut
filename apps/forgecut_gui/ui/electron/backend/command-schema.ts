@@ -244,6 +244,7 @@ export const commandSchemas = {
   get_project_settings: none,
   get_project_snapshot: none,
   get_sequences: none,
+  select_sequence: z.strictObject({ sessionId: id, sequenceId: id }),
   get_editing_context: none,
   set_editing_context: z.strictObject({
     sessionId: id,

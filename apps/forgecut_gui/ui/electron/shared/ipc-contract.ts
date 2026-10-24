@@ -176,6 +176,7 @@ export type McpStatus = {
 };
 
 export type EditingContext = {
+  activeSequenceId?: string;
   sessionId: string;
   contextRevision: number;
   selectedItemIds: string[];
@@ -184,6 +185,8 @@ export type EditingContext = {
 };
 
 export type ProjectSnapshot = {
+  activeSequenceId?: string;
+  sequenceRevision?: number;
   project: Project;
   sessionId: string;
   revision: number;
@@ -330,6 +333,10 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  select_sequence: {
+    args: { sessionId: string; sequenceId: string };
+    result: EditingContext;
+  };
   delete_sequence: { args: { sequenceId: string }; result: undefined };
   get_sequences: {
     args: undefined;
