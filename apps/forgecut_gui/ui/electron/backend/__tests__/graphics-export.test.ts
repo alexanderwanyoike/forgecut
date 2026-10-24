@@ -9,6 +9,22 @@ import { EditingService } from "../editing-service";
 import { exportProject } from "../exporter";
 
 afterEach(() => vi.unstubAllEnvs());
+async function isDescendant(pid: string, owner: string): Promise<boolean> {
+  let current = pid;
+  for (let depth = 0; depth < 64 && current !== "0"; depth++) {
+    if (current === owner) return true;
+    try {
+      const stat = await readFile(`/proc/${current}/stat`, "utf8");
+      current = stat
+        .slice(stat.lastIndexOf(")") + 1)
+        .trim()
+        .split(/\s+/)[1];
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
 
 it.skipIf(process.env.FORGECUT_GRAPHICS_TEST !== "1")(
   "renders a pinned Remotion card without footage at its exact timeline frames",
@@ -108,20 +124,22 @@ it.skipIf(
               )
             ) {
               worker = pid;
-              browser =
-                spawnSync(
-                  "pgrep",
-                  [
-                    "-f",
-                    join(
-                      process.cwd(),
-                      "electron/dist/graphic-runtime/browser/",
-                    ),
-                  ],
-                  { encoding: "utf8" },
-                )
-                  .stdout.trim()
-                  .split(/\s+/)[0] ?? "";
+              const candidates = spawnSync(
+                "pgrep",
+                [
+                  "-f",
+                  join(process.cwd(), "electron/dist/graphic-runtime/browser/"),
+                ],
+                { encoding: "utf8" },
+              )
+                .stdout.trim()
+                .split(/\s+/);
+              for (const candidate of candidates) {
+                if (candidate && (await isDescendant(candidate, worker))) {
+                  browser = candidate;
+                  break;
+                }
+              }
             }
           } catch {}
         }
