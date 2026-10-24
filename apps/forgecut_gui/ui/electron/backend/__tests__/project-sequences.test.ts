@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 /** @vitest-environment node */
 import { expect, it } from "vitest";
 import { AppState } from "../state";
@@ -99,4 +102,53 @@ it("validates shared media references and item identities across additional sequ
   const duplicate = structuredClone(project);
   duplicate.timeline = structuredClone(project.sequences[0].timeline);
   expect(() => validateProject(duplicate)).toThrow("Duplicate ID");
+});
+
+it("saves and reopens sequence names dimensions timelines and stable identities", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "forgecut-sequences-"));
+  try {
+    const state = new AppState();
+    state.executeProjectChange((project) => {
+      project.default_sequence!.name = "Trailer";
+      project.sequences = [
+        {
+          id: "b3bc5c73-ec4c-48f3-887a-51f7bb3e5716",
+          name: "Standalone portrait",
+          settings: { ...project.settings, width: 1080, height: 1920, fps: 24 },
+          timeline: {
+            tracks: [
+              {
+                id: "titles",
+                kind: "OverlayText",
+                items: [
+                  {
+                    TextOverlay: {
+                      id: "title",
+                      track_id: "titles",
+                      timeline_start_us: 0,
+                      duration_us: 1000000,
+                      text: "A quiet start",
+                      font_size: 48,
+                      color: "#ffffff",
+                      x: 20,
+                      y: 50,
+                    },
+                  },
+                ],
+              },
+            ],
+            markers: [{ time_us: 0, label: "Opening" }],
+          },
+        },
+      ];
+    });
+    const path = join(directory, "film.forgecut");
+    await state.saveProject(path);
+    const reopened = new AppState();
+    await reopened.loadProject(path);
+    expect(reopened.project).toEqual(state.project);
+    expect(reopened.canUndo).toBe(false);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
