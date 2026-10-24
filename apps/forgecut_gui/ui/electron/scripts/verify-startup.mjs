@@ -1,3 +1,4 @@
+import { verifyVariants } from "./variant-smoke.mjs";
 import { verifyAppearance } from "./appearance-smoke.mjs";
 import { mkdtempSync } from "node:fs";
 import { rm } from "node:fs/promises";
@@ -213,6 +214,7 @@ async function main() {
   await verifyAppearance(send, "canvas");
   await verifyCode(send);
   await verifySequences(send);
+  await verifyVariants(send);
   ws.close();
 
   const value = result.result?.result?.value;
