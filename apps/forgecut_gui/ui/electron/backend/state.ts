@@ -1,6 +1,7 @@
 import {
   projectSequences,
   findProjectSequence,
+  projectForSequence,
 } from "../domain/project-sequences.js";
 import { access, mkdir, readFile, readdir, rm } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
@@ -96,6 +97,12 @@ export class AppState {
 
   sequenceIn(project: Project, sequenceId = this.activeSequence.id) {
     const found = findProjectSequence(project, sequenceId);
+    if (!found.ok) throw new EditingError("NOT_FOUND", found.error.message);
+    return found.value;
+  }
+
+  projectForSequence(sequenceId = this.activeSequence.id): Project {
+    const found = projectForSequence(this.project, sequenceId);
     if (!found.ok) throw new EditingError("NOT_FOUND", found.error.message);
     return found.value;
   }

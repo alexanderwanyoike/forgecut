@@ -22,3 +22,22 @@ export function findProjectSequence(
         error: { code: "NOT_FOUND", message: "Sequence not found" },
       };
 }
+
+export function projectForSequence(
+  project: Project,
+  sequenceId: string,
+): Result<Project, { code: "NOT_FOUND"; message: string }> {
+  const found = findProjectSequence(project, sequenceId);
+  if (!found.ok) return found;
+  const sequence = found.value;
+  return {
+    ok: true,
+    value: {
+      ...project,
+      default_sequence: { id: sequence.id, name: sequence.name },
+      settings: sequence.settings,
+      timeline: sequence.timeline,
+      sequences: [],
+    },
+  };
+}

@@ -23,5 +23,7 @@ export const projectCommands = {
         Object.assign(state.sequenceIn(project).settings, args.settings);
     }),
 
-  get_project_settings: (_args, { state }) => state.activeSequence.settings,
+  get_project_settings: (_args, { state, sequenceId }) =>
+    state.sequenceIn(state.project, sequenceId ?? state.activeSequence.id)
+      .settings,
 } satisfies CommandRegistry;

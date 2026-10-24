@@ -11,8 +11,9 @@ import {
 
 export const graphicsCommands = {
   get_graphic_components: () => graphicTemplates(),
-  add_graphic_item: (args, { state }) =>
+  add_graphic_item: (args, { state }) => {
     state.executeProjectChange((project) => {
+      const sequence = state.sequenceIn(project);
       const templateId = requiredString(args, "templateId");
       const template = graphicTemplates().find(
         (candidate) => candidate.template_id === templateId,
@@ -34,8 +35,8 @@ export const graphicsCommands = {
           value.default,
         ]),
       );
-      const sx = project.settings.width / component.design_size.width;
-      const sy = project.settings.height / component.design_size.height;
+      const sx = sequence.settings.width / component.design_size.width;
+      const sy = sequence.settings.height / component.design_size.height;
       for (const layer of component.layers) {
         const scaled: [string, number][] = [
           [layer.bindings.x, sx],
@@ -61,13 +62,13 @@ export const graphicsCommands = {
       });
       if (!props.ok) throw new Error(props.error.message);
       const trackId = requiredString(args, "trackId");
-      if (!project.timeline.tracks.some((track) => track.id === trackId))
-        project.timeline.tracks.push({
+      if (!sequence.timeline.tracks.some((track) => track.id === trackId))
+        sequence.timeline.tracks.push({
           id: trackId,
           kind: "Graphics",
           items: [],
         });
-      addItem(project.timeline, trackId, {
+      addItem(sequence.timeline, trackId, {
         RemotionGraphic: {
           id: randomUUID(),
           track_id: trackId,
@@ -78,5 +79,7 @@ export const graphicsCommands = {
           props: props.value,
         },
       });
-    }).timeline,
+    });
+    return state.activeSequence.timeline;
+  },
 } satisfies CommandRegistry;

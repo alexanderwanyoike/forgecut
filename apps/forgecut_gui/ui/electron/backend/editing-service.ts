@@ -158,6 +158,7 @@ export class EditingService {
             | "cancel_media_job"
         ](args, {
           state: this.state,
+          sequenceId: meta?.sequenceId,
           preview: this.preview,
           drafts: this.drafts,
           jobs: this.jobs,
