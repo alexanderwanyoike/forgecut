@@ -12,6 +12,7 @@ const result = spawnSync(
     "electron/backend/__tests__/graphic-isolation.test.ts",
     "electron/backend/__tests__/custom-graphics-export.test.ts",
     "electron/backend/__tests__/graphic-preview-frame.test.ts",
+    "electron/backend/__tests__/graphic-promotion-runtime.test.ts",
   ],
   {
     cwd: root,
