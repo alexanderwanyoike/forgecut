@@ -36,10 +36,12 @@ linux:
 deb:
   depends:
     - ffmpeg
+    - bubblewrap
 
 rpm:
   depends:
     - ffmpeg
+    - bubblewrap
 
 mac:
   target:

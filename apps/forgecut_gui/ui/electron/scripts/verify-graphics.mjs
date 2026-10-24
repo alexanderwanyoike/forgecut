@@ -8,6 +8,7 @@ const result = spawnSync(
     resolve(root, "node_modules/vitest/vitest.mjs"),
     "run",
     "electron/backend/__tests__/graphics-export.test.ts",
+    "electron/backend/__tests__/graphics-worker-process.test.ts",
   ],
   {
     cwd: root,

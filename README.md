@@ -61,10 +61,10 @@ Key design points:
 
 ```bash
 # Ubuntu / Debian
-sudo apt-get install ffmpeg
+sudo apt-get install ffmpeg bubblewrap
 
 # Fedora
-sudo dnf install ffmpeg
+sudo dnf install ffmpeg bubblewrap
 ```
 
 **Build dependencies:**
@@ -136,3 +136,5 @@ GitHub Actions runs on every push and pull request:
 ## License
 
 MIT — see [LICENSE](apps/forgecut_gui/ui/LICENSE)
+
+Remotion graphics export currently requires Linux with Bubblewrap PID namespaces. Other platforms retain ordinary FFmpeg export and graphic preview. From source, run `yarn --cwd apps/forgecut_gui/ui build:graphic-runtime` before exporting graphics; packaged Linux builds include the prepared browser and renderer.
