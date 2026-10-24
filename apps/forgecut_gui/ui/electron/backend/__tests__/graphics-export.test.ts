@@ -107,7 +107,17 @@ it.skipIf(
             ) {
               worker = pid;
               browser =
-                spawnSync("pgrep", ["--parent", pid], { encoding: "utf8" })
+                spawnSync(
+                  "pgrep",
+                  [
+                    "-f",
+                    join(
+                      process.cwd(),
+                      "electron/dist/graphic-runtime/browser/",
+                    ),
+                  ],
+                  { encoding: "utf8" },
+                )
                   .stdout.trim()
                   .split(/\s+/)[0] ?? "";
             }
