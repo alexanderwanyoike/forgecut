@@ -83,10 +83,14 @@ function request<K extends CommandName>(
   args?: InvokeArgs,
   editGroup?: string,
 ): Promise<CommandResultOf<K>> {
-  const jobControl = command === "get_media_job" || command === "cancel_media_job";
+  const jobControl =
+    command === "get_media_job" || command === "cancel_media_job";
   return requireElectronApi()
     .invoke<CommandResultOf<K>>(command, args, {
-      sessionId: command === "get_project_snapshot" || jobControl ? undefined : activeSession,
+      sessionId:
+        command === "get_project_snapshot" || jobControl
+          ? undefined
+          : activeSession,
       editGroup,
     })
     .then((response) => {
@@ -95,7 +99,9 @@ function request<K extends CommandName>(
           code: response.error.code,
         });
       if (
-        !jobControl && command !== "export_project" && response.revision < activeRevision &&
+        !jobControl &&
+        command !== "export_project" &&
+        response.revision < activeRevision &&
         (command.startsWith("get_") || response.sessionId !== activeSession)
       ) {
         throw Object.assign(

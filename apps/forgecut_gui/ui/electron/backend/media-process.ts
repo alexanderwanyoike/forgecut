@@ -1,5 +1,5 @@
-import { budgetedMediaCommand } from "./process-budget.js";
 import { spawn } from "node:child_process";
+import { budgetedMediaCommand } from "./process-budget.js";
 import type { Result } from "../shared/result.js";
 
 export async function runMediaProcess(
@@ -13,7 +13,9 @@ export async function runMediaProcess(
     onStderr?: (chunk: string) => void;
   } = {},
 ): Promise<Result<Buffer>> {
-  const invocation = options.budget ? await budgetedMediaCommand(executable, args) : {command: executable, args};
+  const invocation = options.budget
+    ? await budgetedMediaCommand(executable, args)
+    : { command: executable, args };
   return new Promise((resolve) => {
     const cancelled = (): Result<Buffer> => ({
       ok: false,

@@ -1,4 +1,5 @@
 import type { AppState } from "../state.js";
+
 export type CommandArgs = Record<string, unknown> | undefined;
 export type CommandContext = {
   state: AppState;

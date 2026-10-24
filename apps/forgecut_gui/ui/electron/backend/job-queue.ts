@@ -148,11 +148,15 @@ export class JobQueue {
     while (this.pending.length > 0) {
       const work = this.pending.shift()!;
       work.entry.snapshot.status = "running";
-      const timeout = setTimeout(() => {
-        if (work.entry.snapshot.status === "committing") return;
-        work.entry.timedOut = true;
-        work.entry.controller.abort();
-      }, this.options.timeoutMs ?? (work.entry.snapshot.kind === "export" ? 900000 : 120000));
+      const timeout = setTimeout(
+        () => {
+          if (work.entry.snapshot.status === "committing") return;
+          work.entry.timedOut = true;
+          work.entry.controller.abort();
+        },
+        this.options.timeoutMs ??
+          (work.entry.snapshot.kind === "export" ? 900000 : 120000),
+      );
       timeout.unref();
       try {
         const result = await work.run(

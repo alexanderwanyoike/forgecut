@@ -161,7 +161,7 @@ export const commandSchemas = {
   relink_asset: z.strictObject({ id, path: z.string().min(1) }),
   get_clip_thumbnails: z.strictObject({ assetId: id }),
   get_waveform: z.strictObject({ assetId: id }),
-  cancel_media_job: z.strictObject({sessionId: id, jobId: z.uuid()}),
-  get_media_job: z.strictObject({sessionId: id, jobId: z.uuid()}),
+  cancel_media_job: z.strictObject({ sessionId: id, jobId: z.uuid() }),
+  get_media_job: z.strictObject({ sessionId: id, jobId: z.uuid() }),
   export_project: z.strictObject({ outputPath: z.string().min(1) }),
 } satisfies Record<CommandName, z.ZodType>;

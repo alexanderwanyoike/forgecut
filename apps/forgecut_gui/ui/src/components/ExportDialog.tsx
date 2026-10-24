@@ -47,7 +47,8 @@ export default function ExportDialog(props: {
         }
       } catch (cause) {
         if (!disposed) {
-          const code = cause instanceof Error && "code" in cause ? cause.code : null;
+          const code =
+            cause instanceof Error && "code" in cause ? cause.code : null;
           if (code === "CONFLICT" || code === "PROJECT_CHANGED") return;
           setError(String(cause));
           if (code === "NOT_FOUND") setJob(null);
