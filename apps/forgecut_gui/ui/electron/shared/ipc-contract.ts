@@ -307,6 +307,7 @@ export type ItemPatch =
     };
 
 export type EditCommandName =
+  | "set_resource_license"
   | "set_asset_license"
   | "delete_style_preset"
   | "save_style_preset"
@@ -367,6 +368,10 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  set_resource_license: {
+    args: { resourceId: string; license: ResourceLicense };
+    result: GraphicResource;
+  };
   set_asset_license: {
     args: { assetId: string; license: ResourceLicense | null };
     result: Asset;

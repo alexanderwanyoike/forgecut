@@ -331,6 +331,7 @@ export class EditingService {
     // Reuse command semantics on an isolated owner; publish only the final batch.
     const globalCommands = new Set<EditOperation["command"]>([
       "set_asset_license",
+      "set_resource_license",
       "save_style_preset",
       "delete_style_preset",
       "update_source_selection",

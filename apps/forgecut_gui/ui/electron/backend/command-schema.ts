@@ -82,6 +82,10 @@ const patch = z.discriminatedUnion("kind", [
 ]);
 const none = z.strictObject({}).optional();
 export const editSchemas = {
+  set_resource_license: z.strictObject({
+    resourceId: id,
+    license: resourceLicenseSchema,
+  }),
   set_asset_license: z.strictObject({
     assetId: id,
     license: resourceLicenseSchema.nullable(),
