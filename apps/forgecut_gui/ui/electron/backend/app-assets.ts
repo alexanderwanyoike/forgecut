@@ -17,7 +17,7 @@ const mimeTypes: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 const csp =
-  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: forgecut-resource:; font-src 'self' data: forgecut-resource:; media-src forgecut-media: blob:; connect-src 'self' forgecut-resource: forgecut-media:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'";
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: forgecut-resource: forgecut-media:; font-src 'self' data: forgecut-resource:; media-src forgecut-media: blob:; connect-src 'self' forgecut-resource: forgecut-media:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'";
 
 function inside(root: string, path: string): boolean {
   const remainder = relative(root, path);
