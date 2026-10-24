@@ -11,6 +11,7 @@ import {
 export const mediaCommands = {
   import_assets: async (args, { state }) => {
     const { sessionId } = state;
+    const { revision } = state;
     const imported: Asset[] = [];
     for (const path of requiredStringArray(args, "paths")) {
       try {
@@ -21,6 +22,11 @@ export const mediaCommands = {
       }
     }
     state.assertSession(sessionId);
+    if (state.revision !== revision)
+      throw new EditingError(
+        "CONFLICT",
+        "The project changed while importing media. Read it again and retry.",
+      );
     state.executeProjectChange(
       (project) => {
         project.assets.push(...imported);
