@@ -22,8 +22,13 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline: 1px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+button:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+summary:focus:not(:focus-visible) {
+  outline: none;
 }
 button,
 select,

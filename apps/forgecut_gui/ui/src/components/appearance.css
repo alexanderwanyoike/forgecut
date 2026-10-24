@@ -73,11 +73,6 @@
   background: var(--bg-panel);
   box-shadow: 0 1px 3px #0002;
 }
-.appearance-modes input:focus-visible + span,
-.appearance-accents input:focus-visible + span {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
 .appearance-accents {
   display: flex;
   justify-content: space-between;
@@ -108,4 +103,10 @@
 .accent-name {
   font-size: 10px;
   color: var(--text-secondary);
+}
+
+.appearance-modes input:focus-visible + span,
+.appearance-accents input:focus-visible + span {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: 2px;
 }
