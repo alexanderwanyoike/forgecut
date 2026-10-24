@@ -6,6 +6,9 @@ import {
   settingsSchema,
   trackKindSchema,
   audioSettingsShape,
+  visualPlacementSchema,
+  layerOrderSchema,
+  fitSchema,
 } from "./project-schema.js";
 
 const nonempty = <T extends z.ZodRawShape>(shape: T) =>
@@ -18,7 +21,11 @@ const nonempty = <T extends z.ZodRawShape>(shape: T) =>
 const patch = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("VideoClip"),
-    changes: nonempty(audioSettingsShape),
+    changes: nonempty({
+      ...audioSettingsShape,
+      transform: visualPlacementSchema.optional(),
+      layer_order: layerOrderSchema.optional(),
+    }),
   }),
   z.strictObject({
     kind: z.literal("AudioClip"),
@@ -27,6 +34,7 @@ const patch = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("TextOverlay"),
     changes: nonempty({
+      layer_order: layerOrderSchema.optional(),
       text: z.string().optional(),
       font_size: z.number().positive().optional(),
       color: z
@@ -40,6 +48,8 @@ const patch = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("ImageOverlay"),
     changes: nonempty({
+      layer_order: layerOrderSchema.optional(),
+      fit: fitSchema.optional(),
       asset_id: id.optional(),
       x: z.number().optional(),
       y: z.number().optional(),

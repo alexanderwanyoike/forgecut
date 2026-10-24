@@ -9,7 +9,9 @@ import type {
   TimelineItem,
 } from "../../electron/shared/ipc-contract";
 import PropertyInput from "./PropertyInput";
+import NumberProperty from "./NumberProperty";
 import ClipAudioProperties from "./ClipAudioProperties";
+import VisualProperties from "./VisualProperties";
 
 interface InspectorProps {
   selectedClipId: string | null;
@@ -75,30 +77,7 @@ export default function Inspector({
       });
     } catch {}
   };
-  const numberField = (
-    label: string,
-    value: number,
-    change: (value: number) => void | Promise<void>,
-    min?: number,
-  ) => (
-    <label className="inspector-row" key={label}>
-      <span className="inspector-label">{label}</span>
-      <PropertyInput
-        type="number"
-        className="inspector-input-sm"
-        value={value}
-        min={min}
-        onValueChange={(raw) => {
-          if (raw === "") return;
-          const next = Number(raw);
-          if (Number.isFinite(next) && (min === undefined || next >= min))
-            void change(next);
-        }}
-      />
-    </label>
-  );
   const text = item && "TextOverlay" in item ? item.TextOverlay : null;
-  const image = item && "ImageOverlay" in item ? item.ImageOverlay : null;
   let clipAudio: {
     kind: "VideoClip" | "AudioClip";
     settings: AudioSettings;
@@ -162,30 +141,30 @@ export default function Inspector({
           />
         </label>
       )}
-      {numberField(
-        "Width",
-        projectSettings.width,
-        (width) => updateSettings({ width }),
-        1,
-      )}
-      {numberField(
-        "Height",
-        projectSettings.height,
-        (height) => updateSettings({ height }),
-        1,
-      )}
-      {numberField(
-        "FPS",
-        projectSettings.fps,
-        (fps) => updateSettings({ fps }),
-        1,
-      )}
-      {numberField(
-        "Sample Rate",
-        projectSettings.sample_rate,
-        (sample_rate) => updateSettings({ sample_rate }),
-        1,
-      )}
+      <NumberProperty
+        label="Width"
+        value={projectSettings.width}
+        onValueChange={(width) => updateSettings({ width })}
+        min={1}
+      />
+      <NumberProperty
+        label="Height"
+        value={projectSettings.height}
+        onValueChange={(height) => updateSettings({ height })}
+        min={1}
+      />
+      <NumberProperty
+        label="FPS"
+        value={projectSettings.fps}
+        onValueChange={(fps) => updateSettings({ fps })}
+        min={1}
+      />
+      <NumberProperty
+        label="Sample Rate"
+        value={projectSettings.sample_rate}
+        onValueChange={(sample_rate) => updateSettings({ sample_rate })}
+        min={1}
+      />
     </div>
   ) : (
     <div className="inspector-empty">No selection</div>
@@ -242,13 +221,14 @@ export default function Inspector({
                     }
                   />
                 </label>
-                {numberField(
-                  "Font Size",
-                  text.font_size,
-                  (font_size) =>
-                    update({ kind: "TextOverlay", changes: { font_size } }),
-                  1,
-                )}
+                <NumberProperty
+                  label="Font Size"
+                  value={text.font_size}
+                  onValueChange={(font_size) =>
+                    update({ kind: "TextOverlay", changes: { font_size } })
+                  }
+                  min={1}
+                />
                 <label className="inspector-row">
                   <span className="inspector-label">Color</span>
                   <input
@@ -263,54 +243,24 @@ export default function Inspector({
                     }
                   />
                 </label>
-                {numberField("X", text.x, (x) =>
-                  update({ kind: "TextOverlay", changes: { x } }),
-                )}
-                {numberField("Y", text.y, (y) =>
-                  update({ kind: "TextOverlay", changes: { y } }),
-                )}
+                <NumberProperty
+                  label="X"
+                  value={text.x}
+                  onValueChange={(x) =>
+                    update({ kind: "TextOverlay", changes: { x } })
+                  }
+                />
+                <NumberProperty
+                  label="Y"
+                  value={text.y}
+                  onValueChange={(y) =>
+                    update({ kind: "TextOverlay", changes: { y } })
+                  }
+                />
               </>
             )}
-            {image && (
-              <>
-                {numberField("X", image.x, (x) =>
-                  update({ kind: "ImageOverlay", changes: { x } }),
-                )}
-                {numberField("Y", image.y, (y) =>
-                  update({ kind: "ImageOverlay", changes: { y } }),
-                )}
-                {numberField(
-                  "Width",
-                  image.width,
-                  (width) =>
-                    update({ kind: "ImageOverlay", changes: { width } }),
-                  1,
-                )}
-                {numberField(
-                  "Height",
-                  image.height,
-                  (height) =>
-                    update({ kind: "ImageOverlay", changes: { height } }),
-                  1,
-                )}
-                <label className="inspector-row">
-                  <span className="inspector-label">Opacity</span>
-                  <input
-                    type="range"
-                    className="inspector-slider"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={image.opacity}
-                    onChange={(event) =>
-                      update({
-                        kind: "ImageOverlay",
-                        changes: { opacity: Number(event.currentTarget.value) },
-                      })
-                    }
-                  />
-                </label>
-              </>
+            {project && (
+              <VisualProperties project={project} item={item} update={update} />
             )}
             {clipAudio && (
               <ClipAudioProperties {...clipAudio} update={update} />

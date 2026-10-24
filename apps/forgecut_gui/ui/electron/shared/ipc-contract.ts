@@ -55,7 +55,23 @@ export type ClipItem = {
   source_out_us: TimeUs;
 } & AudioSettings;
 
+export type VisualPlacement = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fit: "contain" | "cover";
+  opacity: number;
+};
+
+export type VideoClipItem = ClipItem & {
+  transform?: VisualPlacement;
+  layer_order?: number;
+};
+
 export type ImageOverlayItem = {
+  fit?: VisualPlacement["fit"];
+  layer_order?: number;
   id: string;
   asset_id: string;
   track_id: string;
@@ -69,6 +85,7 @@ export type ImageOverlayItem = {
 };
 
 export type TextOverlayItem = {
+  layer_order?: number;
   id: string;
   track_id: string;
   timeline_start_us: TimeUs;
@@ -81,13 +98,13 @@ export type TextOverlayItem = {
 };
 
 export type TimelineItem =
-  | { VideoClip: ClipItem }
+  | { VideoClip: VideoClipItem }
   | { AudioClip: ClipItem & { volume: number } }
   | { ImageOverlay: ImageOverlayItem }
   | { TextOverlay: TextOverlayItem };
 
 export type TimelineItemDetail =
-  | ClipItem
+  | VideoClipItem
   | (ClipItem & { volume: number })
   | ImageOverlayItem
   | TextOverlayItem;
@@ -150,6 +167,7 @@ export type SequenceFrame = {
     sourceTimeUs?: TimeUs;
     playbackTimeUs?: TimeUs;
     audioGain?: number;
+    placement?: VisualPlacement;
   }[];
 };
 
@@ -170,7 +188,11 @@ export type CommandResponse<T = unknown> =
 export type CommandMetadata = { sessionId?: string; editGroup?: string };
 
 export type ItemPatch =
-  | { kind: "VideoClip"; changes: AudioSettings }
+  | {
+      kind: "VideoClip";
+      changes: AudioSettings &
+        Partial<Pick<VideoClipItem, "transform" | "layer_order">>;
+    }
   | {
       kind: "AudioClip";
       changes: AudioSettings;
@@ -178,7 +200,10 @@ export type ItemPatch =
   | {
       kind: "TextOverlay";
       changes: Partial<
-        Pick<TextOverlayItem, "text" | "font_size" | "color" | "x" | "y">
+        Pick<
+          TextOverlayItem,
+          "text" | "font_size" | "color" | "x" | "y" | "layer_order"
+        >
       >;
     }
   | {
@@ -186,7 +211,14 @@ export type ItemPatch =
       changes: Partial<
         Pick<
           ImageOverlayItem,
-          "asset_id" | "x" | "y" | "width" | "height" | "opacity"
+          | "asset_id"
+          | "x"
+          | "y"
+          | "width"
+          | "height"
+          | "opacity"
+          | "fit"
+          | "layer_order"
         >
       >;
     };

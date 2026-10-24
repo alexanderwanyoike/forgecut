@@ -86,3 +86,5 @@ This first Phase 2 slice provides session selection, capability discovery, bound
 Source and music gain, mute and fades are exposed through the typed `update_item` patches advertised by `get_capabilities`. Time fields remain integer microseconds, and manual changes use the same guarded history as MCP edits.
 
 `set_sequence_end` is also available inside `apply_edits`: supply `endUs` as a positive integer or `null` to follow the content duration. Read `read_sequence_frame` for the resolved duration and frame count. This changes the sequence boundary without trimming any timeline item.
+
+Visual `update_item` patches support a complete video `transform`, image `fit` and integer `layer_order` on video/image/text items. Read `read_sequence_frame` for the resolved placement and compositing order. The `get_capabilities` schemas list every supported field. Full video transforms retain explicit fit and opacity alongside position/size; changes remain guarded by the expected project revision.

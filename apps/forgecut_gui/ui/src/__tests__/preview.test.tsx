@@ -150,6 +150,61 @@ describe("Preview component", () => {
     render(<Preview {...idle} project={project} />);
     expect(screen.getByText("Current title")).toBeTruthy();
   });
+  it("uses resolved visual transforms and stacking in composition coordinates", () => {
+    const project = videoProject();
+    const clip = project.timeline.tracks[0].items[0];
+    if (!("VideoClip" in clip)) throw new Error("Invalid picture fixture");
+    clip.VideoClip.transform = {
+      x: 200,
+      y: 120,
+      width: 160,
+      height: 90,
+      fit: "cover",
+      opacity: 0.5,
+    };
+    clip.VideoClip.layer_order = 2;
+    project.assets.push({
+      id: "art",
+      name: "Art",
+      path: "/art.png",
+      kind: "Image",
+      probe: null,
+    });
+    project.timeline.tracks.push({
+      id: "artwork",
+      kind: "OverlayImage",
+      items: [
+        {
+          ImageOverlay: {
+            id: "art-item",
+            asset_id: "art",
+            track_id: "artwork",
+            timeline_start_us: 0,
+            duration_us: 1000000,
+            x: 10.4,
+            y: 20.6,
+            width: 100,
+            height: 50,
+            opacity: 0.7,
+            fit: "cover",
+            layer_order: 0,
+          },
+        },
+      ],
+    });
+    render(<Preview {...idle} project={project} />);
+    const video = document.querySelector("video")!;
+    expect(video.style.left).toBe("200px");
+    expect(video.style.width).toBe("160px");
+    expect(video.style.objectFit).toBe("cover");
+    expect(video.style.opacity).toBe("0.5");
+    expect(video.style.background).toBe("transparent");
+    const image = screen.getByRole("img");
+    expect(image.style.left).toBe("10px");
+    expect(image.style.top).toBe("21px");
+    expect(image.style.objectFit).toBe("cover");
+    expect(video.parentElement?.firstElementChild).toBe(image);
+  });
   it("pauses on project edits while retaining normal clock position updates", () => {
     const props = {
       ...idle,
