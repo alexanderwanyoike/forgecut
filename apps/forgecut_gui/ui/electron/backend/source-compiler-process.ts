@@ -44,7 +44,7 @@ export async function runSourceCompiler(
       ok: false,
       error: { code: "CANCELLED", message: "Source check cancelled" },
     };
-  return await new Promise<Result<GraphicCompilation>>((resolve) => {
+  return new Promise<Result<GraphicCompilation>>((resolve) => {
     const child = spawn(invocation.command, invocation.args, {
       cwd: directory,
       detached: process.platform !== "win32",
