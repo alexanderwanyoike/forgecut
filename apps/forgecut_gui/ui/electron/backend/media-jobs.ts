@@ -1,3 +1,8 @@
+import type {
+  GraphicResource,
+  GraphicResourceImport,
+  GraphicResourceSelection,
+} from "../shared/graphic-resources.js";
 import type { EditingService } from "./editing-service.js";
 import { sourceFrame } from "./source-frame.js";
 
@@ -8,6 +13,10 @@ type MediaJobRequest = {
 } & (
   | { action: "import"; paths: string[] }
   | { action: "frame"; assetId: string; timeUs: number }
+  | {
+      action: "resource";
+      resource: GraphicResourceImport & { target?: GraphicResourceSelection };
+    }
 );
 
 export function startMediaJob(
@@ -21,11 +30,15 @@ export function startMediaJob(
       sessionId: request.sessionId,
       projectRevision: request.expectedRevision,
       requestId: request.requestId,
-      kind: request.action,
-      label: request.action === "import" ? "Import media" : "Source frame",
+      kind: request.action === "resource" ? "import" : request.action,
+      label: {
+        frame: "Source frame",
+        import: "Import media",
+        resource: "Import graphic resource",
+      }[request.action],
       input: request,
     },
-    async (signal, onProgress) => {
+    async (signal, onProgress, beginCommit) => {
       if (state.sessionId !== request.sessionId)
         return {
           ok: false,
@@ -58,12 +71,33 @@ export function startMediaJob(
         return sourceFrame(asset, request.timeUs, signal);
       }
       const imported = await service.execute(
-        "import_assets",
-        { paths: request.paths },
+        request.action === "resource"
+          ? "import_graphic_resource"
+          : "import_assets",
+        request.action === "resource"
+          ? {
+              ...request.resource,
+              target: request.resource.target
+                ? {
+                    ...request.resource.target,
+                    sessionId: request.sessionId,
+                    expectedRevision: request.expectedRevision,
+                  }
+                : undefined,
+            }
+          : { paths: request.paths },
         { sessionId: request.sessionId },
-        { signal, onProgress },
+        { signal, onProgress, beginCommit },
       );
       if (!imported.ok) return imported;
+      if (request.action === "resource")
+        return {
+          ok: true,
+          value: {
+            resourceId: (imported.value as GraphicResource).id,
+            sha256: (imported.value as GraphicResource).sha256,
+          },
+        };
       return {
         ok: true,
         value: {

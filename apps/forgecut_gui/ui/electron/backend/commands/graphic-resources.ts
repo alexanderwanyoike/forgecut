@@ -6,7 +6,7 @@ import { EditingError } from "../editing-error.js";
 import type { CommandRegistry } from "./types.js";
 
 export const graphicResourceCommands = {
-  import_graphic_resource: async (args, { state, signal }) => {
+  import_graphic_resource: async (args, { state, signal, beginCommit }) => {
     const input = args as CommandMap["import_graphic_resource"]["args"];
     if (input.target) {
       state.assertSession(input.target.sessionId);
@@ -52,6 +52,11 @@ export const graphicResourceCommands = {
       throw new EditingError(
         "CONFLICT",
         "Project changed while importing the resource. Read it again and retry.",
+      );
+    if (beginCommit && !beginCommit())
+      throw new EditingError(
+        "CANCELLED",
+        "Resource import cancelled before publication",
       );
     state.executeProjectChange((project) => {
       project.resources ??= [];

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  resourceRequestSchema,
   exportRequestSchema,
   importRequestSchema,
   frameRequestSchema,
@@ -20,6 +21,7 @@ export const editingCapabilities = {
   },
   history: z.toJSONSchema(historyRequestSchema),
   jobs: {
+    resourceImport: z.toJSONSchema(resourceRequestSchema),
     export: z.toJSONSchema(exportRequestSchema),
     states: [
       "queued",

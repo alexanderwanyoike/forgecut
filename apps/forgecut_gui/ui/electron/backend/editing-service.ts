@@ -67,6 +67,7 @@ export class EditingService {
     metadata?: unknown,
     options: {
       signal?: AbortSignal;
+      beginCommit?: () => boolean;
       onProgress?: (progress: number) => void;
     } = {},
   ): Promise<CommandResponse> {

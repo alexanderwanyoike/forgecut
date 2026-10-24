@@ -121,6 +121,9 @@ export async function startLocalBridge(
         context: "Read editing context",
         templates: "Read graphic templates",
         component: "Read graphic component",
+        resource: "Import graphic resource",
+        resources: "Read graphic resources",
+        "resource-details": "Read graphic resource",
       };
       let label = labels[request.action];
       if (request.action === "apply") label = request.label;
