@@ -285,3 +285,43 @@ it("does not cancel a job after it begins publishing its completed output", asyn
     await jobs.close();
   }
 });
+
+it("allows a production export window while still enforcing its deadline", async () => {
+  vi.useFakeTimers();
+  const jobs = new JobQueue();
+  try {
+    const job = jobs.start(
+      {
+        sessionId: "session",
+        projectRevision: 0,
+        requestId: "export-deadline",
+        kind: "export",
+        label: "Export",
+        input: null,
+      },
+      async (signal) => {
+        await new Promise<void>((resolve) =>
+          signal.addEventListener("abort", () => resolve(), { once: true }),
+        );
+        return { ok: true, value: null };
+      },
+    );
+    if (!job.ok) throw new Error(job.error.message);
+    await vi.advanceTimersByTimeAsync(120001);
+    expect(jobs.read(job.value.id, "session")).toMatchObject({
+      ok: true,
+      value: { status: "running" },
+    });
+    await vi.advanceTimersByTimeAsync(780000);
+    expect(jobs.read(job.value.id, "session")).toMatchObject({
+      ok: true,
+      value: {
+        status: "failed",
+        result: { ok: false, error: { code: "TIMEOUT" } },
+      },
+    });
+  } finally {
+    await jobs.close();
+    vi.useRealTimers();
+  }
+});
