@@ -16,6 +16,55 @@ import type {
 } from "../../electron/shared/ipc-contract";
 afterEach(cleanupSequenceWorkspace);
 
+it("invalidates a pending context reply across a batched same-sequence round trip", async () => {
+  const { state, root, clip, App } = await sequenceWorkspaceFixture();
+  const native = window.forgecut!.invoke;
+  let release!: () => void;
+  let began!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    began = resolve;
+  });
+  let paused = false;
+  window.forgecut!.invoke = async <T,>(
+    command: string,
+    args?: Record<string, unknown>,
+    metadata?: CommandMetadata,
+  ): Promise<CommandResponse<T>> => {
+    const result = await native<T>(command, args, metadata);
+    if (command === "get_editing_context" && !paused) {
+      paused = true;
+      began();
+      await held;
+    }
+    return result;
+  };
+  try {
+    render(<App />);
+    await started;
+    await act(async () => {
+      const context = state.getEditingContext();
+      state.setEditingContext({
+        ...context,
+        sequenceId: root,
+        playheadUs: 2000000,
+      });
+      state.selectSequence(state.sessionId, clip);
+      state.selectSequence(state.sessionId, root);
+      release();
+    });
+    await screen.findByLabelText("Text");
+    await waitFor(() =>
+      expect(state.getEditingContext().playheadUs).toBe(2000000),
+    );
+    expect(screen.getByText("00:00:02.000")).toBeTruthy();
+  } finally {
+    release();
+  }
+});
+
 it("switches every editing surface and restores each sequence context without creative edits", async () => {
   const { state, root, clip, App } = await sequenceWorkspaceFixture();
   const revision = state.revision;
