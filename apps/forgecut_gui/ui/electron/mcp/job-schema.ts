@@ -87,3 +87,17 @@ export const resourceRequestSchema = importRequestSchema
           });
       }),
   });
+
+export const sourcePreviewJobSchema = z.looseObject({
+  kind: z.literal("source-preview"),
+  result: z.strictObject({
+    ok: z.literal(true),
+    value: z.strictObject({
+      mimeType: z.literal("video/webm"),
+      data: z.string().max(700000),
+      assetId: idSchema,
+      startUs: timeSchema,
+      endUs: timeSchema,
+    }),
+  }),
+});

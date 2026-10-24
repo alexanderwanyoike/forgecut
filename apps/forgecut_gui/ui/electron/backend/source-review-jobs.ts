@@ -14,11 +14,12 @@ export function startSourceReview(
       sessionId: request.sessionId,
       projectRevision: request.expectedRevision,
       requestId: request.requestId,
-      kind: request.kind,
-      label:
-        request.kind === "contact-sheet"
-          ? "Source contact sheet"
-          : "Source waveform",
+      kind: request.kind === "preview" ? "source-preview" : request.kind,
+      label: {
+        "contact-sheet": "Source contact sheet",
+        waveform: "Source waveform",
+        preview: "Source preview",
+      }[request.kind],
       input: request,
     },
     async (signal) => {

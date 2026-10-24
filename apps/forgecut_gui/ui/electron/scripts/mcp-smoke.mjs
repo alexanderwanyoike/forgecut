@@ -35,6 +35,18 @@ export async function verifyMcp(directory, send) {
     const snapshot = attached.structuredContent?.value;
     if (attached.isError || !snapshot?.sessionId)
       throw new Error("Could not attach to the running editor");
+    const capabilities = await client.callTool({
+      name: "get_capabilities",
+      arguments: {},
+    });
+    if (
+      capabilities.isError ||
+      capabilities.structuredContent?.value?.jobs
+        ?.sourcePreviewMaxDurationUs !== 5000000 ||
+      capabilities.structuredContent?.value?.jobs?.sourcePreviewMaxBytes !==
+        512 * 1024
+    )
+      throw new Error("Packaged preview capabilities are unavailable");
     const styles = await client.callTool({
       name: "read_style_presets",
       arguments: { sessionId: snapshot.sessionId },

@@ -12,9 +12,11 @@ import type { JobSnapshot } from "../../shared/jobs";
 import { startLocalBridge } from "../local-bridge";
 import { createMcpServer } from "../server";
 
-it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
-  "returns a contact sheet as native MCP image content with its source-range metadata",
-  async () => {
+it
+  .skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)
+  .each(["contact-sheet", "preview"] as const)(
+  "returns bounded %s metadata without encoding binary media in MCP text",
+  async (kind) => {
     const directory = await mkdtemp(join(tmpdir(), "forgecut-review-mcp-"));
     const state = new AppState();
     const service = new EditingService(state);
@@ -39,7 +41,7 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
         assetId: state.project.assets[0].id,
         startUs: 0,
         endUs: 1000000,
-        kind: "contact-sheet",
+        kind,
       };
       const started = await client.callTool({
         name: "start_source_review",
@@ -50,7 +52,7 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
         JSON.stringify(started.structuredContent),
       ).toMatchObject({
         ok: true,
-        value: { kind: "contact-sheet" },
+        value: { kind: kind === "preview" ? "source-preview" : kind },
       });
       const snapshot = started.structuredContent as {
         ok: true;
@@ -77,14 +79,14 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
           result: {
             ok: true,
             value: {
-              mimeType: "image/jpeg",
+              mimeType: kind === "preview" ? "video/webm" : "image/jpeg",
               assetId: request.assetId,
               startUs: 0,
               endUs: 1000000,
-              columns: 4,
-              rows: 3,
               bytes: expect.any(Number),
-              timesUs: expect.any(Array),
+              ...(kind === "contact-sheet"
+                ? { columns: 4, rows: 3, timesUs: expect.any(Array) }
+                : {}),
             },
           },
         },
@@ -94,7 +96,7 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
           (content) =>
             content.type === "image" && content.mimeType === "image/jpeg",
         ),
-      ).toBe(true);
+      ).toBe(kind === "contact-sheet");
       expect(JSON.stringify(completed.structuredContent)).not.toContain(
         '"data"',
       );
