@@ -39,7 +39,9 @@ export default function ResourceProperty({
         multiple: false,
         title: kind === "Font" ? "Choose a font" : "Choose artwork",
         filters: [
-          { name: "Fonts", extensions: ["ttf", "otf", "woff", "woff2"] },
+          kind === "Font"
+            ? { name: "Fonts", extensions: ["ttf", "otf", "woff", "woff2"] }
+            : { name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] },
         ],
       });
       if (!path) return;
