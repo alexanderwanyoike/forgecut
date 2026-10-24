@@ -223,3 +223,14 @@ it("keeps modal keyboard gestures away from the selected timeline clip", async (
     expect(state.project).toEqual(before);
   }
 });
+
+it("renders the close tooltip inside the native modal layer", async () => {
+  await fixture();
+  fireEvent.focus(
+    screen.getByRole("button", { name: "Close project credits" }),
+  );
+  const tooltip = await screen.findByRole("tooltip");
+  expect(
+    screen.getByRole("dialog", { name: "Project credits" }).contains(tooltip),
+  ).toBe(true);
+});
