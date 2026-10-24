@@ -1,75 +1,193 @@
 import { ZodError } from "zod";
 import { createHash } from "node:crypto";
-import type { CommandName, CommandMetadata, CommandResponse, EditOperation, EditRequest, ProjectSnapshot } from "../shared/ipc-contract.js";
+import type {
+  CommandName,
+  CommandMetadata,
+  CommandResponse,
+  EditOperation,
+  EditRequest,
+  ProjectSnapshot,
+} from "../shared/ipc-contract.js";
 import { AppState } from "./state.js";
 import { EditingError } from "./editing-error.js";
-import { commandSchemas, editRequestSchema, editSchemas, metadataSchema } from "./command-schema.js";
+import {
+  commandSchemas,
+  editRequestSchema,
+  editSchemas,
+  metadataSchema,
+} from "./command-schema.js";
 import { autosaveCommands } from "./commands/autosave.js";
 import { exportCommands } from "./commands/export.js";
 import { mediaCommands } from "./commands/media.js";
 import { projectCommands } from "./commands/project.js";
 import { timelineCommands } from "./commands/timeline.js";
-import type { CommandArgs, CommandHandler, EventSink } from "./commands/types.js";
+import type {
+  CommandArgs,
+  CommandHandler,
+  EventSink,
+} from "./commands/types.js";
 
-const handlers: Record<Exclude<CommandName, "get_project_snapshot" | "apply_edits">, CommandHandler> = {
-  ...projectCommands, ...timelineCommands, ...mediaCommands, ...autosaveCommands, ...exportCommands,
+const handlers: Record<
+  Exclude<CommandName, "get_project_snapshot" | "apply_edits">,
+  CommandHandler
+> = {
+  ...projectCommands,
+  ...timelineCommands,
+  ...mediaCommands,
+  ...autosaveCommands,
+  ...exportCommands,
 };
-type CachedEdit = { fingerprint: string; snapshot: ProjectSnapshot; bytes: number };
+type CachedEdit = {
+  fingerprint: string;
+  snapshot: ProjectSnapshot;
+  bytes: number;
+};
 
 export class EditingService {
   private requests = new Map<string, CachedEdit>();
   constructor(readonly state: AppState) {}
 
-  async execute(command: string, input?: unknown, metadata?: CommandMetadata, emit: EventSink = () => {}): Promise<CommandResponse> {
+  async execute(
+    command: string,
+    input?: unknown,
+    metadata?: CommandMetadata,
+    emit: EventSink = () => {},
+  ): Promise<CommandResponse> {
     try {
-      if (typeof command !== "string") throw new EditingError("INVALID_INPUT", "Command must be a string");
-      if (!Object.prototype.hasOwnProperty.call(commandSchemas, command)) throw new EditingError("NOT_FOUND", `Unknown command: ${command}`);
+      if (typeof command !== "string")
+        throw new EditingError("INVALID_INPUT", "Command must be a string");
+      if (!Object.prototype.hasOwnProperty.call(commandSchemas, command))
+        throw new EditingError("NOT_FOUND", `Unknown command: ${command}`);
       const meta = metadataSchema.parse(metadata);
       if (meta?.sessionId) this.state.assertSession(meta.sessionId);
-      const args = commandSchemas[command as CommandName].parse(input) as CommandArgs;
+      const args = commandSchemas[command as CommandName].parse(
+        input,
+      ) as CommandArgs;
       let value: unknown;
-      if (command === "apply_edits") value = this.applyEdits(args as EditRequest);
-      else if (command === "get_project_snapshot") value = this.state.snapshot();
+      if (command === "apply_edits")
+        value = this.applyEdits(args as EditRequest);
+      else if (command === "get_project_snapshot")
+        value = this.state.snapshot();
       else if (Object.prototype.hasOwnProperty.call(editSchemas, command)) {
-        this.applyOperations([{ command, args } as EditOperation], meta?.editGroup);
-        value = command === "update_project" ? this.state.project : command === "remove_asset" ? undefined : this.state.project.timeline;
+        this.applyOperations(
+          [{ command, args } as EditOperation],
+          meta?.editGroup,
+        );
+        value =
+          command === "update_project"
+            ? this.state.project
+            : command === "remove_asset"
+              ? undefined
+              : this.state.project.timeline;
       } else {
         const sessionId = this.state.sessionId;
         const revision = this.state.revision;
-        const derived = command === "get_clip_thumbnails" || command === "get_waveform";
-        const assetBefore = derived ? JSON.stringify(this.state.project.assets.find((asset) => asset.id === args?.assetId)) : undefined;
-        value = await (handlers[command as keyof typeof handlers] as CommandHandler)(args, { state: this.state, emit });
-        if (!["create_project", "load_project", "recover_project"].includes(command)) this.state.assertSession(sessionId);
-        const assetUnchanged = derived && assetBefore === JSON.stringify(this.state.project.assets.find((asset) => asset.id === args?.assetId));
-        if (command.startsWith("get_") && revision !== this.state.revision && !assetUnchanged) throw new EditingError("CONFLICT", "The project changed while reading. Read it again.");
+        const derived =
+          command === "get_clip_thumbnails" || command === "get_waveform";
+        const assetBefore = derived
+          ? JSON.stringify(
+              this.state.project.assets.find(
+                (asset) => asset.id === args?.assetId,
+              ),
+            )
+          : undefined;
+        value = await (
+          handlers[command as keyof typeof handlers] as CommandHandler
+        )(args, { state: this.state, emit });
+        if (
+          !["create_project", "load_project", "recover_project"].includes(
+            command,
+          )
+        )
+          this.state.assertSession(sessionId);
+        const assetUnchanged =
+          derived &&
+          assetBefore ===
+            JSON.stringify(
+              this.state.project.assets.find(
+                (asset) => asset.id === args?.assetId,
+              ),
+            );
+        if (
+          command.startsWith("get_") &&
+          revision !== this.state.revision &&
+          !assetUnchanged
+        )
+          throw new EditingError(
+            "CONFLICT",
+            "The project changed while reading. Read it again.",
+          );
       }
-      return { ok: true, value: structuredClone(value), sessionId: this.state.sessionId, revision: this.state.revision };
+      return {
+        ok: true,
+        value: structuredClone(value),
+        sessionId: this.state.sessionId,
+        revision: this.state.revision,
+      };
     } catch (error) {
-      if (error instanceof EditingError) return { ok: false, error: { code: error.code, message: error.message } };
+      if (error instanceof EditingError)
+        return {
+          ok: false,
+          error: { code: error.code, message: error.message },
+        };
       const io = (error as NodeJS.ErrnoException)?.code;
-      return { ok: false, error: {
-        code: io ? "IO_ERROR" : "INVALID_INPUT",
-        message: error instanceof ZodError ? error.issues.map((issue) => `${issue.path.join(".") || "input"}: ${issue.message}`).join("; ") : String(error instanceof Error ? error.message : error),
-      } };
+      return {
+        ok: false,
+        error: {
+          code: io ? "IO_ERROR" : "INVALID_INPUT",
+          message:
+            error instanceof ZodError
+              ? error.issues
+                  .map(
+                    (issue) =>
+                      `${issue.path.join(".") || "input"}: ${issue.message}`,
+                  )
+                  .join("; ")
+              : String(error instanceof Error ? error.message : error),
+        },
+      };
     }
   }
 
   applyEdits(input: EditRequest): ProjectSnapshot {
     const request = editRequestSchema.parse(input);
-    request.operations = request.operations.map((operation) => ({ ...operation, args: editSchemas[operation.command].parse(operation.args) }));
+    request.operations = request.operations.map((operation) => ({
+      ...operation,
+      args: editSchemas[operation.command].parse(operation.args),
+    }));
     this.state.assertSession(request.sessionId);
     const key = `${request.sessionId}:${request.requestId}`;
-    const fingerprint = createHash("sha256").update(JSON.stringify(request)).digest("hex");
+    const fingerprint = createHash("sha256")
+      .update(JSON.stringify(request))
+      .digest("hex");
     const cached = this.requests.get(key);
     if (cached) {
-      if (cached.fingerprint !== fingerprint) throw new EditingError("REQUEST_REUSED", "This request ID was already used for a different edit.");
+      if (cached.fingerprint !== fingerprint)
+        throw new EditingError(
+          "REQUEST_REUSED",
+          "This request ID was already used for a different edit.",
+        );
       return structuredClone(cached.snapshot);
     }
-    if (request.expectedRevision !== this.state.revision) throw new EditingError("CONFLICT", "The project has changed. Read its latest revision and retry.");
-    this.applyOperations(request.operations as EditOperation[], request.editGroup);
+    if (request.expectedRevision !== this.state.revision)
+      throw new EditingError(
+        "CONFLICT",
+        "The project has changed. Read its latest revision and retry.",
+      );
+    this.applyOperations(
+      request.operations as EditOperation[],
+      request.editGroup,
+    );
     const snapshot = this.state.snapshot();
-    this.requests.set(key, { fingerprint, snapshot, bytes: Buffer.byteLength(JSON.stringify(snapshot)) });
-    let bytes = [...this.requests.values()].reduce((sum, entry) => sum + entry.bytes, 0);
+    this.requests.set(key, {
+      fingerprint,
+      snapshot,
+      bytes: Buffer.byteLength(JSON.stringify(snapshot)),
+    });
+    let bytes = [...this.requests.values()].reduce(
+      (sum, entry) => sum + entry.bytes,
+      0,
+    );
     while (this.requests.size > 128 || bytes > 8 * 1024 * 1024) {
       const oldest = this.requests.keys().next().value!;
       bytes -= this.requests.get(oldest)!.bytes;
@@ -82,10 +200,19 @@ export class EditingService {
     // Reuse command semantics on an isolated owner; publish only the final batch.
     const draft = new AppState({ count: 0 }, this.state.project);
     for (const operation of operations) {
-      const args = editSchemas[operation.command].parse(operation.args) as CommandArgs;
-      const result = (handlers[operation.command] as CommandHandler)(args, { state: draft, emit: () => {} });
-      if (result instanceof Promise) throw new Error("Asynchronous commands cannot be batched");
+      const args = editSchemas[operation.command].parse(
+        operation.args,
+      ) as CommandArgs;
+      const result = (handlers[operation.command] as CommandHandler)(args, {
+        state: draft,
+        emit: () => {},
+      });
+      if (result instanceof Promise)
+        throw new Error("Asynchronous commands cannot be batched");
     }
-    this.state.executeProjectChange((project) => Object.assign(project, draft.project), { group });
+    this.state.executeProjectChange(
+      (project) => Object.assign(project, draft.project),
+      { group },
+    );
   }
 }

@@ -23,7 +23,12 @@
     "package:win": "yarn build && electron-builder --win --publish never",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "format": "prettier --ignore-path ../../../.prettierignore --write ../../..",
+    "format:check": "prettier --ignore-path ../../../.prettierignore --check ../../..",
+    "analyze": "fallow",
+    "analyze:architecture": "fallow architecture",
+    "analyze:health": "fallow health"
   },
   "dependencies": {
     "react": "^18.3.0",
@@ -40,7 +45,9 @@
     "@vitest/coverage-v8": "^4.0.18",
     "electron": "^33.2.1",
     "electron-builder": "^26.15.3",
+    "fallow": "3.35.0",
     "jsdom": "^28.1.0",
+    "prettier": "3.9.10",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",
     "vitest": "^4.0.18"

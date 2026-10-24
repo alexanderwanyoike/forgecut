@@ -1,9 +1,5 @@
 import { spawn } from "node:child_process";
-import type {
-  Asset,
-  Project,
-  TimelineItem,
-} from "./state.js";
+import type { Asset, Project, TimelineItem } from "./state.js";
 import {
   assetIdOf,
   itemVariant,
@@ -56,7 +52,9 @@ export async function exportProject(
 }
 
 export function compileExportPlan(project: Project): RenderPlan {
-  const videoTracks = project.timeline.tracks.filter((track) => track.kind === "Video");
+  const videoTracks = project.timeline.tracks.filter(
+    (track) => track.kind === "Video",
+  );
   const primaryTrack = videoTracks[0];
   if (!primaryTrack) throw new Error("No clips to export");
 
@@ -89,7 +87,12 @@ export function compileExportPlan(project: Project): RenderPlan {
 
   const inputs: RenderInput[] = [];
   const pathToIndex = new Map<string, number>();
-  for (const item of [...videoClips, ...imageOverlays, ...pipClips, ...audioClips]) {
+  for (const item of [
+    ...videoClips,
+    ...imageOverlays,
+    ...pipClips,
+    ...audioClips,
+  ]) {
     registerInput(project, item, pathToIndex, inputs);
   }
 
@@ -105,7 +108,8 @@ export function compileExportPlan(project: Project): RenderPlan {
     const endSeconds = usToSeconds(data.source_out_us);
     const needsScale =
       asset.probe !== null &&
-      (asset.probe.width !== projectWidth || asset.probe.height !== projectHeight);
+      (asset.probe.width !== projectWidth ||
+        asset.probe.height !== projectHeight);
     const scaleFilter = needsScale
       ? `,scale=${projectWidth}:${projectHeight}:force_original_aspect_ratio=decrease,pad=${projectWidth}:${projectHeight}:(ow-iw)/2:(oh-ih)/2`
       : "";
@@ -122,8 +126,14 @@ export function compileExportPlan(project: Project): RenderPlan {
   const hasImageOverlay = imageOverlays.length > 0;
   const hasPip = pipClips.length > 0;
   const videoAudioOut = hasAudioOverlay ? "concat_a" : "outa";
-  const concatVideoLabel = hasPip ? "concatv" : hasImageOverlay ? "basev" : "outv";
-  const concatInputs = videoClips.map((_, index) => `[v${index}][a${index}]`).join("");
+  const concatVideoLabel = hasPip
+    ? "concatv"
+    : hasImageOverlay
+      ? "basev"
+      : "outv";
+  const concatInputs = videoClips
+    .map((_, index) => `[v${index}][a${index}]`)
+    .join("");
 
   filters.push(
     `${concatInputs}concat=n=${videoClips.length}:v=1:a=1[${concatVideoLabel}][${videoAudioOut}]`,
@@ -176,9 +186,12 @@ export function compileExportPlan(project: Project): RenderPlan {
       const endSeconds = usToSeconds(data.timeline_start_us + data.duration_us);
       const scaledLabel = `img_scaled_${index}`;
       const alphaLabel = `img_alpha_${index}`;
-      const nextLabel = index === imageOverlays.length - 1 ? "outv" : `ov_${index}`;
+      const nextLabel =
+        index === imageOverlays.length - 1 ? "outv" : `ov_${index}`;
 
-      filters.push(`[${inputIndex}:v]scale=${data.width}:${data.height}[${scaledLabel}]`);
+      filters.push(
+        `[${inputIndex}:v]scale=${data.width}:${data.height}[${scaledLabel}]`,
+      );
       filters.push(
         `[${scaledLabel}]format=rgba,colorchannelmixer=aa=${data.opacity}[${alphaLabel}]`,
       );
@@ -195,9 +208,13 @@ export function compileExportPlan(project: Project): RenderPlan {
       .map((overlay) => {
         const data = overlay.TextOverlay;
         const startSeconds = usToSeconds(data.timeline_start_us);
-        const endSeconds = usToSeconds(data.timeline_start_us + data.duration_us);
+        const endSeconds = usToSeconds(
+          data.timeline_start_us + data.duration_us,
+        );
         const text = escapeDrawtext(data.text);
-        const color = data.color.startsWith("#") ? data.color.slice(1) : data.color;
+        const color = data.color.startsWith("#")
+          ? data.color.slice(1)
+          : data.color;
         return `drawtext=text='${text}':fontsize=${data.font_size}:fontcolor=0x${color}:x=${data.x}:y=${data.y}:enable='between(t,${startSeconds},${endSeconds})'`;
       })
       .join(",");
@@ -246,7 +263,10 @@ export function buildFfmpegArgs(plan: RenderPlan): string[] {
   ];
 }
 
-export function parseProgress(line: string, totalSeconds: number): RenderProgress | null {
+export function parseProgress(
+  line: string,
+  totalSeconds: number,
+): RenderProgress | null {
   if (!line.includes("time=")) return null;
 
   const frame = parseInteger(extractValue(line, "frame=")) ?? 0;
@@ -255,7 +275,8 @@ export function parseProgress(line: string, totalSeconds: number): RenderProgres
   const timeSeconds = parseTimeString(extractValue(line, "time=") ?? "") ?? 0;
   const percent =
     totalSeconds > 0 ? Math.min((timeSeconds / totalSeconds) * 100, 100) : 0;
-  const speedFactor = parseNumber(speed.endsWith("x") ? speed.slice(0, -1) : speed) ?? 0;
+  const speedFactor =
+    parseNumber(speed.endsWith("x") ? speed.slice(0, -1) : speed) ?? 0;
   const eta_seconds =
     speedFactor > 0 && totalSeconds > timeSeconds
       ? (totalSeconds - timeSeconds) / speedFactor
@@ -405,7 +426,11 @@ function executeRenderPlan(
       }
 
       const status = signal ? `signal ${signal}` : `exit code ${code}`;
-      reject(new Error(`ffmpeg failed with ${status}: ${stderrTail.join("").trim()}`));
+      reject(
+        new Error(
+          `ffmpeg failed with ${status}: ${stderrTail.join("").trim()}`,
+        ),
+      );
     });
   });
 }
@@ -416,7 +441,10 @@ function requireAsset(assets: Asset[], assetId: string): Asset {
   return asset;
 }
 
-function requireInputIndex(pathToIndex: Map<string, number>, path: string): number {
+function requireInputIndex(
+  pathToIndex: Map<string, number>,
+  path: string,
+): number {
   const index = pathToIndex.get(path);
   if (index === undefined) throw new Error(`Input not found: ${path}`);
   return index;

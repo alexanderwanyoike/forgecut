@@ -56,12 +56,12 @@ The real Octane recording was inspected with ffprobe and contains 1920 by 1080 H
 
 Measured cgroup v2 process-tree peaks on this host:
 
-| Check | Peak bytes | Approximate MiB |
-| --- | ---: | ---: |
-| Evaluation asset build, without minification | 2036727808 | 1942 |
-| Packaged preview, workers and media check | 387096576 | 369 |
-| Remotion render and FFmpeg composite | 806027264 | 769 |
-| Complete packaged rendering and isolation suite, final run | 774443008 | 739 |
+| Check                                                      | Peak bytes | Approximate MiB |
+| ---------------------------------------------------------- | ---------: | --------------: |
+| Evaluation asset build, without minification               | 2036727808 |            1942 |
+| Packaged preview, workers and media check                  |  387096576 |             369 |
+| Remotion render and FFmpeg composite                       |  806027264 |             769 |
+| Complete packaged rendering and isolation suite, final run |  774443008 |             739 |
 
 Each measured check had a 3221225472-byte memory maximum, a 2147483648-byte soft threshold, a 256 MiB swap limit and a CPU quota of 150000 per 100000 microseconds. Build and render Node heaps were limited to 1536 MiB. An earlier successful complete-suite run peaked at 1281540096 bytes, about 1222 MiB. These are small-fixture measurements, not a production capacity guarantee.
 

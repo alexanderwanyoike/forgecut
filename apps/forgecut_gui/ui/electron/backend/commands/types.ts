@@ -2,9 +2,15 @@ import type { AppState } from "../state.js";
 import type { EventPayloads } from "../../shared/ipc-contract.js";
 
 export type CommandArgs = Record<string, unknown> | undefined;
-export type EventSink = <E extends keyof EventPayloads>(event: E, payload: EventPayloads[E]) => void;
+export type EventSink = <E extends keyof EventPayloads>(
+  event: E,
+  payload: EventPayloads[E],
+) => void;
 export type CommandContext = { state: AppState; emit: EventSink };
-export type CommandHandler = (args: CommandArgs, context: CommandContext) => Promise<unknown> | unknown;
+export type CommandHandler = (
+  args: CommandArgs,
+  context: CommandContext,
+) => Promise<unknown> | unknown;
 
 export type CommandRegistry = Record<string, CommandHandler>;
 
@@ -24,7 +30,10 @@ export function requiredNumber(args: CommandArgs, key: string): number {
   return value;
 }
 
-export function optionalString(args: CommandArgs, key: string): string | undefined {
+export function optionalString(
+  args: CommandArgs,
+  key: string,
+): string | undefined {
   const value = args?.[key];
   return typeof value === "string" ? value : undefined;
 }

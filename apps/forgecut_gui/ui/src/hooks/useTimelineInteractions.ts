@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { invoke } from "../lib/bridge";
 import {
   nearestSnapPoint,
@@ -57,7 +63,9 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
 
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [trimState, setTrimState] = useState<TrimState | null>(null);
-  const [dragTargetTrackId, setDragTargetTrackId] = useState<string | null>(null);
+  const [dragTargetTrackId, setDragTargetTrackId] = useState<string | null>(
+    null,
+  );
   const [snapLineUs, setSnapLineUs] = useState<number | null>(null);
 
   // Mirror drag/trim state into refs so the global mouseup handler never
@@ -101,7 +109,9 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
     );
   };
 
-  const getTrackAtY = (clientY: number): { id: string; kind: string } | null => {
+  const getTrackAtY = (
+    clientY: number,
+  ): { id: string; kind: string } | null => {
     const lanes = document.querySelectorAll(".track-lane");
     for (const lane of lanes) {
       const rect = lane.getBoundingClientRect();
@@ -139,12 +149,17 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
           });
           if (epoch !== generation.current) return;
           const thresholdUs = Math.round(pixelsToUs(5, pixelsPerSecond));
-          newStartUs = nearestSnapPoint(newStartUs, snapPoints, thresholdUs) ?? newStartUs;
+          newStartUs =
+            nearestSnapPoint(newStartUs, snapPoints, thresholdUs) ?? newStartUs;
         } catch (_) {}
       }
 
       // Cross-track move if target is a different track of the same kind
-      if (targetTrack && targetTrack.id !== ds.trackId && targetTrack.kind === ds.trackKind) {
+      if (
+        targetTrack &&
+        targetTrack.id !== ds.trackId &&
+        targetTrack.kind === ds.trackKind
+      ) {
         try {
           const tl = await invoke("move_clip_to_track", {
             itemId: ds.itemId,
@@ -200,7 +215,11 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
     }
 
     const targetTrack = getTrackAtY(e.clientY);
-    if (targetTrack && targetTrack.id !== ds.trackId && targetTrack.kind === ds.trackKind) {
+    if (
+      targetTrack &&
+      targetTrack.id !== ds.trackId &&
+      targetTrack.kind === ds.trackKind
+    ) {
       setDragTargetTrackId(targetTrack.id);
     } else {
       setDragTargetTrackId(null);
@@ -217,13 +236,17 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
 
     if (!snapPointsCacheRef.current) {
       invoke("get_snap_points", { excludeItemId: ds.itemId })
-        .then((pts) => { snapPointsCacheRef.current = pts; })
+        .then((pts) => {
+          snapPointsCacheRef.current = pts;
+        })
         .catch(() => {});
       return;
     }
 
     const thresholdUs = Math.round(pixelsToUs(5, pixelsPerSecond));
-    setSnapLineUs(nearestSnapPoint(pos, snapPointsCacheRef.current, thresholdUs));
+    setSnapLineUs(
+      nearestSnapPoint(pos, snapPointsCacheRef.current, thresholdUs),
+    );
   };
 
   // --- Ruler scrub ---
@@ -287,7 +310,12 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
   ) => {
     e.stopPropagation();
     onSelectClip(itemId);
-    setTrimStateValue({ itemId, edge, startMouseX: e.clientX, originalUs: currentUs });
+    setTrimStateValue({
+      itemId,
+      edge,
+      startMouseX: e.clientX,
+      originalUs: currentUs,
+    });
   };
 
   return {

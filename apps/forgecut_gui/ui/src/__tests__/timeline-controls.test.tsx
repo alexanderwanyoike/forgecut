@@ -151,7 +151,7 @@ describe("Timeline controls", () => {
         {...defaultProps}
         onPlayheadChange={onPlayheadChange}
         onSelectedClipChange={onSelectedClipChange}
-      />
+      />,
     );
     const clip = await screen.findByText("Video");
 

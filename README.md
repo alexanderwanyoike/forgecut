@@ -98,28 +98,40 @@ yarn --cwd apps/forgecut_gui/ui package
 yarn --cwd apps/forgecut_gui/ui test
 ```
 
+## Formatting and code analysis
+
+```bash
+yarn --cwd apps/forgecut_gui/ui format
+yarn --cwd apps/forgecut_gui/ui format:check
+yarn --cwd apps/forgecut_gui/ui analyze
+yarn --cwd apps/forgecut_gui/ui analyze:architecture
+yarn --cwd apps/forgecut_gui/ui analyze:health
+```
+
+Prettier covers supported source, configuration and documentation files throughout the repository. Generated files, dependencies and Yarn lockfiles are excluded. Fallow checks the app's import graph, duplication and complexity. See the [analysis findings and scope](docs/code-quality.md) before interpreting its scores or deleting a reported symbol.
+
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
-|---|---|
-| `Space` | Play / pause |
-| `S` | Split clip at playhead |
-| `Delete` / `Backspace` | Delete selected clip |
-| `Ctrl+Z` | Undo |
-| `Ctrl+Shift+Z` | Redo |
-| `Ctrl+=` / `Ctrl+-` | Zoom timeline in / out |
-| `Ctrl+0` | Fit timeline to window |
-| Drag clip edge | Trim in / out point |
-| Drag clip | Move (snaps to other clip edges) |
+| Shortcut               | Action                           |
+| ---------------------- | -------------------------------- |
+| `Space`                | Play / pause                     |
+| `S`                    | Split clip at playhead           |
+| `Delete` / `Backspace` | Delete selected clip             |
+| `Ctrl+Z`               | Undo                             |
+| `Ctrl+Shift+Z`         | Redo                             |
+| `Ctrl+=` / `Ctrl+-`    | Zoom timeline in / out           |
+| `Ctrl+0`               | Fit timeline to window           |
+| Drag clip edge         | Trim in / out point              |
+| Drag clip              | Move (snaps to other clip edges) |
 
 ## CI
 
 GitHub Actions runs on every push and pull request:
 
-| Job | Linux | macOS | Windows |
-|---|---|---|---|
-| Frontend tests | Yes | Yes | Yes |
-| Electron build + startup check | Yes | No | No |
+| Job                            | Linux | macOS | Windows |
+| ------------------------------ | ----- | ----- | ------- |
+| Frontend tests                 | Yes   | Yes   | Yes     |
+| Electron build + startup check | Yes   | No    | No      |
 
 ## License
 

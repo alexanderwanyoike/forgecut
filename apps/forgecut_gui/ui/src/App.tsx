@@ -17,7 +17,9 @@ export default function App() {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const projectVersion = snapshot?.revision ?? 0;
   const projectName = snapshot?.project.name ?? "Untitled Project";
-  const [theme, setTheme] = useState(() => localStorage.getItem("forgecut-theme") || "dark");
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("forgecut-theme") || "dark",
+  );
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -35,12 +37,22 @@ export default function App() {
 
   useEffect(() => {
     setPlaying(false);
-    if (snapshot) setSelectedClipId((id) => id && snapshot.project.timeline.tracks.some((track) => track.items.some((item) => Object.values(item)[0].id === id)) ? id : null);
+    if (snapshot)
+      setSelectedClipId((id) =>
+        id &&
+        snapshot.project.timeline.tracks.some((track) =>
+          track.items.some((item) => Object.values(item)[0].id === id),
+        )
+          ? id
+          : null,
+      );
   }, [projectVersion]);
 
   useEffect(() => {
     const interval = setInterval(async () => {
-      try { await invoke("autosave"); } catch (_) {}
+      try {
+        await invoke("autosave");
+      } catch (_) {}
     }, 60_000);
     return () => clearInterval(interval);
   }, []);
@@ -86,42 +98,89 @@ export default function App() {
       await invoke("recover_project", { path: recoveryPath });
       setError(null);
       setRecoveryPath(null);
-    } catch (reason) { setError(`Could not open the recovery copy: ${String(reason)}`); }
+    } catch (reason) {
+      setError(`Could not open the recovery copy: ${String(reason)}`);
+    }
   };
 
   return (
-    <div className="shell" onClick={() => showFileMenu && setShowFileMenu(false)}>
+    <div
+      className="shell"
+      onClick={() => showFileMenu && setShowFileMenu(false)}
+    >
       <header className="menu-bar">
         <div className="menu-items">
           <span
             className="menu-label"
-            onClick={(e) => { e.stopPropagation(); setShowFileMenu(!showFileMenu); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowFileMenu(!showFileMenu);
+            }}
           >
             File
             {showFileMenu && (
-              <div className="dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                <div className="dropdown-item" onClick={handleOpen}>Open Project...</div>
-                <div className="dropdown-item" onClick={handleSave}>Save Project...</div>
+              <div
+                className="dropdown-menu"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="dropdown-item" onClick={handleOpen}>
+                  Open Project...
+                </div>
+                <div className="dropdown-item" onClick={handleSave}>
+                  Save Project...
+                </div>
               </div>
             )}
           </span>
-          <button className="preview-btn" disabled={!snapshot?.canUndo} onClick={() => invoke("undo").catch(() => {})}>Undo</button>
-          <button className="preview-btn" disabled={!snapshot?.canRedo} onClick={() => invoke("redo").catch(() => {})}>Redo</button>
-          <span className="menu-label" onClick={() => setShowExport(true)}>Export</span>
+          <button
+            className="preview-btn"
+            disabled={!snapshot?.canUndo}
+            onClick={() => invoke("undo").catch(() => {})}
+          >
+            Undo
+          </button>
+          <button
+            className="preview-btn"
+            disabled={!snapshot?.canRedo}
+            onClick={() => invoke("redo").catch(() => {})}
+          >
+            Redo
+          </button>
+          <span className="menu-label" onClick={() => setShowExport(true)}>
+            Export
+          </span>
         </div>
-        <button className="theme-toggle" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}>
+        <button
+          className="theme-toggle"
+          onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+        >
           {theme === "dark" ? "Light" : "Dark"}
         </button>
         <span className="project-name">{projectName}</span>
       </header>
 
-      {error && <div className="project-notice" role="alert">
-        {error}
-        {recoveryPath && <button onClick={handleRecover}>Open recovery copy</button>}
-        <button onClick={() => { setError(null); setRecoveryPath(null); }}>Dismiss</button>
-      </div>}
+      {error && (
+        <div className="project-notice" role="alert">
+          {error}
+          {recoveryPath && (
+            <button onClick={handleRecover}>Open recovery copy</button>
+          )}
+          <button
+            onClick={() => {
+              setError(null);
+              setRecoveryPath(null);
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
-      <AssetBin projectVersion={projectVersion} projectAssets={snapshot?.project.assets} missingMedia={snapshot?.missingMedia} />
+      <AssetBin
+        projectVersion={projectVersion}
+        projectAssets={snapshot?.project.assets}
+        missingMedia={snapshot?.missingMedia}
+      />
 
       <Preview
         playheadUs={playheadUs}
@@ -131,7 +190,11 @@ export default function App() {
         projectVersion={projectVersion}
       />
 
-      <Inspector selectedClipId={selectedClipId} project={snapshot?.project} projectVersion={projectVersion} />
+      <Inspector
+        selectedClipId={selectedClipId}
+        project={snapshot?.project}
+        projectVersion={projectVersion}
+      />
 
       <Timeline
         playheadUs={playheadUs}
@@ -142,12 +205,13 @@ export default function App() {
         onSelectedClipChange={setSelectedClipId}
         projectVersion={projectVersion}
         projectTimeline={snapshot?.project.timeline}
-        projectMediaVersion={JSON.stringify([snapshot?.sessionId, snapshot?.project.assets])}
+        projectMediaVersion={JSON.stringify([
+          snapshot?.sessionId,
+          snapshot?.project.assets,
+        ])}
       />
 
-      {showExport && (
-        <ExportDialog onClose={() => setShowExport(false)} />
-      )}
+      {showExport && <ExportDialog onClose={() => setShowExport(false)} />}
     </div>
   );
 }

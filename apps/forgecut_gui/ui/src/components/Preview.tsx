@@ -4,13 +4,14 @@ import { formatTimeUs } from "../lib/preview/time-utils";
 import { usePlayback } from "../hooks/usePlayback";
 
 export default function Preview(props: PreviewProps) {
-  const { videoRef, statusMsg, overlays, handlePlayPause, handleEnded } = usePlayback({
-    projectVersion: props.projectVersion,
-    playheadUs: props.playheadUs,
-    playing: props.playing,
-    onPlayingChange: props.onPlayingChange,
-    onPlayheadChange: props.onPlayheadChange,
-  });
+  const { videoRef, statusMsg, overlays, handlePlayPause, handleEnded } =
+    usePlayback({
+      projectVersion: props.projectVersion,
+      playheadUs: props.playheadUs,
+      playing: props.playing,
+      onPlayingChange: props.onPlayingChange,
+      onPlayheadChange: props.onPlayheadChange,
+    });
 
   return (
     <section className="panel preview">
@@ -64,9 +65,7 @@ export default function Preview(props: PreviewProps) {
           }
           return null;
         })}
-        {statusMsg && (
-          <span className="placeholder-label">{statusMsg}</span>
-        )}
+        {statusMsg && <span className="placeholder-label">{statusMsg}</span>}
       </div>
       <div className="preview-controls">
         <button className="preview-btn" onClick={handlePlayPause}>

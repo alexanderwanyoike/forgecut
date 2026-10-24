@@ -24,16 +24,16 @@ Embedded chat, cloud collaboration, a full VS Code workbench, unrestricted packa
 
 The implementation starts from these repository modules:
 
-| Area | Existing location | Implication |
-| --- | --- | --- |
-| Domain and command types | `apps/forgecut_gui/ui/electron/shared/ipc-contract.ts` | Retain UUIDs, snake_case serialized fields, tagged variants and microsecond times |
-| Project and history | `apps/forgecut_gui/ui/electron/backend/state.ts` | History snapshots currently cover only the timeline; mutations happen on live state before validation finishes |
-| Command dispatch | `apps/forgecut_gui/ui/electron/backend/ipc.ts` and `commands/` | Reuse domain operations, but remove transport dependence on Electron events and `WebContents` |
-| Editing rules | `apps/forgecut_gui/ui/electron/backend/timeline-ops.ts` | Preserve pure domain logic and strengthen invariants and rollback |
-| Playback | `apps/forgecut_gui/ui/src/hooks/usePlayback.ts` | Add a sequence clock, complete audio playback and project-change subscriptions |
-| Graphics controls | `apps/forgecut_gui/ui/src/components/Inspector.tsx` and `Preview.tsx` | Extend the current basic text/image controls with typed properties and canvas selection |
-| Export | `apps/forgecut_gui/ui/electron/backend/exporter.ts` | Primary clips currently concatenate irrespective of gaps; additional video tracks use fixed PiP placement; every primary input is assumed to contain audio |
-| Packaging | `apps/forgecut_gui/ui/electron-builder.yml` | Explicitly package the MCP executable, component sources, compiler workers, fonts and rendering dependencies |
+| Area                     | Existing location                                                     | Implication                                                                                                                                                |
+| ------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domain and command types | `apps/forgecut_gui/ui/electron/shared/ipc-contract.ts`                | Retain UUIDs, snake_case serialized fields, tagged variants and microsecond times                                                                          |
+| Project and history      | `apps/forgecut_gui/ui/electron/backend/state.ts`                      | History snapshots currently cover only the timeline; mutations happen on live state before validation finishes                                             |
+| Command dispatch         | `apps/forgecut_gui/ui/electron/backend/ipc.ts` and `commands/`        | Reuse domain operations, but remove transport dependence on Electron events and `WebContents`                                                              |
+| Editing rules            | `apps/forgecut_gui/ui/electron/backend/timeline-ops.ts`               | Preserve pure domain logic and strengthen invariants and rollback                                                                                          |
+| Playback                 | `apps/forgecut_gui/ui/src/hooks/usePlayback.ts`                       | Add a sequence clock, complete audio playback and project-change subscriptions                                                                             |
+| Graphics controls        | `apps/forgecut_gui/ui/src/components/Inspector.tsx` and `Preview.tsx` | Extend the current basic text/image controls with typed properties and canvas selection                                                                    |
+| Export                   | `apps/forgecut_gui/ui/electron/backend/exporter.ts`                   | Primary clips currently concatenate irrespective of gaps; additional video tracks use fixed PiP placement; every primary input is assumed to contain audio |
+| Packaging                | `apps/forgecut_gui/ui/electron-builder.yml`                           | Explicitly package the MCP executable, component sources, compiler workers, fonts and rendering dependencies                                               |
 
 There is no existing MCP server, Remotion runtime or embedded code editor in the package manifest. Existing project loading casts parsed JSON without a versioned validation/migration boundary. These are planned changes, not existing capabilities.
 
@@ -66,16 +66,16 @@ Version the `.forgecut` format. Retain one timeline initially, then migrate it i
 
 ## Phase overview
 
-| Phase | Deliverable | Dependency |
-| --- | --- | --- |
-| 0 | Verify integration choices and record architecture decisions | None |
-| 1 | Transactional project state, persistence and live UI refresh | 0 |
-| 2 | Codex edits the running editor through MCP | 1 |
-| 3 | Playback, framing and export use consistent sequence semantics | 1; prove MCP flow after 2 |
-| 4 | Editable Remotion graphics and component packaging | 0, 1, 3 |
-| 5 | Canvas editing of supported graphic layers | 4 |
-| 6 | Monaco source editing with safe source promotion | 4; validate with 5 |
-| 7 | Footage review, sequences, format variants and production exports | 2 through 6 |
+| Phase | Deliverable                                                       | Dependency                |
+| ----- | ----------------------------------------------------------------- | ------------------------- |
+| 0     | Verify integration choices and record architecture decisions      | None                      |
+| 1     | Transactional project state, persistence and live UI refresh      | 0                         |
+| 2     | Codex edits the running editor through MCP                        | 1                         |
+| 3     | Playback, framing and export use consistent sequence semantics    | 1; prove MCP flow after 2 |
+| 4     | Editable Remotion graphics and component packaging                | 0, 1, 3                   |
+| 5     | Canvas editing of supported graphic layers                        | 4                         |
+| 6     | Monaco source editing with safe source promotion                  | 4; validate with 5        |
+| 7     | Footage review, sequences, format variants and production exports | 2 through 6               |
 
 Implement in this order. Phase 2 proves the live editing loop early, but a production-ready clip is not claimed until Phase 3 passes. Phases 4 through 6 deliver the combined visual and code workflow.
 
@@ -146,14 +146,14 @@ Work:
 
 Initial tool groups:
 
-| Group | Proposed operations |
-| --- | --- |
-| Session | List sessions, attach, read capabilities and editing context |
-| Project | Read summary, assets, timeline ranges and individual items |
-| Edits | Apply a validated operation batch with expected revision and request ID |
-| History | Undo/redo with identity and revision checks |
-| Media | Import sources; request bounded source frames |
-| Jobs | Start, inspect and cancel supported jobs |
+| Group   | Proposed operations                                                     |
+| ------- | ----------------------------------------------------------------------- |
+| Session | List sessions, attach, read capabilities and editing context            |
+| Project | Read summary, assets, timeline ranges and individual items              |
+| Edits   | Apply a validated operation batch with expected revision and request ID |
+| History | Undo/redo with identity and revision checks                             |
+| Media   | Import sources; request bounded source frames                           |
+| Jobs    | Start, inspect and cancel supported jobs                                |
 
 Extend these groups with graphics and code operations in later phases. Publish structured capability/schema information so tools only advertise supported behaviour.
 

@@ -57,50 +57,72 @@ export default function ExportDialog(props: { onClose: () => void }) {
   };
 
   return (
-    <div className="export-dialog-overlay" onClick={(e) => { if (e.target === e.currentTarget && !exporting) props.onClose(); }}>
+    <div
+      className="export-dialog-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !exporting) props.onClose();
+      }}
+    >
       <div className="export-dialog">
         <div className="export-header">
           <h3>Export Project</h3>
           {!exporting && (
-            <button className="close-btn" onClick={props.onClose}>&times;</button>
+            <button className="close-btn" onClick={props.onClose}>
+              &times;
+            </button>
           )}
         </div>
 
         <div className="export-body">
           <div className="export-info">
-            <div className="info-row"><span>Format:</span><span>MP4 (H.264 + AAC)</span></div>
-            <div className="info-row"><span>Quality:</span><span>CRF 23</span></div>
-            <div className="info-row"><span>Audio:</span><span>AAC 192kbps 48kHz</span></div>
+            <div className="info-row">
+              <span>Format:</span>
+              <span>MP4 (H.264 + AAC)</span>
+            </div>
+            <div className="info-row">
+              <span>Quality:</span>
+              <span>CRF 23</span>
+            </div>
+            <div className="info-row">
+              <span>Audio:</span>
+              <span>AAC 192kbps 48kHz</span>
+            </div>
           </div>
 
           {exporting && (
             <div className="export-progress">
               <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${progress?.percent ?? 0}%` }} />
+                <div
+                  className="progress-fill"
+                  style={{ width: `${progress?.percent ?? 0}%` }}
+                />
               </div>
               <div className="progress-stats">
                 <span>{(progress?.percent ?? 0).toFixed(1)}%</span>
-                <span>Frame {progress?.frame ?? 0} &bull; {(progress?.fps ?? 0).toFixed(1)} fps</span>
+                <span>
+                  Frame {progress?.frame ?? 0} &bull;{" "}
+                  {(progress?.fps ?? 0).toFixed(1)} fps
+                </span>
                 {progress?.speed && <span>Speed: {progress.speed}</span>}
               </div>
             </div>
           )}
 
-          {error && (
-            <div className="export-error">{error}</div>
-          )}
+          {error && <div className="export-error">{error}</div>}
 
-          {done && (
-            <div className="export-success">Export complete!</div>
-          )}
+          {done && <div className="export-success">Export complete!</div>}
         </div>
 
         <div className="export-footer">
           {!exporting && !done && (
-            <button className="btn-export" onClick={handleExport}>Export</button>
+            <button className="btn-export" onClick={handleExport}>
+              Export
+            </button>
           )}
           {done && (
-            <button className="btn-export" onClick={props.onClose}>Close</button>
+            <button className="btn-export" onClick={props.onClose}>
+              Close
+            </button>
           )}
         </div>
       </div>

@@ -22,7 +22,11 @@ interface AssetBinProps {
   missingMedia?: string[];
 }
 
-export default function AssetBin({ projectVersion, projectAssets, missingMedia = [] }: AssetBinProps) {
+export default function AssetBin({
+  projectVersion,
+  projectAssets,
+  missingMedia = [],
+}: AssetBinProps) {
   const [localAssets, setAssets] = useState<Asset[]>([]);
   const assets = projectAssets ?? localAssets;
 
@@ -35,7 +39,9 @@ export default function AssetBin({ projectVersion, projectAssets, missingMedia =
         if (!cancelled) setAssets(list ?? []);
       } catch (_) {}
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [projectVersion, projectAssets]);
 
   const handleImport = async () => {
@@ -45,9 +51,18 @@ export default function AssetBin({ projectVersion, projectAssets, missingMedia =
         {
           name: "Media",
           extensions: [
-            "mp4", "mkv", "avi", "mov", "webm",
-            "mp3", "wav", "flac",
-            "png", "jpg", "jpeg", "gif",
+            "mp4",
+            "mkv",
+            "avi",
+            "mov",
+            "webm",
+            "mp3",
+            "wav",
+            "flac",
+            "png",
+            "jpg",
+            "jpeg",
+            "gif",
           ],
         },
       ],
@@ -71,7 +86,9 @@ export default function AssetBin({ projectVersion, projectAssets, missingMedia =
   const handleRelink = async (id: string) => {
     const selected = await open<string | null>({ multiple: false });
     if (selected) {
-      try { await invoke("relink_asset", { id, path: selected }); } catch {}
+      try {
+        await invoke("relink_asset", { id, path: selected });
+      } catch {}
     }
   };
 
@@ -84,17 +101,23 @@ export default function AssetBin({ projectVersion, projectAssets, missingMedia =
 
   const kindIcon = (kind: string): string => {
     switch (kind) {
-      case "Video": return "\uD83C\uDFAC";
-      case "Audio": return "\uD83C\uDFB5";
-      case "Image": return "\uD83D\uDDBC";
-      default: return "\uD83D\uDCC4";
+      case "Video":
+        return "\uD83C\uDFAC";
+      case "Audio":
+        return "\uD83C\uDFB5";
+      case "Image":
+        return "\uD83D\uDDBC";
+      default:
+        return "\uD83D\uDCC4";
     }
   };
 
   return (
     <aside className="panel asset-bin">
       <div className="panel-header">Assets</div>
-      <button className="import-btn" onClick={handleImport}>Import Media</button>
+      <button className="import-btn" onClick={handleImport}>
+        Import Media
+      </button>
       <div className="asset-list">
         {assets.map((asset) => (
           <div
@@ -102,7 +125,10 @@ export default function AssetBin({ projectVersion, projectAssets, missingMedia =
             className="asset-item"
             draggable={true}
             onDragStart={(e) => {
-              e.dataTransfer?.setData("application/forgecut-asset", JSON.stringify(asset));
+              e.dataTransfer?.setData(
+                "application/forgecut-asset",
+                JSON.stringify(asset),
+              );
             }}
             onContextMenu={(e) => {
               e.preventDefault();
@@ -112,7 +138,12 @@ export default function AssetBin({ projectVersion, projectAssets, missingMedia =
             <span className="asset-icon">{kindIcon(asset.kind)}</span>
             <div className="asset-info">
               <div className="asset-name">{asset.name}</div>
-              {missingMedia.includes(asset.id) && <div className="asset-meta">Media missing <button onClick={() => handleRelink(asset.id)}>Relink</button></div>}
+              {missingMedia.includes(asset.id) && (
+                <div className="asset-meta">
+                  Media missing{" "}
+                  <button onClick={() => handleRelink(asset.id)}>Relink</button>
+                </div>
+              )}
               <div className="asset-meta">
                 {asset.probe && (
                   <>

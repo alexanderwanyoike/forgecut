@@ -6,7 +6,14 @@ import { createHash, randomUUID } from "node:crypto";
 import { atomicWrite, readIfPresent } from "./atomic-file.js";
 import { validateProject } from "./project-schema.js";
 import { EditingError } from "./editing-error.js";
-import type { ProjectSnapshot, ClipItem, ImageOverlayItem, Project, TextOverlayItem, Timeline } from "../shared/ipc-contract.js";
+import type {
+  ProjectSnapshot,
+  ClipItem,
+  ImageOverlayItem,
+  Project,
+  TextOverlayItem,
+  Timeline,
+} from "../shared/ipc-contract.js";
 
 // Domain types live in the shared IPC contract; re-export for backend modules.
 export type {
@@ -43,7 +50,9 @@ type HistoryLimits = { count?: number; bytes?: number };
 
 export class AppState {
   private currentProject = freezeProject(createProject("Untitled"));
-  get project(): Project { return this.currentProject; }
+  get project(): Project {
+    return this.currentProject;
+  }
   sessionId = randomUUID();
   revision = 0;
   private undoStack: ProjectSnapshotEntry[] = [];
@@ -55,16 +64,22 @@ export class AppState {
   private readonly maxHistoryBytes: number;
 
   constructor(limits: HistoryLimits = {}, initialProject?: Project) {
-    if (initialProject) this.currentProject = freezeProject(validateProject(initialProject));
+    if (initialProject)
+      this.currentProject = freezeProject(validateProject(initialProject));
     this.maxHistorySize = limits.count ?? 100;
     this.maxHistoryBytes = limits.bytes ?? 32 * 1024 * 1024;
   }
 
   snapshot(): ProjectSnapshot {
     return {
-      project: structuredClone(this.project), sessionId: this.sessionId, revision: this.revision,
-      canUndo: this.undoStack.length > 0, canRedo: this.redoStack.length > 0,
-      missingMedia: this.project.assets.filter((asset) => this.missingMedia.has(asset.path)).map((asset) => asset.id),
+      project: structuredClone(this.project),
+      sessionId: this.sessionId,
+      revision: this.revision,
+      canUndo: this.undoStack.length > 0,
+      canRedo: this.redoStack.length > 0,
+      missingMedia: this.project.assets
+        .filter((asset) => this.missingMedia.has(asset.path))
+        .map((asset) => asset.id),
     };
   }
 
@@ -74,7 +89,11 @@ export class AppState {
   }
 
   assertSession(sessionId: string): void {
-    if (sessionId !== this.sessionId) throw new EditingError("PROJECT_CHANGED", "The project changed. Read the current project and try again.");
+    if (sessionId !== this.sessionId)
+      throw new EditingError(
+        "PROJECT_CHANGED",
+        "The project changed. Read the current project and try again.",
+      );
   }
 
   createProject(): Project {
@@ -91,7 +110,10 @@ export class AppState {
       if (previous !== undefined) {
         // A corrupt primary must not replace the last known valid recovery file.
         let valid = false;
-        try { validateProject(JSON.parse(previous)); valid = true; } catch {}
+        try {
+          validateProject(JSON.parse(previous));
+          valid = true;
+        } catch {}
         if (valid) await atomicWrite(`${outputPath}.bak`, previous);
       }
       await atomicWrite(outputPath, content);
@@ -103,14 +125,27 @@ export class AppState {
   async loadProject(path: string, recovery = false): Promise<Project> {
     const sessionId = this.sessionId;
     const revision = this.revision;
-    const content = await readFile(recovery ? `${ensureForgeCutExtension(path)}.bak` : path, "utf8");
+    const content = await readFile(
+      recovery ? `${ensureForgeCutExtension(path)}.bak` : path,
+      "utf8",
+    );
     const project = validateProject(JSON.parse(content));
     const missing = new Set<string>();
-    await Promise.all(project.assets.map(async (asset) => {
-      try { await access(asset.path); } catch { missing.add(asset.path); }
-    }));
+    await Promise.all(
+      project.assets.map(async (asset) => {
+        try {
+          await access(asset.path);
+        } catch {
+          missing.add(asset.path);
+        }
+      }),
+    );
     this.assertSession(sessionId);
-    if (revision !== this.revision) throw new EditingError("CONFLICT", "The project was edited while loading. Try opening it again.");
+    if (revision !== this.revision)
+      throw new EditingError(
+        "CONFLICT",
+        "The project was edited while loading. Try opening it again.",
+      );
     this.missingMedia = missing;
     this.replaceProject(project);
     return this.project;
@@ -119,32 +154,55 @@ export class AppState {
   initDefaultTracks(): Timeline {
     if (this.project.timeline.tracks.length === 0) {
       this.executeProjectChange((project) => {
-        project.timeline.tracks.push({ id: randomUUID(), kind: "Video", items: [] });
-        project.timeline.tracks.push({ id: randomUUID(), kind: "Audio", items: [] });
+        project.timeline.tracks.push({
+          id: randomUUID(),
+          kind: "Video",
+          items: [],
+        });
+        project.timeline.tracks.push({
+          id: randomUUID(),
+          kind: "Audio",
+          items: [],
+        });
       });
     }
     return this.project.timeline;
   }
 
-  executeProjectChange(mutator: (project: Project) => void, options: ChangeOptions = {}): Project {
+  executeProjectChange(
+    mutator: (project: Project) => void,
+    options: ChangeOptions = {},
+  ): Project {
     const before = this.project;
     const draft = structuredClone(before);
     mutator(draft);
     const after = validateProject(draft);
-    const mediaRestored = options.availablePaths?.some((path) => this.missingMedia.has(path));
+    const mediaRestored = options.availablePaths?.some((path) =>
+      this.missingMedia.has(path),
+    );
     if (JSON.stringify(before) === JSON.stringify(after)) {
       if (mediaRestored) {
-        options.availablePaths?.forEach((path) => this.missingMedia.delete(path));
+        options.availablePaths?.forEach((path) =>
+          this.missingMedia.delete(path),
+        );
         this.changed();
       }
       return this.project;
     }
     const previous = this.undoStack.at(-1);
-    const entryBefore = options.group && previous?.group === options.group && this.redoStack.length === 0
-      ? previous.before : before;
+    const entryBefore =
+      options.group &&
+      previous?.group === options.group &&
+      this.redoStack.length === 0
+        ? previous.before
+        : before;
     const entry = {
-      before: structuredClone(entryBefore), after: structuredClone(after), group: options.group,
-      bytes: Buffer.byteLength(JSON.stringify(entryBefore)) + Buffer.byteLength(JSON.stringify(after)),
+      before: structuredClone(entryBefore),
+      after: structuredClone(after),
+      group: options.group,
+      bytes:
+        Buffer.byteLength(JSON.stringify(entryBefore)) +
+        Buffer.byteLength(JSON.stringify(after)),
     };
     if (entryBefore !== before) this.undoStack.pop();
     this.undoStack.push(entry);
@@ -183,9 +241,20 @@ export class AppState {
     const autosaveDir = join(tmpdir(), "forgecut-autosave");
     await mkdir(autosaveDir, { recursive: true });
     const prefix = `autosave-${createHash("sha256").update(this.project.id).digest("hex")}-`;
-    await this.saveProject(join(autosaveDir, `${prefix}${Date.now()}-${randomUUID()}.forgecut`));
-    const entries = (await readdir(autosaveDir)).filter((entry) => entry.startsWith(prefix) && entry.endsWith(".forgecut")).sort().reverse();
-    await Promise.all(entries.slice(5).map((entry) => rm(join(autosaveDir, entry), { force: true })));
+    await this.saveProject(
+      join(autosaveDir, `${prefix}${Date.now()}-${randomUUID()}.forgecut`),
+    );
+    const entries = (await readdir(autosaveDir))
+      .filter(
+        (entry) => entry.startsWith(prefix) && entry.endsWith(".forgecut"),
+      )
+      .sort()
+      .reverse();
+    await Promise.all(
+      entries
+        .slice(5)
+        .map((entry) => rm(join(autosaveDir, entry), { force: true })),
+    );
   }
 
   private replaceProject(project: Project): void {
@@ -198,7 +267,10 @@ export class AppState {
 
   private trimHistory(): void {
     let bytes = this.undoStack.reduce((total, entry) => total + entry.bytes, 0);
-    while (this.undoStack.length > this.maxHistorySize || bytes > this.maxHistoryBytes) {
+    while (
+      this.undoStack.length > this.maxHistorySize ||
+      bytes > this.maxHistoryBytes
+    ) {
       bytes -= this.undoStack.shift()!.bytes;
     }
   }
@@ -207,7 +279,11 @@ export class AppState {
     this.revision += 1;
     for (const listener of this.listeners) {
       // Notifications cannot turn a successful commit into a reported failure.
-      try { listener(this.snapshot()); } catch (error) { console.error("Project listener failed", error); }
+      try {
+        listener(this.snapshot());
+      } catch (error) {
+        console.error("Project listener failed", error);
+      }
     }
   }
 }
@@ -230,7 +306,6 @@ function createProject(name: string): Project {
     },
   };
 }
-
 
 function ensureForgeCutExtension(path: string): string {
   return extname(path) === ".forgecut" ? path : `${path}.forgecut`;

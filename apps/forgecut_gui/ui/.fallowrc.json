@@ -1,0 +1,69 @@
+{
+  "entry": [
+    "src/main.tsx",
+    "electron/main.ts",
+    "electron/preload.cts",
+    "electron/scripts/*.mjs"
+  ],
+  "ignorePatterns": ["dist-installers/**"],
+  "health": {
+    "ignore": ["**/__tests__/**"]
+  },
+  "duplicates": {
+    "ignore": ["**/__tests__/**"]
+  },
+  "boundaries": {
+    "zones": [
+      {
+        "name": "tests",
+        "patterns": ["**/__tests__/**"]
+      },
+      {
+        "name": "renderer",
+        "patterns": ["src/**", "index.html"]
+      },
+      {
+        "name": "contract",
+        "patterns": ["electron/shared/**"]
+      },
+      {
+        "name": "backend",
+        "patterns": ["electron/backend/**"]
+      },
+      {
+        "name": "shell",
+        "patterns": ["electron/*.ts", "electron/*.cts", "electron/scripts/**"]
+      },
+      {
+        "name": "tooling",
+        "patterns": ["vite.config.ts", "vitest.config.ts"]
+      }
+    ],
+    "rules": [
+      {
+        "from": "renderer",
+        "allow": [],
+        "allowTypeOnly": ["contract"]
+      },
+      {
+        "from": "contract",
+        "allow": []
+      },
+      {
+        "from": "backend",
+        "allow": ["contract"]
+      },
+      {
+        "from": "shell",
+        "allow": ["backend", "contract"]
+      },
+      {
+        "from": "tooling",
+        "allow": []
+      }
+    ],
+    "coverage": {
+      "requireAllFiles": true
+    }
+  }
+}

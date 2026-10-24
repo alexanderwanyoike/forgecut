@@ -99,7 +99,11 @@ export function parseFrameRate(rate: string | undefined): number | undefined {
 export function detectAssetKind(path: string, probe: ProbeResult): AssetKind {
   const extension = extname(path).slice(1).toLowerCase();
 
-  if (["png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "svg"].includes(extension)) {
+  if (
+    ["png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "svg"].includes(
+      extension,
+    )
+  ) {
     return "Image";
   }
 

@@ -54,7 +54,10 @@ function waitForSeek(video: HTMLVideoElement): Promise<void> {
   });
 }
 
-export async function seekVideo(video: HTMLVideoElement, targetTime: number): Promise<void> {
+export async function seekVideo(
+  video: HTMLVideoElement,
+  targetTime: number,
+): Promise<void> {
   if (Math.abs(video.currentTime - targetTime) < 0.03) return;
   const seeked = waitForSeek(video);
   video.currentTime = targetTime;

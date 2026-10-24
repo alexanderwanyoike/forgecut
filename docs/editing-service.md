@@ -19,7 +19,10 @@ const response = await service.execute("apply_edits", {
       command: "update_item",
       args: {
         itemId: titleId,
-        patch: { kind: "TextOverlay", changes: { text: "A first look", x: 120 } },
+        patch: {
+          kind: "TextOverlay",
+          changes: { text: "A first look", x: 120 },
+        },
       },
     },
   ],

@@ -4,10 +4,17 @@ import { getItemData, type Timeline } from "../lib/timeline/items";
 
 export type ThumbnailView = { time_seconds: number; url: string };
 
-export function useClipMedia(timeline: Timeline, mediaVersion: number | string) {
+export function useClipMedia(
+  timeline: Timeline,
+  mediaVersion: number | string,
+) {
   const [waveforms, setWaveforms] = useState<Record<string, number[][]>>({});
-  const [thumbnails, setThumbnails] = useState<Record<string, ThumbnailView[]>>({});
-  const [thumbnailsLoading, setThumbnailsLoading] = useState<Record<string, boolean>>({});
+  const [thumbnails, setThumbnails] = useState<Record<string, ThumbnailView[]>>(
+    {},
+  );
+  const [thumbnailsLoading, setThumbnailsLoading] = useState<
+    Record<string, boolean>
+  >({});
   const generation = useRef(0);
   const requested = useRef(new Set<string>());
 
@@ -17,7 +24,9 @@ export function useClipMedia(timeline: Timeline, mediaVersion: number | string) 
     setThumbnails({});
     setWaveforms({});
     setThumbnailsLoading({});
-    return () => { generation.current += 1; };
+    return () => {
+      generation.current += 1;
+    };
   }, [mediaVersion]);
 
   useEffect(() => {
@@ -32,16 +41,36 @@ export function useClipMedia(timeline: Timeline, mediaVersion: number | string) 
         if (data.variant === "VideoClip") {
           requested.current.add(key);
           setThumbnailsLoading((current) => ({ ...current, [assetId]: true }));
-          invoke("get_clip_thumbnails", { assetId }).then((values) => {
-            if (generation.current === epoch) setThumbnails((current) => ({ ...current, [assetId]: values.map((value) => ({ time_seconds: value.time_seconds, url: value.data_uri })) }));
-          }).catch(() => {}).finally(() => {
-            if (generation.current === epoch) setThumbnailsLoading((current) => ({ ...current, [assetId]: false }));
-          });
+          invoke("get_clip_thumbnails", { assetId })
+            .then((values) => {
+              if (generation.current === epoch)
+                setThumbnails((current) => ({
+                  ...current,
+                  [assetId]: values.map((value) => ({
+                    time_seconds: value.time_seconds,
+                    url: value.data_uri,
+                  })),
+                }));
+            })
+            .catch(() => {})
+            .finally(() => {
+              if (generation.current === epoch)
+                setThumbnailsLoading((current) => ({
+                  ...current,
+                  [assetId]: false,
+                }));
+            });
         } else if (data.variant === "AudioClip") {
           requested.current.add(key);
-          invoke("get_waveform", { assetId }).then((value) => {
-            if (generation.current === epoch) setWaveforms((current) => ({ ...current, [assetId]: value.peaks }));
-          }).catch(() => {});
+          invoke("get_waveform", { assetId })
+            .then((value) => {
+              if (generation.current === epoch)
+                setWaveforms((current) => ({
+                  ...current,
+                  [assetId]: value.peaks,
+                }));
+            })
+            .catch(() => {});
         }
       }
     }

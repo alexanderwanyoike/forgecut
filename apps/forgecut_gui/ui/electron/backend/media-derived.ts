@@ -27,16 +27,29 @@ export async function extractThumbnailsBase64(
 ): Promise<Thumbnail[]> {
   // Cache per width so quality changes don't serve stale small thumbnails
   const cacheId = await mediaCacheId(sourcePath, assetId);
-  const assetDir = join(tmpdir(), "forgecut-thumbnails", `${cacheId}-w${thumbWidth}`);
+  const assetDir = join(
+    tmpdir(),
+    "forgecut-thumbnails",
+    `${cacheId}-w${thumbWidth}`,
+  );
   await mkdir(assetDir, { recursive: true });
 
   const results: Thumbnail[] = [];
-  for (let timeSeconds = 0; timeSeconds < durationSeconds; timeSeconds += intervalSeconds) {
+  for (
+    let timeSeconds = 0;
+    timeSeconds < durationSeconds;
+    timeSeconds += intervalSeconds
+  ) {
     const timeUs = Math.trunc(timeSeconds * 1_000_000);
     const thumbnailPath = join(assetDir, `${timeUs}.jpg`);
 
     if (!(await exists(thumbnailPath))) {
-      await extractThumbnail(sourcePath, thumbnailPath, timeSeconds, thumbWidth);
+      await extractThumbnail(
+        sourcePath,
+        thumbnailPath,
+        timeSeconds,
+        thumbWidth,
+      );
     }
 
     const bytes = await readFile(thumbnailPath);
@@ -97,7 +110,10 @@ export async function extractWaveform(
   return data;
 }
 
-export function computePeaks(rawPcm: Buffer, samplesPerPeak: number): [number, number][] {
+export function computePeaks(
+  rawPcm: Buffer,
+  samplesPerPeak: number,
+): [number, number][] {
   const samples: number[] = [];
   for (let offset = 0; offset + 1 < rawPcm.length; offset += 2) {
     samples.push(rawPcm.readInt16LE(offset));
@@ -107,10 +123,7 @@ export function computePeaks(rawPcm: Buffer, samplesPerPeak: number): [number, n
   for (let index = 0; index < samples.length; index += samplesPerPeak) {
     const chunk = samples.slice(index, index + samplesPerPeak);
     if (chunk.length === 0) continue;
-    peaks.push([
-      Math.min(...chunk) / 32768,
-      Math.max(...chunk) / 32768,
-    ]);
+    peaks.push([Math.min(...chunk) / 32768, Math.max(...chunk) / 32768]);
   }
 
   return peaks;
@@ -153,5 +166,7 @@ async function exists(path: string): Promise<boolean> {
 
 async function mediaCacheId(path: string, assetId: string): Promise<string> {
   const source = await stat(path);
-  return createHash("sha256").update(JSON.stringify([assetId, path, source.size, source.mtimeMs])).digest("hex");
+  return createHash("sha256")
+    .update(JSON.stringify([assetId, path, source.size, source.mtimeMs]))
+    .digest("hex");
 }

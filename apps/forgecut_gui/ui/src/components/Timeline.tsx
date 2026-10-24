@@ -37,11 +37,17 @@ interface TimelineProps {
 }
 
 export default function Timeline(props: TimelineProps) {
-  const [localTimeline, setLocalTimeline] = useState<TimelineData>({ tracks: [], markers: [] });
+  const [localTimeline, setLocalTimeline] = useState<TimelineData>({
+    tracks: [],
+    markers: [],
+  });
   const timeline = props.projectTimeline ?? localTimeline;
-  const setTimeline = useCallback((next: TimelineData) => {
-    if (!props.projectTimeline) setLocalTimeline(next);
-  }, [props.projectTimeline]);
+  const setTimeline = useCallback(
+    (next: TimelineData) => {
+      if (!props.projectTimeline) setLocalTimeline(next);
+    },
+    [props.projectTimeline],
+  );
   const [pixelsPerSecond, setPixelsPerSecond] = useState(100);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [viewWidth, setViewWidth] = useState(0);
@@ -102,7 +108,9 @@ export default function Timeline(props: TimelineProps) {
 
     updateViewportMetrics();
     const resizeObserver =
-      typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateViewportMetrics) : null;
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(updateViewportMetrics)
+        : null;
     resizeObserver?.observe(el);
     window.addEventListener("resize", updateViewportMetrics);
 
@@ -120,13 +128,17 @@ export default function Timeline(props: TimelineProps) {
       const next = await invoke("init_default_tracks");
       if (!cancelled) setTimeline(next);
     })().catch(() => {});
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [props.projectVersion, props.projectTimeline, setTimeline]);
 
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      setPixelsPerSecond((p) => (e.deltaY > 0 ? zoomOutLevel(p) : zoomInLevel(p)));
+      setPixelsPerSecond((p) =>
+        e.deltaY > 0 ? zoomOutLevel(p) : zoomInLevel(p),
+      );
     }
   };
 
@@ -154,7 +166,9 @@ export default function Timeline(props: TimelineProps) {
     if (!assetJson) return;
     const asset = JSON.parse(assetJson);
 
-    const trackContent = (e.currentTarget as HTMLElement).querySelector(".track-content") as HTMLElement;
+    const trackContent = (e.currentTarget as HTMLElement).querySelector(
+      ".track-content",
+    ) as HTMLElement;
     const rect = trackContent.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const startUs = Math.max(0, Math.round((x / pixelsPerSecond) * 1_000_000));
@@ -170,11 +184,16 @@ export default function Timeline(props: TimelineProps) {
   const trackColor = (kind: string, isPip?: boolean) => {
     if (isPip) return "#9b59b6";
     switch (kind) {
-      case "Video": return "#4a9eff";
-      case "Audio": return "#4aff7f";
-      case "OverlayImage": return "#c840e9";
-      case "OverlayText": return "#e9a840";
-      default: return "#ff9f4a";
+      case "Video":
+        return "#4a9eff";
+      case "Audio":
+        return "#4aff7f";
+      case "OverlayImage":
+        return "#c840e9";
+      case "OverlayText":
+        return "#e9a840";
+      default:
+        return "#ff9f4a";
     }
   };
 
@@ -187,11 +206,16 @@ export default function Timeline(props: TimelineProps) {
   const trackLabel = (track: Track, pip: boolean) => {
     if (pip) return "PiP";
     switch (track.kind) {
-      case "Video": return "V";
-      case "Audio": return "A";
-      case "OverlayImage": return "Img";
-      case "OverlayText": return "T";
-      default: return "?";
+      case "Video":
+        return "V";
+      case "Audio":
+        return "A";
+      case "OverlayImage":
+        return "Img";
+      case "OverlayText":
+        return "T";
+      default:
+        return "?";
     }
   };
 
@@ -206,7 +230,9 @@ export default function Timeline(props: TimelineProps) {
   const handleAddText = async () => {
     try {
       const tl = await invoke("add_text_overlay", {
-        trackId: timeline.tracks.find((track) => track.kind === "OverlayText")?.id ?? crypto.randomUUID(),
+        trackId:
+          timeline.tracks.find((track) => track.kind === "OverlayText")?.id ??
+          crypto.randomUUID(),
         timelineStartUs: props.playheadUs,
         durationUs: 3_000_000,
         text: "Hello World",
@@ -224,34 +250,49 @@ export default function Timeline(props: TimelineProps) {
   const timelineWidth = timelineContentWidth(timeline, pixelsPerSecond);
   const rulerInterval = timelineRulerInterval(pixelsPerSecond);
   const rulerTicks = [];
-  for (let sec = 0; sec * pixelsPerSecond + LABEL_W < timelineWidth; sec += rulerInterval) {
+  for (
+    let sec = 0;
+    sec * pixelsPerSecond + LABEL_W < timelineWidth;
+    sec += rulerInterval
+  ) {
     rulerTicks.push(sec);
   }
 
-  const { leftPercent: minimapLeft, widthPercent: minimapWidth } = minimapViewport(
-    viewWidth,
-    timelineWidth,
-    scrollLeft,
-  );
+  const { leftPercent: minimapLeft, widthPercent: minimapWidth } =
+    minimapViewport(viewWidth, timelineWidth, scrollLeft);
 
   return (
     <section className="panel timeline">
       <div className="timeline-controls">
         <span className="timeline-label">Timeline</span>
         <div className="control-group">
-          <button className="add-text-btn" onClick={handleAddText}>+ Text</button>
-          <button className="add-text-btn" onClick={handleAddPipTrack}>+ PiP</button>
+          <button className="add-text-btn" onClick={handleAddText}>
+            + Text
+          </button>
+          <button className="add-text-btn" onClick={handleAddPipTrack}>
+            + PiP
+          </button>
         </div>
         <div className="control-group">
-          <button className="timeline-nav-btn" onClick={scrollToPlayhead} title="Scroll to playhead">Playhead</button>
-          <button className="timeline-nav-btn" onClick={fitAll} title="Fit all">Fit</button>
+          <button
+            className="timeline-nav-btn"
+            onClick={scrollToPlayhead}
+            title="Scroll to playhead"
+          >
+            Playhead
+          </button>
+          <button className="timeline-nav-btn" onClick={fitAll} title="Fit all">
+            Fit
+          </button>
         </div>
         <div className="control-group">
           <button
             className={`snap-toggle-btn${snapping ? " snap-active" : ""}`}
             onClick={() => setSnapping((s) => !s)}
             title={snapping ? "Snapping on" : "Snapping off"}
-          >Snap</button>
+          >
+            Snap
+          </button>
         </div>
         <div className="control-group zoom-control">
           <button onClick={() => setPixelsPerSecond(zoomOutLevel)}>-</button>
@@ -261,19 +302,26 @@ export default function Timeline(props: TimelineProps) {
             min={TIMELINE_ZOOM_MIN}
             max={TIMELINE_ZOOM_MAX}
             value={pixelsPerSecond}
-            onChange={(e) => setPixelsPerSecond(clampZoom(Number(e.target.value)))}
+            onChange={(e) =>
+              setPixelsPerSecond(clampZoom(Number(e.target.value)))
+            }
           />
           <button onClick={() => setPixelsPerSecond(zoomInLevel)}>+</button>
           <span className="zoom-label">{Math.round(pixelsPerSecond)}%</span>
         </div>
-        <span className="shortcut-hints">S: Split | Del: Delete | Ctrl+Z/Y: Undo/Redo</span>
+        <span className="shortcut-hints">
+          S: Split | Del: Delete | Ctrl+Z/Y: Undo/Redo
+        </span>
       </div>
 
       <div className="timeline-minimap">
-        <div className="minimap-viewport" style={{
-          left: `${minimapLeft}%`,
-          width: `${minimapWidth}%`,
-        }} />
+        <div
+          className="minimap-viewport"
+          style={{
+            left: `${minimapLeft}%`,
+            width: `${minimapWidth}%`,
+          }}
+        />
       </div>
 
       <div
@@ -283,19 +331,36 @@ export default function Timeline(props: TimelineProps) {
         onScroll={updateViewportMetrics}
         onMouseDown={() => props.onSelectedClipChange(null)}
       >
-        <div className="timeline-content" style={{ width: `${timelineWidth}px` }}>
+        <div
+          className="timeline-content"
+          style={{ width: `${timelineWidth}px` }}
+        >
           <div className="time-ruler" onMouseDown={handleRulerMouseDown}>
             {rulerTicks.map((sec) => (
-              <div key={sec} className="ruler-tick" style={{ left: `${sec * pixelsPerSecond + LABEL_W}px` }}>
+              <div
+                key={sec}
+                className="ruler-tick"
+                style={{ left: `${sec * pixelsPerSecond + LABEL_W}px` }}
+              >
                 <span className="ruler-label">{formatTimecode(sec)}</span>
               </div>
             ))}
           </div>
 
-          <div className="playhead" style={{ left: `${usToPixels(props.playheadUs, pixelsPerSecond) + LABEL_W}px` }} />
+          <div
+            className="playhead"
+            style={{
+              left: `${usToPixels(props.playheadUs, pixelsPerSecond) + LABEL_W}px`,
+            }}
+          />
 
           {snapLineUs !== null && (
-            <div className="snap-line" style={{ left: `${usToPixels(snapLineUs, pixelsPerSecond) + LABEL_W}px` }} />
+            <div
+              className="snap-line"
+              style={{
+                left: `${usToPixels(snapLineUs, pixelsPerSecond) + LABEL_W}px`,
+              }}
+            />
           )}
 
           <div className="track-lanes">
@@ -322,11 +387,27 @@ export default function Timeline(props: TimelineProps) {
                           color={trackColor(track.kind, pip)}
                           selected={props.selectedClipId === data.id}
                           pixelsPerSecond={pixelsPerSecond}
-                          thumbnails={data.asset_id ? thumbnails[data.asset_id] : undefined}
-                          thumbnailsLoading={data.asset_id ? !!thumbnailsLoading[data.asset_id] : false}
-                          waveform={data.asset_id ? waveforms[data.asset_id] : undefined}
+                          thumbnails={
+                            data.asset_id
+                              ? thumbnails[data.asset_id]
+                              : undefined
+                          }
+                          thumbnailsLoading={
+                            data.asset_id
+                              ? !!thumbnailsLoading[data.asset_id]
+                              : false
+                          }
+                          waveform={
+                            data.asset_id ? waveforms[data.asset_id] : undefined
+                          }
                           onClipMouseDown={(e) =>
-                            handleClipMouseDown(e, data.id, data.startUs, track.id, track.kind)
+                            handleClipMouseDown(
+                              e,
+                              data.id,
+                              data.startUs,
+                              track.id,
+                              track.kind,
+                            )
                           }
                           onTrimMouseDown={(e, edge, currentUs) =>
                             handleTrimMouseDown(e, data.id, edge, currentUs)

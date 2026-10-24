@@ -9,14 +9,25 @@ export function useProject() {
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
     const accept = (next: ProjectSnapshot) => {
-      if (!cancelled) setSnapshot((current) => !current || next.revision >= current.revision ? next : current);
+      if (!cancelled)
+        setSnapshot((current) =>
+          !current || next.revision >= current.revision ? next : current,
+        );
     };
     (async () => {
-      unsubscribe = await listen("project-changed", ({ payload }) => accept(payload));
-      if (cancelled) { unsubscribe(); return; }
+      unsubscribe = await listen("project-changed", ({ payload }) =>
+        accept(payload),
+      );
+      if (cancelled) {
+        unsubscribe();
+        return;
+      }
       accept(await invoke("get_project_snapshot"));
-    })().catch((reason) => { if (!cancelled) setError(String(reason)); });
-    const onError = (event: Event) => setError((event as CustomEvent<string>).detail);
+    })().catch((reason) => {
+      if (!cancelled) setError(String(reason));
+    });
+    const onError = (event: Event) =>
+      setError((event as CustomEvent<string>).detail);
     window.addEventListener("forgecut:command-error", onError);
     return () => {
       cancelled = true;
