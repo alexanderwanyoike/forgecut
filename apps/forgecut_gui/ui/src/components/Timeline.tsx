@@ -280,30 +280,24 @@ export default function Timeline(props: TimelineProps) {
   };
 
   const handleAddGraphic = async () => {
+    const placement = {
+      trackId:
+        timeline.tracks.find((track) => track.kind === "Graphics")?.id ??
+        crypto.randomUUID(),
+      timelineStartUs: props.playheadUs,
+      durationUs: 3000000,
+    };
     try {
-      if (choice.startsWith("style:")) {
-        setTimeline(
-          await invoke("add_graphic_from_preset", {
+      const next = choice.startsWith("style:")
+        ? await invoke("add_graphic_from_preset", {
+            ...placement,
             presetId: choice.slice(6),
-            trackId:
-              timeline.tracks.find((track) => track.kind === "Graphics")?.id ??
-              crypto.randomUUID(),
-            timelineStartUs: props.playheadUs,
-            durationUs: 3000000,
-          }),
-        );
-        return;
-      }
-      setTimeline(
-        await invoke("add_graphic_item", {
-          templateId: choice,
-          trackId:
-            timeline.tracks.find((track) => track.kind === "Graphics")?.id ??
-            crypto.randomUUID(),
-          timelineStartUs: props.playheadUs,
-          durationUs: 3000000,
-        }),
-      );
+          })
+        : await invoke("add_graphic_item", {
+            ...placement,
+            templateId: choice,
+          });
+      setTimeline(next);
     } catch (failure) {
       console.error("Creating graphic failed", failure);
     }
