@@ -62,6 +62,9 @@ export function validateProjectGraphics(project: Project): void {
         value.version === preset.component_version,
     );
     if (!component) throw new Error("Missing style preset component version");
+    for (const id of Object.keys(preset.layer_states ?? {}))
+      if (!component.layers.some((layer) => layer.id === id))
+        throw new Error(`Unknown style preset layer: ${id}`);
     const props = validateGraphicProperties(component, preset.props);
     if (!props.ok) throw new Error(props.error.message);
     for (const [key, property] of Object.entries(component.properties))

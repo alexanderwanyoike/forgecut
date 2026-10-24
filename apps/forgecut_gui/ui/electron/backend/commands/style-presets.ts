@@ -1,3 +1,4 @@
+import { scaleGraphicProperties } from "../../domain/graphic-scale.js";
 import { randomUUID } from "node:crypto";
 import type { CommandMap } from "../../shared/ipc-contract.js";
 import type { StylePreset } from "../../shared/style-presets.js";
@@ -8,9 +9,12 @@ import type { CommandRegistry } from "./types.js";
 export const stylePresetCommands = {
   save_style_preset: (args, { state }) => {
     const input = args as CommandMap["save_style_preset"]["args"];
-    const source = state
-      .sequenceIn(state.project, input.sourceSequenceId)
-      .timeline.tracks.flatMap((track) => track.items)
+    const sourceSequence = state.sequenceIn(
+      state.project,
+      input.sourceSequenceId,
+    );
+    const source = sourceSequence.timeline.tracks
+      .flatMap((track) => track.items)
       .find(
         (item) =>
           "RemotionGraphic" in item && item.RemotionGraphic.id === input.itemId,
@@ -22,6 +26,16 @@ export const stylePresetCommands = {
       );
     const preset: StylePreset = {
       id: randomUUID(),
+      canvas_size: {
+        width: sourceSequence.settings.width,
+        height: sourceSequence.settings.height,
+      },
+      ...(source.RemotionGraphic.layer_states
+        ? { layer_states: structuredClone(source.RemotionGraphic.layer_states) }
+        : {}),
+      ...(source.RemotionGraphic.transform
+        ? { transform: structuredClone(source.RemotionGraphic.transform) }
+        : {}),
       name: input.name,
       purpose: input.purpose,
       component_id: source.RemotionGraphic.component_id,
@@ -43,6 +57,22 @@ export const stylePresetCommands = {
       if (!preset)
         throw new EditingError("NOT_FOUND", "Style preset not found");
       const sequence = state.sequenceIn(project);
+      const component = project.components!.find(
+        (value) =>
+          value.id === preset.component_id &&
+          value.version === preset.component_version,
+      )!;
+      const sx = sequence.settings.width / preset.canvas_size.width;
+      const sy = sequence.settings.height / preset.canvas_size.height;
+      const transform = preset.transform
+        ? {
+            ...preset.transform,
+            x: preset.transform.x * sx,
+            y: preset.transform.y * sy,
+            width: preset.transform.width * sx,
+            height: preset.transform.height * sy,
+          }
+        : undefined;
       if (!sequence.timeline.tracks.some((track) => track.id === input.trackId))
         sequence.timeline.tracks.push({
           id: input.trackId,
@@ -57,7 +87,19 @@ export const stylePresetCommands = {
           duration_us: input.durationUs,
           component_id: preset.component_id,
           component_version: preset.component_version,
-          props: { ...preset.props, ...input.overrides },
+          props: {
+            ...scaleGraphicProperties(
+              component,
+              preset.props,
+              preset.canvas_size,
+              sequence.settings,
+            ),
+            ...input.overrides,
+          },
+          ...(preset.layer_states
+            ? { layer_states: structuredClone(preset.layer_states) }
+            : {}),
+          ...(transform ? { transform } : {}),
         },
       });
     });
