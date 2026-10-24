@@ -79,6 +79,19 @@ const patch = z.discriminatedUnion("kind", [
 ]);
 const none = z.strictObject({}).optional();
 export const editSchemas = {
+  save_style_preset: z.strictObject({
+    sourceSequenceId: id,
+    itemId: id,
+    name: z.string().trim().min(1).max(200),
+    purpose: z.enum(["card", "ending"]),
+  }),
+  add_graphic_from_preset: z.strictObject({
+    presetId: id,
+    trackId: id,
+    timelineStartUs: time,
+    durationUs: time.positive(),
+    overrides: graphicValuesSchema.optional(),
+  }),
   update_source_selection: z.strictObject({
     selectionId: id,
     patch: nonempty({

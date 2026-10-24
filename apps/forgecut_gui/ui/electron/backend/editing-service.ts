@@ -1,3 +1,4 @@
+import { stylePresetCommands } from "./commands/style-presets.js";
 import { ZodError } from "zod";
 import { createHash } from "node:crypto";
 import { sourceSelectionCommands } from "./commands/source-selections.js";
@@ -52,6 +53,7 @@ const handlers: Record<
   CommandHandler
 > = {
   ...projectCommands,
+  ...stylePresetCommands,
   ...sequenceCommands,
   ...variantCommands,
   ...sourceSelectionCommands,
@@ -326,6 +328,7 @@ export class EditingService {
   ): unknown {
     // Reuse command semantics on an isolated owner; publish only the final batch.
     const globalCommands = new Set<EditOperation["command"]>([
+      "save_style_preset",
       "update_source_selection",
       "save_source_selection",
       "delete_source_selection",

@@ -55,6 +55,20 @@ export function validateProjectGraphics(project: Project): void {
     const defaults = validateGraphicProperties(component, {});
     if (!defaults.ok) throw new Error(defaults.error.message);
   }
+  for (const preset of project.style_presets ?? []) {
+    const component = project.components?.find(
+      (value) =>
+        value.id === preset.component_id &&
+        value.version === preset.component_version,
+    );
+    if (!component) throw new Error("Missing style preset component version");
+    const props = validateGraphicProperties(component, preset.props);
+    if (!props.ok) throw new Error(props.error.message);
+    for (const [key, property] of Object.entries(component.properties))
+      if (property.type === "font" || property.type === "image")
+        requireResource(project, props.value[key], property.type);
+    preset.props = props.value;
+  }
   for (const track of project.timeline.tracks)
     for (const item of track.items) {
       if (!("RemotionGraphic" in item)) continue;
