@@ -10,6 +10,8 @@ import {
   timelineEndUs,
 } from "./timeline-item.js";
 
+import { audioGainAt } from "./audio.js";
+
 // Serialized frame boundaries can differ by half a microsecond after rounding.
 export function frameAtOrAfter(timeUs: number, fps: number): number {
   return Math.ceil(((timeUs - 0.5) * fps) / 1_000_000 - 1e-9);
@@ -60,13 +62,24 @@ export function resolveSequenceFrame(
               data.source_in_us + frameTimeUs(frame - range.start, fps),
             )
           : undefined;
+      const asset =
+        project.assets.find((candidate) => candidate.id === assetIdOf(item)) ??
+        null;
+      const audible =
+        "AudioClip" in item ||
+        ("VideoClip" in item && (asset?.probe?.audio_channels ?? 0) > 0);
       return [
         {
           item,
           trackIndex,
-          asset:
-            project.assets.find((asset) => asset.id === assetIdOf(item)) ??
-            null,
+          asset,
+          audioGain: audible
+            ? audioGainAt(
+                item,
+                frameTimeUs(frame - range.start, fps),
+                frameTimeUs(range.end - range.start, fps),
+              )
+            : undefined,
           sourceTimeUs,
         },
       ];

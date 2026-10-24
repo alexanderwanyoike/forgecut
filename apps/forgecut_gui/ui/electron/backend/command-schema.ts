@@ -5,6 +5,7 @@ import {
   timeSchema as time,
   settingsSchema,
   trackKindSchema,
+  audioSettingsShape,
 } from "./project-schema.js";
 
 const nonempty = <T extends z.ZodRawShape>(shape: T) =>
@@ -16,8 +17,12 @@ const nonempty = <T extends z.ZodRawShape>(shape: T) =>
     );
 const patch = z.discriminatedUnion("kind", [
   z.strictObject({
+    kind: z.literal("VideoClip"),
+    changes: nonempty(audioSettingsShape),
+  }),
+  z.strictObject({
     kind: z.literal("AudioClip"),
-    changes: nonempty({ volume: z.number().min(0).max(4).optional() }),
+    changes: nonempty(audioSettingsShape),
   }),
   z.strictObject({
     kind: z.literal("TextOverlay"),

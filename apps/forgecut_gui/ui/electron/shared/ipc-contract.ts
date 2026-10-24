@@ -39,6 +39,13 @@ export type Asset = {
 
 export type TrackKind = "Video" | "Audio" | "OverlayImage" | "OverlayText";
 
+export type AudioSettings = {
+  volume?: number;
+  muted?: boolean;
+  fade_in_us?: TimeUs;
+  fade_out_us?: TimeUs;
+};
+
 export type ClipItem = {
   id: string;
   asset_id: string;
@@ -46,7 +53,7 @@ export type ClipItem = {
   timeline_start_us: TimeUs;
   source_in_us: TimeUs;
   source_out_us: TimeUs;
-};
+} & AudioSettings;
 
 export type ImageOverlayItem = {
   id: string;
@@ -140,6 +147,7 @@ export type SequenceFrame = {
     trackIndex: number;
     asset: Asset | null;
     sourceTimeUs?: TimeUs;
+    audioGain?: number;
   }[];
 };
 
@@ -160,9 +168,10 @@ export type CommandResponse<T = unknown> =
 export type CommandMetadata = { sessionId?: string; editGroup?: string };
 
 export type ItemPatch =
+  | { kind: "VideoClip"; changes: AudioSettings }
   | {
       kind: "AudioClip";
-      changes: Partial<Pick<ClipItem & { volume: number }, "volume">>;
+      changes: AudioSettings;
     }
   | {
       kind: "TextOverlay";
