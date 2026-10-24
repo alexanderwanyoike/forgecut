@@ -240,3 +240,38 @@ it("renames the sequence chosen when the form opened even after active context c
   );
   expect(state.getEditingContext().activeSequenceId).toBe(clip);
 });
+
+it("protects the default sequence and deletes another sequence with one-step undo", async () => {
+  const { state, root, clip, App } = await fixture();
+  render(<App />);
+  await screen.findByLabelText("Text");
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "Delete sequence",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  const before = structuredClone(state.project);
+  fireEvent.change(screen.getByLabelText("Active sequence"), {
+    target: { value: clip },
+  });
+  await waitFor(() =>
+    expect((screen.getByLabelText("Text") as HTMLInputElement).value).toBe(
+      "Clip wording",
+    ),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Delete sequence" }));
+  await waitFor(() => expect(state.project.sequences).toEqual([]));
+  await waitFor(() =>
+    expect((screen.getByLabelText("Text") as HTMLInputElement).value).toBe(
+      "Root wording",
+    ),
+  );
+  expect(state.getEditingContext().activeSequenceId).toBe(root);
+  expect(state.getEditingContext().playheadUs).toBe(1000000);
+  expect(state.project.timeline).toEqual(before.timeline);
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  await waitFor(() => expect(state.project).toEqual(before));
+  expect(screen.getByRole("option", { name: "Portrait clip" })).toBeTruthy();
+});
