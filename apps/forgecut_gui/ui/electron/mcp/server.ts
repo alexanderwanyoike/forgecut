@@ -9,6 +9,7 @@ import { idSchema, timeSchema } from "../backend/project-schema.js";
 import { pageFields, projectFileRequestSchema } from "./dispatch.js";
 import { callBridge, listSessions, sessionDirectory } from "./sessions.js";
 import type { BridgeResult, LocalSession } from "./contract.js";
+import { importRequestSchema, jobRequestSchema } from "./job-schema.js";
 
 function toolResult(result: BridgeResult) {
   return {
@@ -168,6 +169,34 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
       annotations: { readOnlyHint: true },
     },
     async (request) => call({ action: "context", ...request }),
+  );
+  server.registerTool(
+    "start_import",
+    {
+      description:
+        "Queue a media import at an explicit project revision. Returns a job immediately. Retry with identical input and request ID; poll get_job for completion and created asset IDs. A successful import is one undo action.",
+      inputSchema: importRequestSchema,
+    },
+    async (request) => call({ action: "import", ...request }),
+  );
+  server.registerTool(
+    "get_job",
+    {
+      description:
+        "Read a retained media job by job ID and its original project session. Progress, status and typed results are bounded; terminal jobs may be evicted.",
+      inputSchema: jobRequestSchema,
+      annotations: { readOnlyHint: true },
+    },
+    async (request) => call({ action: "job", ...request }),
+  );
+  server.registerTool(
+    "cancel_job",
+    {
+      description:
+        "Cancel a queued or running media job in its original project session. Poll until cancellation completes; a running process keeps its queue slot until it exits.",
+      inputSchema: jobRequestSchema,
+    },
+    async (request) => call({ action: "cancel", ...request }),
   );
   return server;
 }
