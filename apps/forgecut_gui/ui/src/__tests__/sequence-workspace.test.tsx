@@ -102,13 +102,11 @@ async function fixture() {
         }),
     },
     mcp: {
-      status: vi
-        .fn()
-        .mockResolvedValue({
-          available: true,
-          statusRevision: 1,
-          lastAction: null,
-        }),
+      status: vi.fn().mockResolvedValue({
+        available: true,
+        statusRevision: 1,
+        lastAction: null,
+      }),
     },
     dialog: { open: vi.fn(), save: vi.fn() },
     window: {
@@ -175,4 +173,40 @@ it("switches every editing surface and restores each sequence context without cr
     view.container.querySelector<HTMLElement>(".preview-composition")?.style
       .width,
   ).toBe("1920px");
+});
+
+it("creates and selects a named sequence while retaining shared project content", async () => {
+  const { state, App } = await fixture();
+  render(<App />);
+  await screen.findByLabelText("Text");
+  const before = structuredClone(state.project);
+  const revision = state.revision;
+  fireEvent.click(screen.getByRole("button", { name: "New sequence" }));
+  fireEvent.change(screen.getByLabelText("Sequence name"), {
+    target: { value: "Standalone" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Create sequence" }));
+  await waitFor(() =>
+    expect(
+      state.project.sequences?.some(
+        (sequence) => sequence.name === "Standalone",
+      ),
+    ).toBe(true),
+  );
+  const created = state.project.sequences!.find(
+    (sequence) => sequence.name === "Standalone",
+  )!;
+  await waitFor(() =>
+    expect(
+      (screen.getByLabelText("Active sequence") as HTMLSelectElement).value,
+    ).toBe(created.id),
+  );
+  await screen.findByText("Project Settings");
+  expect(created.settings).toEqual(before.settings);
+  expect(state.project.timeline).toEqual(before.timeline);
+  expect(state.project.assets).toEqual(before.assets);
+  expect(
+    state.project.sequences?.filter((sequence) => sequence.id !== created.id),
+  ).toEqual(before.sequences);
+  expect(state.revision).toBe(revision + 1);
 });
