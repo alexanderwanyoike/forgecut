@@ -15,6 +15,7 @@ import NumberProperty from "./NumberProperty";
 import ClipAudioProperties from "./ClipAudioProperties";
 import GraphicLayers from "./GraphicLayers";
 import GraphicProperties from "./GraphicProperties";
+import GraphicStyleControls from "./GraphicStyleControls";
 import VisualProperties from "./VisualProperties";
 
 interface InspectorProps {
@@ -245,6 +246,16 @@ export default function Inspector({
                   >
                     Edit code
                   </ActionButton>
+                )}
+                {project && sessionId && projectVersion !== undefined && (
+                  <GraphicStyleControls
+                    key={`${sessionId}:${graphic.id}`}
+                    project={project}
+                    sessionId={sessionId}
+                    revision={projectVersion}
+                    item={graphic}
+                    component={component}
+                  />
                 )}
                 <GraphicLayers
                   component={component}

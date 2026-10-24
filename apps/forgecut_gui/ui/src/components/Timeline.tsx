@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import ActionButton from "./ActionButton";
+import type { StylePreset } from "../../electron/shared/style-presets";
 import { invoke } from "../lib/bridge";
 import {
   LABEL_W,
@@ -32,7 +33,7 @@ import {
 import { useClipMedia } from "../hooks/useClipMedia";
 import { useTimelineInteractions } from "../hooks/useTimelineInteractions";
 import { useTimelineShortcuts } from "../hooks/useTimelineShortcuts";
-import { graphicPresets } from "../../electron/domain/graphic-presets";
+import GraphicPicker from "./GraphicPicker";
 import TimelineClip from "./TimelineClip";
 
 interface TimelineProps {
@@ -44,6 +45,8 @@ interface TimelineProps {
   onSelectedClipChange: (id: string | null) => void;
   projectVersion: number;
   projectTimeline?: TimelineData;
+  projectStylePresets?: StylePreset[];
+  projectSessionId?: string;
   projectMediaVersion?: string;
 }
 
@@ -62,7 +65,6 @@ export default function Timeline(props: TimelineProps) {
   const [pixelsPerSecond, setPixelsPerSecond] = useState(100);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [viewWidth, setViewWidth] = useState(0);
-  const [graphicPreset, setGraphicPreset] = useState("title-card");
   const [newTrackKind, setNewTrackKind] = useState<"Video" | "Audio">("Video");
   const [snapping, setSnapping] = useState(true);
 
@@ -271,23 +273,6 @@ export default function Timeline(props: TimelineProps) {
     }
   };
 
-  const handleAddGraphic = async () => {
-    try {
-      setTimeline(
-        await invoke("add_graphic_item", {
-          templateId: graphicPreset,
-          trackId:
-            timeline.tracks.find((track) => track.kind === "Graphics")?.id ??
-            crypto.randomUUID(),
-          timelineStartUs: props.playheadUs,
-          durationUs: 3000000,
-        }),
-      );
-    } catch (failure) {
-      console.error("Creating graphic failed", failure);
-    }
-  };
-
   const timelineWidth = timelineContentWidth(timeline, pixelsPerSecond);
   const rulerInterval = timelineRulerInterval(pixelsPerSecond);
   const rulerTicks = [];
@@ -310,25 +295,20 @@ export default function Timeline(props: TimelineProps) {
           Timeline
         </span>
         <div className="control-group">
-          <select
-            aria-label="Graphic template"
-            value={graphicPreset}
-            onChange={(event) => setGraphicPreset(event.currentTarget.value)}
-          >
-            {graphicPresets.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.label}
-              </option>
-            ))}
-          </select>
-          <ActionButton
-            icon={Plus}
-            aria-label="Add graphic"
-            tooltip="Add graphic at the playhead"
-            onClick={handleAddGraphic}
-          >
-            Graphic
-          </ActionButton>
+          <GraphicPicker
+            timeline={timeline}
+            playheadUs={props.playheadUs}
+            styles={props.projectStylePresets ?? []}
+            origin={
+              props.projectSessionId
+                ? {
+                    sessionId: props.projectSessionId,
+                    revision: props.projectVersion,
+                  }
+                : undefined
+            }
+            onTimelineChange={setTimeline}
+          />
           <ActionButton
             icon={Type}
             aria-label="Add text"
