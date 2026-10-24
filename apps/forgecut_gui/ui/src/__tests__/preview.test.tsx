@@ -83,11 +83,11 @@ describe("Preview component", () => {
   });
   it("renders the play control", () => {
     render(<Preview {...idle} />);
-    expect(screen.getByRole("button").textContent).toContain("▶");
+    expect(screen.getByRole("button", { name: "Play sequence" })).toBeTruthy();
   });
-  it("shows the stop icon during playback", () => {
+  it("names the pause control during playback", () => {
     render(<Preview {...idle} project={videoProject()} playing />);
-    expect(screen.getByRole("button").textContent).toContain("⏹");
+    expect(screen.getByRole("button", { name: "Pause sequence" })).toBeTruthy();
   });
   it("formats the playhead time", () => {
     render(<Preview {...idle} playheadUs={65500000} />);

@@ -118,11 +118,11 @@ it("keeps the sequence clock running through cuts and gaps until the sequence en
   await act(async () => {
     await vi.advanceTimersByTimeAsync(2200);
   });
-  expect(screen.getByRole("button").textContent).toContain("⏹");
+  expect(screen.getByRole("button", { name: "Pause sequence" })).toBeTruthy();
   expect(screen.getByText(/00:00:02\./)).toBeTruthy();
   await act(async () => {
     await vi.advanceTimersByTimeAsync(1000);
   });
-  expect(screen.getByRole("button").textContent).toContain("▶");
+  expect(screen.getByRole("button", { name: "Play sequence" })).toBeTruthy();
   expect(screen.getByText("00:00:03.000")).toBeTruthy();
 });
