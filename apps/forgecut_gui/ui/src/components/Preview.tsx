@@ -9,10 +9,13 @@ import { useCompositionSize } from "../hooks/useCompositionSize";
 import PreviewMedia from "./PreviewMedia";
 
 export default function Preview(props: PreviewProps) {
-  const [error, setError] = useState("");
+  const [error, setError] = useState({ key: "", message: "" });
   const frame = props.project
     ? resolveSequenceFrame(props.project, props.playheadUs)
     : null;
+  const sourceKey = `${props.projectVersion}:${frame?.layers.map((layer) => itemData(layer.item).id).join(":") ?? ""}`;
+  const reportError = (message: string) =>
+    setError({ key: sourceKey, message });
   const settings = frame?.settings ?? { width: 1920, height: 1080, fps: 30 };
   const { viewportRef, scale } = useCompositionSize(
     settings.width,
@@ -67,7 +70,7 @@ export default function Preview(props: PreviewProps) {
                     left: pip ? settings.width - width - 20 : 0,
                     top: pip ? settings.height - height - 20 : 0,
                   }}
-                  onError={setError}
+                  onError={reportError}
                 />
               );
             }
@@ -119,9 +122,9 @@ export default function Preview(props: PreviewProps) {
             Import a clip and drag it to the timeline
           </span>
         )}
-        {error && (
+        {error.key === sourceKey && error.message && (
           <span className="placeholder-label" role="alert">
-            {error}
+            {error.message}
           </span>
         )}
       </div>
