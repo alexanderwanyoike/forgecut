@@ -28,6 +28,12 @@ Submit `apply_edits` with the current identity, expected revision, a unique requ
 
 If an instance disappears, tools return `UNAVAILABLE`. List sessions and explicitly attach again. Opening another project changes its project session identity; reads and writes using the old identity fail. Local credentials are never returned by MCP tools.
 
+## Source selections
+
+`read_source_selections` reads a page of source-relative footage choices with stable IDs, names, notes and rationale. Supply `sessionId` and optional `assetId`, `offset` and `limit` (at most 20). Unknown asset IDs and stale project identities return typed errors.
+
+Use `save_source_selection` within `apply_edits` to create a pick or replace one by `selectionId`. Supply `assetId`, `name`, integer `sourceInUs`/`sourceOutUs`, `notes` and `rationale`. Read first and preserve manually changed fields before replacing a record. Positive ranges must fit the probed audio/video duration. `delete_source_selection` removes a pick by `selectionId`. Picks are shared project metadata, so these operations do not require a sequence target. Existing revision, retry, undo and file persistence rules apply.
+
 ## Editing context and activity
 
 `read_context` requires the current project session identity and returns stable selected item IDs, playhead microseconds and `contextRevision`. UI selection/playhead updates do not change the project revision or history. Deleting an item clears its selection, and switching projects resets transient context. Later edits must target explicit IDs rather than resolving an earlier request against a new selection.
