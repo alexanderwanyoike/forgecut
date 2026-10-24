@@ -126,6 +126,54 @@ it("forks one instance by default, preserves its settings, and promotes in one u
     RemotionGraphic: after[0],
   });
 });
+it("retains component versions used by other sequences when applying default-instance source", async () => {
+  const { state, service, items, request } = await fixture();
+  const sequenceId = randomUUID();
+  state.executeProjectChange((project) => {
+    const other = project.timeline.tracks[0].items.pop();
+    if (!other || !("RemotionGraphic" in other))
+      throw new Error("Missing second graphic");
+    const trackId = randomUUID();
+    other.RemotionGraphic.track_id = trackId;
+    project.sequences = [
+      {
+        id: sequenceId,
+        name: "Portrait",
+        settings: { ...project.settings, width: 1080, height: 1920 },
+        timeline: {
+          tracks: [{ id: trackId, kind: "Graphics", items: [other] }],
+          markers: [],
+        },
+      },
+    ];
+  });
+  const before = structuredClone(state.project);
+  const completed = await finish(service, {
+    ...request,
+    expectedRevision: state.revision,
+  });
+  expect(completed.result, JSON.stringify(completed.result)).toMatchObject({
+    ok: true,
+  });
+  expect(state.project.sequences).toEqual(before.sequences);
+  expect(state.project.components).toContainEqual(
+    before.components?.find(
+      (component) =>
+        component.id === items[1].component_id &&
+        component.version === items[1].component_version,
+    ),
+  );
+  const after = structuredClone(state.project);
+  state.undo();
+  expect(state.project).toEqual(before);
+  state.redo();
+  expect(state.project).toEqual(after);
+  const path = join(directory, "sequences.forgecut");
+  await state.saveProject(path);
+  const reopened = new AppState();
+  await reopened.loadProject(path);
+  expect(reopened.project).toEqual(after);
+});
 it("preserves values by stable property IDs across a shared schema rename", async () => {
   const { state, service, items, draft, request } = await fixture();
   draft.component.properties.caption = draft.component.properties.title;
