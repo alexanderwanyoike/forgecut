@@ -255,3 +255,35 @@ it("retains typing made while Apply is refreshing the saved draft", async () => 
       .value,
   ).toBe(latest);
 });
+it("allows Revert to reconcile a draft after project undo restores older active source", async () => {
+  const { state } = await fixture();
+  fireEvent.change(screen.getByLabelText("Graphic source editor"), {
+    target: { value: "export default function Updated(){return null}" },
+  });
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toContain("Draft saved"),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Apply source" }));
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toContain("Source applied"),
+  );
+  await service.execute("undo", undefined);
+  await screen.findByText(
+    "The active source changed. Reconcile the draft before continuing.",
+  );
+  expect(
+    (screen.getByRole("button", { name: "Revert draft" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Revert draft" }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: "Keep edited files" }),
+    ).toBeNull(),
+  );
+  const component = state.project.components![0];
+  expect(
+    (screen.getByLabelText("Graphic source editor") as HTMLTextAreaElement)
+      .value,
+  ).toBe(component.source.files[component.source.entry]);
+});
