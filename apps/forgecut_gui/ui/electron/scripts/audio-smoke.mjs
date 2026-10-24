@@ -26,7 +26,7 @@ export async function verifyAudio(directory, send) {
           if (predicate()) return;
           await new Promise(resolve => setTimeout(resolve, 20));
         }
-        throw new Error('Preview audio did not reach the expected state');
+        throw new Error('Preview audio did not reach the expected state: ' + JSON.stringify({ output: !!output, audio: [...document.querySelectorAll('audio')].map(media => ({ src: media.currentSrc, ready: media.readyState, error: media.error?.message })), alert: document.querySelector('[role=alert]')?.textContent, time: document.querySelector('.preview-time')?.textContent }));
       };
       const original = AudioContext.prototype.createGain;
       let output;
