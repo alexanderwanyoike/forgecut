@@ -15,6 +15,7 @@ it("switches sequence context without creative edits and restores each playhead"
     sessionId: state.sessionId,
     selectedItemIds: [],
     playheadUs: 1000000,
+    sequenceId: root,
   });
   const before = state.snapshot();
   expect(
@@ -37,6 +38,7 @@ it("switches sequence context without creative edits and restores each playhead"
     sessionId: state.sessionId,
     selectedItemIds: [],
     playheadUs: 500000,
+    sequenceId: clip,
   });
   expect(
     await service.execute("select_sequence", {
@@ -136,6 +138,7 @@ it("edits an explicit sequence without changing the human active sequence", asyn
     sessionId: state.sessionId,
     selectedItemIds: [item.TextOverlay.id],
     playheadUs: 250000,
+    sequenceId: clip,
   });
   await service.execute("select_sequence", {
     sessionId: state.sessionId,
@@ -216,6 +219,44 @@ it("creates and resolves graphics using the explicitly targeted sequence setting
       component: { id: item.RemotionGraphic.component_id },
     },
   });
+  await service.jobs.close();
+  await service.closeGraphicsPreview();
+});
+
+it("rejects stale context writes after the human selects a different sequence", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  await service.execute("create_sequence", { name: "Clip" });
+  const root = state.project.default_sequence!.id;
+  const clip = state.project.sequences![0].id;
+  await service.execute("select_sequence", {
+    sessionId: state.sessionId,
+    sequenceId: clip,
+  });
+  expect(
+    await service.execute(
+      "set_editing_context",
+      { sessionId: state.sessionId, selectedItemIds: [], playheadUs: 100 },
+      { sequenceId: clip },
+    ),
+  ).toMatchObject({ ok: true });
+  const before = state.getEditingContext();
+  expect(
+    await service.execute(
+      "set_editing_context",
+      { sessionId: state.sessionId, selectedItemIds: [], playheadUs: 900000 },
+      { sequenceId: root },
+    ),
+  ).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  expect(state.getEditingContext()).toEqual(before);
+  expect(
+    await service.execute("set_editing_context", {
+      sessionId: state.sessionId,
+      selectedItemIds: [],
+      playheadUs: 900000,
+    }),
+  ).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
+  expect(state.getEditingContext()).toEqual(before);
   await service.jobs.close();
   await service.closeGraphicsPreview();
 });
