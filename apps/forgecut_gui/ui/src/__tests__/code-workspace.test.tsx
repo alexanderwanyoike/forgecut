@@ -15,6 +15,7 @@ import titleSource from "../../electron/graphics/TitleCard.tsx?raw";
 import { AppState } from "../../electron/backend/state";
 import { EditingService } from "../../electron/backend/editing-service";
 import { GraphicPreviewService } from "../../electron/backend/GraphicPreviewService";
+import type { JobSnapshot } from "../../electron/shared/jobs";
 import type { GraphicDraft } from "../../electron/shared/graphic-draft";
 import CodeWorkspace from "../components/CodeWorkspace";
 const { bridge } = vi.hoisted(() => ({ bridge: vi.fn() }));
@@ -390,4 +391,35 @@ it("retains typing made while Keep edited files reads the agent draft", async ()
       },
     },
   });
+});
+
+it("shows successful Apply warnings without claiming publication failed", async () => {
+  const { state } = await fixture();
+  const execute = bridge.getMockImplementation()!;
+  const warning = "Source applied; draft persistence failed";
+  bridge.mockImplementation(async (command: string, args: unknown) => {
+    const result = await execute(command, args);
+    if (command === "get_media_job") {
+      const job = result as JobSnapshot;
+      if (job.status === "completed" && job.result?.ok)
+        return {
+          ...job,
+          result: {
+            ok: true,
+            value: { ...(job.result.value as object), warning },
+          },
+        };
+    }
+    return result;
+  });
+  fireEvent.change(screen.getByLabelText("Graphic source editor"), {
+    target: { value: "export default function Applied(){return null}" },
+  });
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toContain("Draft saved"),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Apply source" }));
+  await screen.findByText(warning);
+  expect(screen.getByRole("status").textContent).toContain("Source applied");
+  expect(state.revision).toBe(2);
 });
