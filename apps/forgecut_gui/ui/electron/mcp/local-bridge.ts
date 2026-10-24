@@ -121,6 +121,7 @@ export async function startLocalBridge(
         context: "Read editing context",
         templates: "Read graphic templates",
         component: "Read graphic component",
+        "source-check": "Check graphic source",
         resource: "Import graphic resource",
         resources: "Read graphic resources",
         "resource-details": "Read graphic resource",

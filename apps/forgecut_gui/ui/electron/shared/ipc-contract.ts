@@ -1,3 +1,4 @@
+import type { GraphicCompilation } from "./graphic-source.js";
 import type {
   GraphicResource,
   GraphicResourceImport,
@@ -301,6 +302,10 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  check_graphic_source: {
+    args: { source: GraphicComponent["source"] };
+    result: GraphicCompilation;
+  };
   // Project
   create_project: { args: undefined; result: string };
   save_project: { args: { path: string }; result: void };

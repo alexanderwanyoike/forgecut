@@ -1,5 +1,6 @@
 import { isAbsolute } from "node:path";
 import { z } from "zod";
+import { sourceCheckRequestSchema } from "./source-schema.js";
 import type { GraphicComponent } from "../shared/graphics.js";
 import { resolveSequenceFrame } from "../domain/sequence.js";
 import { ensureForgeCutExtension } from "../backend/state.js";
@@ -46,6 +47,7 @@ export const projectFileRequestSchema = z.strictObject({
     .refine(isAbsolute, "Use an absolute project path"),
 });
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
+  sourceCheckRequestSchema.extend({ action: z.literal("source-check") }),
   resourceRequestSchema.extend({ action: z.literal("resource") }),
   z.strictObject({ action: z.literal("resources"), ...resourcePageFields }),
   z.strictObject({
@@ -143,7 +145,8 @@ export async function dispatchLocal(
     if (
       request.action === "import" ||
       request.action === "frame" ||
-      request.action === "resource"
+      request.action === "resource" ||
+      request.action === "source-check"
     ) {
       return startMediaJob(service, request);
     }

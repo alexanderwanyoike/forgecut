@@ -48,6 +48,43 @@ export async function verifyMcp(directory, send) {
       !/^[a-f0-9]{64}$/.test(title.version)
     )
       throw new Error("Packaged graphic source metadata did not reach MCP");
+    const sourceCheck = await client.callTool({
+      name: "start_graphic_source_check",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        expectedRevision: snapshot.revision,
+        requestId: "smoke-source-check",
+        source: {
+          entry: "main.tsx",
+          files: {
+            "main.tsx":
+              'import {useCurrentFrame} from "remotion"; export default function Card(){return <div>{useCurrentFrame()}</div>}',
+          },
+        },
+      },
+    });
+    if (sourceCheck.isError) throw new Error(JSON.stringify(sourceCheck));
+    let checked;
+    for (let attempt = 0; attempt < 1000; attempt++) {
+      const result = await client.callTool({
+        name: "get_job",
+        arguments: {
+          sessionId: snapshot.sessionId,
+          jobId: sourceCheck.structuredContent.value.id,
+        },
+      });
+      if (result.isError) throw new Error(JSON.stringify(result));
+      checked = result.structuredContent.value;
+      if (!["queued", "running"].includes(checked.status)) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    if (
+      checked?.status !== "completed" ||
+      checked.result?.value?.valid !== true
+    )
+      throw new Error(
+        `Packaged source checking failed: ${JSON.stringify(checked)}`,
+      );
     const edited = await client.callTool({
       name: "apply_edits",
       arguments: {

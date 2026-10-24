@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { sourceCheckRequestSchema } from "./source-schema.js";
 import {
   resourceRequestSchema,
   exportRequestSchema,
@@ -196,6 +197,16 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
       annotations: { readOnlyHint: true },
     },
     async (request) => call({ action: "resource-details", ...request }),
+  );
+  server.registerTool(
+    "start_graphic_source_check",
+    {
+      description:
+        "Check a bounded TSX workspace for syntax, types and approved imports in a cancellable job. Source is not executed and active project source is unchanged. Poll get_job for located diagnostics.",
+      inputSchema: sourceCheckRequestSchema,
+      annotations: { readOnlyHint: true },
+    },
+    async (request) => call({ action: "source-check", ...request }),
   );
   server.registerTool(
     "list_graphic_templates",

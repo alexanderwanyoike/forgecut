@@ -10,10 +10,13 @@ files:
   - dist/**
   - electron/dist/**
   - "!electron/dist/graphic-runtime/**"
+  - "!electron/dist/code-runtime/**"
   - electron/assets/**
   - package.json
 
 extraResources:
+  - from: electron/dist/code-runtime
+    to: code-runtime
   - from: electron/dist/graphic-runtime
     to: graphic-runtime
   - from: electron/dist/mcp-adapter.cjs

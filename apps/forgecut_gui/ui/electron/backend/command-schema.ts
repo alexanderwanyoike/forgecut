@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { graphicSourceSchema } from "../shared/graphic-source-schema.js";
 import { resourceImportSchema } from "./graphic-resource-schema.js";
 import type { CommandName, EditCommandName } from "../shared/ipc-contract.js";
 import {
@@ -167,6 +168,9 @@ export const metadataSchema = z
   .strictObject({ sessionId: id.optional(), editGroup: id.optional() })
   .optional();
 export const commandSchemas = {
+  check_graphic_source: z.strictObject({
+    source: graphicSourceSchema,
+  }),
   import_graphic_resource: resourceImportSchema,
   get_graphic_components: none,
   ...editSchemas,

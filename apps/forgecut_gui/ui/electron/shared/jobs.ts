@@ -1,6 +1,6 @@
 import type { Result } from "./result.js";
 
-export type JobKind = "import" | "frame" | "export";
+export type JobKind = "import" | "frame" | "export" | "compile";
 export type JobStatus =
   | "queued"
   | "running"

@@ -13,7 +13,7 @@
     "dev": "node electron/scripts/dev.mjs",
     "dev:web": "vite",
     "dev:electron": "yarn dev",
-    "build:electron": "tsc -p electron/tsconfig.json && yarn build:graphics && yarn build:mcp",
+    "build:electron": "tsc -p electron/tsconfig.json && yarn build:graphics && yarn build:mcp && yarn build:code-runtime",
     "build:renderer": "tsc && vite build",
     "build": "yarn build:renderer && yarn build:electron",
     "verify:electron": "node electron/scripts/verify-startup.mjs",
@@ -34,7 +34,10 @@
     "build:mcp": "node electron/scripts/build-mcp.mjs",
     "build:graphics": "node electron/scripts/prepare-graphics.mjs",
     "build:graphic-runtime": "node electron/scripts/prepare-graphic-runtime.mjs",
-    "test:graphics": "node electron/scripts/verify-graphics.mjs"
+    "test:graphics": "node electron/scripts/verify-graphics.mjs",
+    "build:code-runtime": "node electron/scripts/prepare-code-runtime.mjs",
+    "pretest": "yarn build:code-runtime",
+    "pretest:watch": "yarn build:code-runtime"
   },
   "dependencies": {
     "image-size": "2.0.4",
