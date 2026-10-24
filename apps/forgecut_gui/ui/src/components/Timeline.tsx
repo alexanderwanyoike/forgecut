@@ -6,7 +6,6 @@ import {
   Plus,
   ScanLine,
   Type,
-  Trash2,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import ActionButton from "./ActionButton";
@@ -34,7 +33,7 @@ import {
 import { useClipMedia } from "../hooks/useClipMedia";
 import { useTimelineInteractions } from "../hooks/useTimelineInteractions";
 import { useTimelineShortcuts } from "../hooks/useTimelineShortcuts";
-import { graphicPresets } from "../../electron/domain/graphic-presets";
+import GraphicPicker from "./GraphicPicker";
 import TimelineClip from "./TimelineClip";
 
 interface TimelineProps {
@@ -66,15 +65,6 @@ export default function Timeline(props: TimelineProps) {
   const [pixelsPerSecond, setPixelsPerSecond] = useState(100);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [viewWidth, setViewWidth] = useState(0);
-  const [graphicPreset, setGraphicPreset] = useState("title-card");
-  const styles = props.projectStylePresets ?? [];
-  const choice =
-    graphicPreset.startsWith("style:") &&
-    !styles.some((style) => `style:${style.id}` === graphicPreset)
-      ? "title-card"
-      : graphicPreset;
-  const [styleBusy, setStyleBusy] = useState(false);
-  const selectedStyle = styles.find((style) => `style:${style.id}` === choice);
   const [newTrackKind, setNewTrackKind] = useState<"Video" | "Audio">("Video");
   const [snapping, setSnapping] = useState(true);
 
@@ -283,50 +273,6 @@ export default function Timeline(props: TimelineProps) {
     }
   };
 
-  const handleAddGraphic = async () => {
-    const placement = {
-      trackId:
-        timeline.tracks.find((track) => track.kind === "Graphics")?.id ??
-        crypto.randomUUID(),
-      timelineStartUs: props.playheadUs,
-      durationUs: 3000000,
-    };
-    try {
-      const next = choice.startsWith("style:")
-        ? await invoke("add_graphic_from_preset", {
-            ...placement,
-            presetId: choice.slice(6),
-          })
-        : await invoke("add_graphic_item", {
-            ...placement,
-            templateId: choice,
-          });
-      setTimeline(next);
-    } catch (failure) {
-      console.error("Creating graphic failed", failure);
-    }
-  };
-
-  const handleDeleteStyle = async () => {
-    if (!selectedStyle || !props.projectSessionId || styleBusy) return;
-    setStyleBusy(true);
-    try {
-      await invoke("apply_edits", {
-        sessionId: props.projectSessionId,
-        expectedRevision: props.projectVersion,
-        requestId: crypto.randomUUID(),
-        operations: [
-          {
-            command: "delete_style_preset",
-            args: { presetId: selectedStyle.id },
-          },
-        ],
-      });
-    } finally {
-      setStyleBusy(false);
-    }
-  };
-
   const timelineWidth = timelineContentWidth(timeline, pixelsPerSecond);
   const rulerInterval = timelineRulerInterval(pixelsPerSecond);
   const rulerTicks = [];
@@ -349,49 +295,20 @@ export default function Timeline(props: TimelineProps) {
           Timeline
         </span>
         <div className="control-group">
-          <select
-            aria-label="Graphic template"
-            disabled={styleBusy}
-            value={choice}
-            onChange={(event) => setGraphicPreset(event.currentTarget.value)}
-          >
-            <optgroup label="Templates">
-              {graphicPresets.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.label}
-                </option>
-              ))}
-            </optgroup>
-            {styles.length > 0 && (
-              <optgroup label="Project styles">
-                {styles.map((style) => (
-                  <option key={style.id} value={`style:${style.id}`}>
-                    {style.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
-          <ActionButton
-            icon={Plus}
-            aria-label="Add graphic"
-            disabled={styleBusy}
-            tooltip="Add graphic at the playhead"
-            onClick={handleAddGraphic}
-          >
-            Graphic
-          </ActionButton>
-          {selectedStyle && (
-            <ActionButton
-              icon={Trash2}
-              iconOnly
-              tooltip={`Delete style: ${selectedStyle.name}`}
-              disabled={styleBusy || !props.projectSessionId}
-              onClick={() => {
-                void handleDeleteStyle().catch(() => {});
-              }}
-            />
-          )}
+          <GraphicPicker
+            timeline={timeline}
+            playheadUs={props.playheadUs}
+            styles={props.projectStylePresets ?? []}
+            origin={
+              props.projectSessionId
+                ? {
+                    sessionId: props.projectSessionId,
+                    revision: props.projectVersion,
+                  }
+                : undefined
+            }
+            onTimelineChange={setTimeline}
+          />
           <ActionButton
             icon={Type}
             aria-label="Add text"
