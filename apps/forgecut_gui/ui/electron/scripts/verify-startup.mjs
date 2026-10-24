@@ -1,4 +1,6 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
+import { rm } from "node:fs/promises";
+import { once } from "node:events";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { verifyGraphicsPreview } from "./graphics-preview-smoke.mjs";
@@ -24,9 +26,8 @@ function spawnChild(command, args, options = {}) {
   return child;
 }
 
-function shutdown(code = 0) {
+async function shutdown(code = 0) {
   for (const child of children) {
-    if (child.killed) continue;
     try {
       if (process.platform === "win32") {
         child.kill();
@@ -37,7 +38,25 @@ function shutdown(code = 0) {
       child.kill();
     }
   }
-  rmSync(mcpDirectory, { recursive: true, force: true });
+  await Promise.all(
+    children.map(async (child) => {
+      if (child.exitCode === null && child.signalCode === null)
+        await once(child, "close", { signal: AbortSignal.timeout(2000) }).catch(
+          () => {},
+        );
+      if (process.platform !== "win32" && child.pid) {
+        try {
+          process.kill(-child.pid, "SIGKILL");
+        } catch {}
+      }
+    }),
+  );
+  await rm(mcpDirectory, {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 100,
+  });
   process.exit(code);
 }
 
