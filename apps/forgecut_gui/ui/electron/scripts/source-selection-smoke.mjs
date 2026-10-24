@@ -12,6 +12,13 @@ export async function verifySourceSelections(directory, send) {
     "lavfi",
     "-i",
     "testsrc2=size=640x360:rate=30:duration=4",
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=frequency=440:sample_rate=48000:duration=4",
+    "-c:a",
+    "aac",
+    "-shortest",
     "-c:v",
     "libx264",
     "-pix_fmt",
@@ -81,18 +88,43 @@ export async function verifySourceSelections(directory, send) {
     throw new Error(
       `Source selection workflow failed: ${JSON.stringify(result.result)}`,
     );
-  for (const width of [1280, 1024]) {
-    await send("Emulation.setDeviceMetricsOverride", {
-      width,
-      height: 800,
-      deviceScaleFactor: 1,
-      mobile: false,
+  for (const kind of ["Contact sheet", "Waveform"]) {
+    const reviewed = await send("Runtime.evaluate", {
+      awaitPromise: true,
+      returnByValue: true,
+      expression: `(async () => {
+        const before = JSON.stringify((await window.forgecut.invoke('get_project_snapshot')).value.project);
+        [...document.querySelectorAll('button')].find(button => button.textContent.trim() === '${kind}' && !button.disabled).click();
+        for (let attempt = 0; attempt < 200; attempt++) {
+          const image = document.querySelector('[aria-label="Source waveform"]') ?? document.querySelector('img[alt="Source contact sheet"]');
+          if (image && ('${kind}' === 'Waveform' ? image.tagName.toLowerCase() === 'svg' : image.complete && image.naturalWidth > 0)) {
+            if (JSON.stringify((await window.forgecut.invoke('get_project_snapshot')).value.project) !== before) throw new Error('Source review changed the project');
+            return true;
+          }
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        throw new Error('Source review output did not appear: ${kind}');
+      })()`,
     });
-    for (const mode of ["dark", "light"]) {
-      const layout = await send("Runtime.evaluate", {
-        awaitPromise: true,
-        returnByValue: true,
-        expression: `(async () => {
+    if (
+      reviewed.result?.exceptionDetails ||
+      reviewed.result?.result?.value !== true
+    )
+      throw new Error(
+        `Native source review failed: ${JSON.stringify(reviewed.result)}`,
+      );
+    for (const width of [1280, 1024]) {
+      await send("Emulation.setDeviceMetricsOverride", {
+        width,
+        height: 800,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      for (const mode of ["dark", "light"]) {
+        const layout = await send("Runtime.evaluate", {
+          awaitPromise: true,
+          returnByValue: true,
+          expression: `(async () => {
           document.querySelector('button[aria-label="Appearance"]').click();
           await new Promise(resolve => setTimeout(resolve, 50));
           document.querySelector('input[name="appearance-mode"][value="${mode}"]').click();
@@ -103,29 +135,30 @@ export async function verifySourceSelections(directory, send) {
           const stage = document.querySelector('.source-media-stage');
           const controls = [...panel.querySelectorAll('input, textarea, select, button')];
           if (panel.scrollWidth > panel.clientWidth + 1 || controls.some(element => element.scrollWidth > element.clientWidth + 1)) throw new Error('Source controls overflow');
-          if (stage.clientWidth < 300 || stage.clientHeight < 150) throw new Error('Source monitor is too small');
+          if (stage.clientWidth < 300 || stage.clientHeight < 150) throw new Error('Source monitor is too small: ' + stage.clientWidth + 'x' + stage.clientHeight);
           return true;
         })()`,
-      });
-      if (
-        layout.result?.exceptionDetails ||
-        layout.result?.result?.value !== true
-      )
-        throw new Error(
-          `Source layout failed: ${JSON.stringify(layout.result)}`,
-        );
-      if (process.env.FORGECUT_SOURCE_SCREENSHOTS) {
-        await mkdir(process.env.FORGECUT_SOURCE_SCREENSHOTS, {
-          recursive: true,
         });
-        const shot = await send("Page.captureScreenshot", { format: "png" });
-        await writeFile(
-          join(
-            process.env.FORGECUT_SOURCE_SCREENSHOTS,
-            `source-${width}-${mode}.png`,
-          ),
-          Buffer.from(shot.result.data, "base64"),
-        );
+        if (
+          layout.result?.exceptionDetails ||
+          layout.result?.result?.value !== true
+        )
+          throw new Error(
+            `Source layout failed: ${JSON.stringify(layout.result)}`,
+          );
+        if (process.env.FORGECUT_SOURCE_SCREENSHOTS) {
+          await mkdir(process.env.FORGECUT_SOURCE_SCREENSHOTS, {
+            recursive: true,
+          });
+          const shot = await send("Page.captureScreenshot", { format: "png" });
+          await writeFile(
+            join(
+              process.env.FORGECUT_SOURCE_SCREENSHOTS,
+              `source-${kind.toLowerCase().replaceAll(" ", "-")}-${width}-${mode}.png`,
+            ),
+            Buffer.from(shot.result.data, "base64"),
+          );
+        }
       }
     }
   }
