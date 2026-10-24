@@ -3,7 +3,7 @@ import type { ReviewRange } from "../../electron/shared/ipc-contract";
 import type { Result } from "../../electron/shared/result";
 import {
   MIN_REVIEW_DURATION_US,
-  MAX_REVIEW_DURATION_US,
+  validateReviewRange,
 } from "../../electron/domain/review-range";
 
 type Props = {
@@ -38,27 +38,16 @@ export default function ReviewExportControls({
       return;
     }
     const range = {
-      startUs: Math.round(Number(nextStart) * 1000000),
-      endUs: Math.round(Number(nextEnd) * 1000000),
+      startUs: nextStart.trim()
+        ? Math.round(Number(nextStart) * 1000000)
+        : Number.NaN,
+      endUs: nextEnd.trim()
+        ? Math.round(Number(nextEnd) * 1000000)
+        : Number.NaN,
     };
-    if (
-      !nextStart.trim() ||
-      !nextEnd.trim() ||
-      !Number.isSafeInteger(range.startUs) ||
-      !Number.isSafeInteger(range.endUs) ||
-      range.startUs < 0 ||
-      range.endUs > durationUs ||
-      range.endUs - range.startUs < MIN_REVIEW_DURATION_US ||
-      range.endUs - range.startUs > MAX_REVIEW_DURATION_US
-    ) {
-      const message =
-        "Choose a range within the sequence, between 0.1 and 30 seconds.";
-      setError(message);
-      onChange({ ok: false, error: { code: "INVALID_INPUT", message } });
-      return;
-    }
-    setError("");
-    onChange({ ok: true, value: range });
+    const result = validateReviewRange(range, durationUs);
+    setError(result.ok ? "" : result.error.message);
+    onChange(result);
   }
   if (!durationUs) return null;
   return (

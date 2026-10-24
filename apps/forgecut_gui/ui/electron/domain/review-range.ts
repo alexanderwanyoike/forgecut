@@ -10,12 +10,8 @@ export type ReviewWindow = {
   frameCount: number;
 };
 
-export function resolveReviewWindow(
-  project: Project,
-  range?: ReviewRange,
-): Result<ReviewWindow | undefined> {
-  if (!range) return { ok: true, value: undefined };
-  const invalid: Result<never> = {
+function invalidRange(): Result<never> {
+  return {
     ok: false,
     error: {
       code: "INVALID_INPUT",
@@ -23,21 +19,37 @@ export function resolveReviewWindow(
         "Choose a review range within the sequence, between 0.1 and 30 seconds and containing at least one frame",
     },
   };
+}
+
+export function validateReviewRange(
+  range: ReviewRange,
+  durationUs: number,
+): Result<ReviewRange> {
   if (
     !Number.isSafeInteger(range.startUs) ||
     !Number.isSafeInteger(range.endUs) ||
     range.startUs < 0 ||
-    range.endUs > sequenceDurationUs(project) ||
+    range.endUs > durationUs ||
     range.endUs - range.startUs < MIN_REVIEW_DURATION_US ||
     range.endUs - range.startUs > MAX_REVIEW_DURATION_US
   )
-    return invalid;
+    return invalidRange();
+  return { ok: true, value: range };
+}
+
+export function resolveReviewWindow(
+  project: Project,
+  range?: ReviewRange,
+): Result<ReviewWindow | undefined> {
+  if (!range) return { ok: true, value: undefined };
+  const validated = validateReviewRange(range, sequenceDurationUs(project));
+  if (!validated.ok) return validated;
   const { fps } = project.settings;
   const start = frameAtOrAfter(range.startUs, fps);
   const end = frameAtOrAfter(range.endUs, fps);
   const durationSeconds = (end - start) / fps;
   if (end <= start || durationSeconds > MAX_REVIEW_DURATION_US / 1000000)
-    return invalid;
+    return invalidRange();
   return {
     ok: true,
     value: {
