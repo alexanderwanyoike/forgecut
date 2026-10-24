@@ -39,6 +39,7 @@ export default function MonacoSourceEditor(props: Props) {
   const updating = useRef(false);
   const packageTypes = useRef<Record<string, string> | null>(null);
   const markerSignature = useRef("");
+  const librarySignature = useRef("");
   const sync = () => {
     const input = current.current;
     updating.current = true;
@@ -62,7 +63,11 @@ export default function MonacoSourceEditor(props: Props) {
     if (selected && editor.current?.getModel() !== selected)
       editor.current?.setModel(selected);
     editor.current?.updateOptions({ readOnly: input.path === "@contract" });
-    if (packageTypes.current) {
+    if (
+      packageTypes.current &&
+      librarySignature.current !== files["@contract"]
+    ) {
+      librarySignature.current = files["@contract"];
       const extra = [
         ...Object.entries(packageTypes.current).map(([path, content]) => ({
           filePath: monaco.Uri.file(path).toString(true),
