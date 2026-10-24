@@ -1,0 +1,125 @@
+import { Save } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import type {
+  Asset,
+  ProjectSnapshot,
+} from "../../electron/shared/ipc-contract";
+import type { ResourceLicense } from "../../electron/shared/graphic-resources";
+import { invokeInContext } from "../lib/bridge";
+import ActionButton from "./ActionButton";
+
+export default function CreditForm({
+  snapshot,
+  asset,
+}: {
+  snapshot: ProjectSnapshot;
+  asset: Asset;
+}) {
+  const [draft, setDraft] = useState<ResourceLicense>(
+    asset.license ?? { identifier: "", text: "" },
+  );
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const set = (key: keyof ResourceLicense, value: string) => {
+    setDraft((current) => ({ ...current, [key]: value }));
+    setMessage("");
+  };
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await invokeInContext(
+        {
+          sessionId: snapshot.sessionId,
+          sequenceId: snapshot.activeSequenceId,
+        },
+        "apply_edits",
+        {
+          sessionId: snapshot.sessionId,
+          expectedRevision: snapshot.revision,
+          requestId: crypto.randomUUID(),
+          operations: [
+            {
+              command: "set_asset_license",
+              args: {
+                assetId: asset.id,
+                license: {
+                  identifier: draft.identifier,
+                  text: draft.text,
+                  ...(draft.attribution
+                    ? { attribution: draft.attribution }
+                    : {}),
+                  ...(draft.source_url ? { source_url: draft.source_url } : {}),
+                },
+              },
+            },
+          ],
+        },
+      );
+      setMessage("Credits saved");
+    } catch (cause) {
+      setError(String(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form className="credit-form" onSubmit={save}>
+      <label>
+        Licence / permission
+        <input
+          autoFocus
+          required
+          maxLength={256}
+          value={draft.identifier}
+          disabled={busy}
+          onChange={(event) => set("identifier", event.target.value)}
+        />
+      </label>
+      <label>
+        Attribution
+        <input
+          maxLength={2048}
+          value={draft.attribution ?? ""}
+          disabled={busy}
+          onChange={(event) => set("attribution", event.target.value)}
+        />
+      </label>
+      <label>
+        Source URL
+        <input
+          type="url"
+          maxLength={2048}
+          value={draft.source_url ?? ""}
+          disabled={busy}
+          onChange={(event) => set("source_url", event.target.value)}
+        />
+      </label>
+      <label>
+        Licence notice
+        <textarea
+          required
+          rows={7}
+          maxLength={65536}
+          value={draft.text}
+          disabled={busy}
+          onChange={(event) => set("text", event.target.value)}
+        />
+      </label>
+      {error && <p role="alert">{error}</p>}
+      {message && <p role="status">{message}</p>}
+      <div className="credit-actions">
+        <ActionButton
+          type="submit"
+          icon={Save}
+          className="primary-action"
+          disabled={busy || !draft.identifier || !draft.text}
+        >
+          Save credits
+        </ActionButton>
+      </div>
+    </form>
+  );
+}
