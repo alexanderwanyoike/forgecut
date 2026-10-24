@@ -42,7 +42,7 @@ it.each([undefined, 1, 2])(
     };
     const migrated = validateProject(legacy);
     expect(migrated).toMatchObject({
-      schema_version: 6,
+      schema_version: 7,
       default_sequence: {
         id: expect.stringMatching(/^[a-f\d-]{36}$/),
         name: "Main",
@@ -162,7 +162,7 @@ it.each([3, 4, 5] as const)(
     current.schema_version = version;
     expect(validateProject(current)).toEqual({
       ...current,
-      schema_version: 6,
+      schema_version: 7,
       source_selections: [],
       style_presets: [],
     });
