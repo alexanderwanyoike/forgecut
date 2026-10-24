@@ -1,3 +1,4 @@
+import { stylePropertyPageFields } from "./style-schema.js";
 import { isAbsolute } from "node:path";
 import { z } from "zod";
 import { sourceActionSchemas } from "./draft-schema.js";
@@ -78,6 +79,10 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
   }),
   z.strictObject({ action: z.literal("assets"), ...pageFields }),
   z.strictObject({ action: z.literal("style-presets"), ...resourcePageFields }),
+  z.strictObject({
+    action: z.literal("style-preset-values"),
+    ...stylePropertyPageFields,
+  }),
   z.strictObject({
     action: z.literal("source-selections"),
     ...resourcePageFields,
@@ -190,6 +195,29 @@ export async function dispatchLocal(
       request.action === "item"
     )
       return dispatchSequenceAction(state, request);
+    if (request.action === "style-preset-values") {
+      const preset = state.project.style_presets?.find(
+        (value) => value.id === request.presetId,
+      );
+      if (!preset)
+        return {
+          ok: false,
+          error: { code: "NOT_FOUND", message: "Style preset not found" },
+        };
+      const entries = Object.entries(preset.props);
+      return {
+        ok: true,
+        value: {
+          sessionId: state.sessionId,
+          revision: state.revision,
+          presetId: preset.id,
+          total: entries.length,
+          props: Object.fromEntries(
+            entries.slice(request.offset, request.offset + request.limit),
+          ),
+        },
+      };
+    }
     if (request.action === "style-presets") {
       const presets = state.project.style_presets ?? [];
       return {
@@ -208,6 +236,8 @@ export async function dispatchLocal(
                 canvas_size,
                 component_id,
                 component_version,
+                layer_states,
+                transform,
               }) => ({
                 id,
                 name,
@@ -215,6 +245,8 @@ export async function dispatchLocal(
                 canvas_size,
                 component_id,
                 component_version,
+                ...(layer_states ? { layer_states } : {}),
+                ...(transform ? { transform } : {}),
               }),
             ),
         },
