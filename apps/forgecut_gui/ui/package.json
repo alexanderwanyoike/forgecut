@@ -40,6 +40,7 @@
     "pretest:watch": "yarn build:code-runtime"
   },
   "dependencies": {
+    "@jridgewell/trace-mapping": "0.3.31",
     "image-size": "2.0.4",
     "proper-lockfile": "4.1.2",
     "react": "^18.3.0",

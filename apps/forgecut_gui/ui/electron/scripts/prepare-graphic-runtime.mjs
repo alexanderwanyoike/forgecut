@@ -49,8 +49,9 @@ await build({
   target: "es2020",
   legalComments: "inline",
 });
-await build({
+const previewWorker = await build({
   absWorkingDir: root,
+  metafile: true,
   entryPoints: ["electron/backend/graphic-preview-worker.ts"],
   outfile: resolve(runtime, "preview-worker.cjs"),
   bundle: true,
@@ -83,6 +84,7 @@ const compiled = await build({
 const packages = new Map();
 for (const input of [
   ...Object.keys(compiled.metafile.inputs),
+  ...Object.keys(previewWorker.metafile.inputs),
   ...[
     "react",
     "react-dom",

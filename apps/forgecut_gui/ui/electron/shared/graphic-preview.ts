@@ -1,3 +1,5 @@
+import type { Result } from "./result.js";
+import type { GraphicRuntimeFailure } from "./graphic-diagnostic-schema.js";
 import type { GraphicValues, GraphicLayerStates } from "./graphics.js";
 import type { GraphicResourceInput } from "./graphic-resources.js";
 
@@ -19,3 +21,8 @@ export type GraphicPreviewFrame = {
   width: number;
   height: number;
 };
+
+export type GraphicPreviewResult<T = GraphicPreviewFrame> = Result<
+  T,
+  GraphicRuntimeFailure
+>;

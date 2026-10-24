@@ -1,7 +1,10 @@
 import type { GraphicPromotionRequest } from "./graphic-promotion.js";
 import type { GraphicDraft } from "./graphic-draft.js";
 import type { GraphicPreviewFrame } from "./graphic-preview.js";
-import type { GraphicCompilation } from "./graphic-source.js";
+import type {
+  GraphicDiagnostic,
+  GraphicCompilation,
+} from "./graphic-source.js";
 import type {
   GraphicResource,
   GraphicResourceImport,
@@ -211,7 +214,14 @@ export type EditErrorCode =
   | "REQUEST_REUSED";
 export type CommandResponse<T = unknown> =
   | { ok: true; value: T; sessionId: string; revision: number }
-  | { ok: false; error: { code: EditErrorCode; message: string } };
+  | {
+      ok: false;
+      error: {
+        code: EditErrorCode;
+        message: string;
+        diagnostics?: GraphicDiagnostic[];
+      };
+    };
 
 export type CommandMetadata = { sessionId?: string; editGroup?: string };
 

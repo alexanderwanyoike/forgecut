@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { graphicDiagnosticsSchema } from "../shared/graphic-diagnostic-schema.js";
 import type { Result as BridgeResult } from "../shared/result.js";
 
 export const sessionSchema = z.strictObject({
@@ -13,7 +14,11 @@ export const resultSchema = z.discriminatedUnion("ok", [
   z.strictObject({ ok: z.literal(true), value: z.unknown() }),
   z.strictObject({
     ok: z.literal(false),
-    error: z.strictObject({ code: z.string(), message: z.string() }),
+    error: z.strictObject({
+      code: z.string(),
+      message: z.string(),
+      diagnostics: graphicDiagnosticsSchema.optional(),
+    }),
   }),
 ]);
 export const MAX_MESSAGE_BYTES = 1024 * 1024;

@@ -23,7 +23,12 @@ export function compiledComponent(code: string): ComponentType<TitleCardProps> {
       throw new Error(`Package is not approved: ${String(name)}`);
     return modules[name as keyof typeof modules];
   };
-  const evaluate = new Function("require", "module", "exports", code) as (
+  const evaluate = new Function(
+    "require",
+    "module",
+    "exports",
+    `${code}\n//# sourceURL=forgecut-component.js`,
+  ) as (
     requireModule: (name: unknown) => unknown,
     target: { exports: Record<string, unknown> },
     exports: Record<string, unknown>,

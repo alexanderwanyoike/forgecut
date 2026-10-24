@@ -167,6 +167,15 @@ export async function verifyCode(send) {
     `document.querySelector('.code-workspace')?.textContent.includes('Draft frame failure')`,
     "runtime error",
   );
+  await wait(
+    `document.querySelector('.code-diagnostics button')?.textContent.includes('main.tsx:1:')`,
+    "original runtime source location",
+  );
+  await evaluate(`document.querySelector('.code-diagnostics button').click()`);
+  await wait(
+    `document.activeElement?.getAttribute('aria-label')==='Graphic source editor'`,
+    "runtime diagnostic navigation",
+  );
   if (
     (await evaluate(
       `document.querySelector('img[alt="Draft preview"]').src`,

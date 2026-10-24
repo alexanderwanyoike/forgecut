@@ -6,6 +6,7 @@ import { once } from "node:events";
 import { createInterface } from "node:readline";
 import { openBrowser } from "@remotion/renderer";
 import { z } from "zod";
+import { graphicRuntimeDiagnostics } from "./graphic-runtime-diagnostics.js";
 import { previewCommandSchema } from "./graphic-preview-protocol.js";
 import type { GraphicPreviewInput } from "../shared/graphic-preview.js";
 
@@ -67,6 +68,7 @@ async function main() {
       crlfDelay: Infinity,
     })) {
       let id = -1;
+      let code = "";
       try {
         if (Buffer.byteLength(line) > 33554432)
           throw new Error("Preview input exceeds 32 MiB");
@@ -83,6 +85,7 @@ async function main() {
         }
         const input = inputs.get(request.key);
         if (!input) throw new Error("Preview context expired");
+        code = input.code;
         if (request.frame >= input.duration)
           throw new Error("Preview frame is outside the component duration");
         const scale = Math.min(
@@ -129,8 +132,12 @@ async function main() {
           `${JSON.stringify({ ok: true, id, value: { mimeType: "image/png", data: screenshot.value.data, width, height } })}\n`,
         );
       } catch (failure) {
+        const message = (
+          failure instanceof Error ? failure.message : String(failure)
+        ).slice(0, 8192);
+        const diagnostics = graphicRuntimeDiagnostics(code, message);
         process.stdout.write(
-          `${JSON.stringify({ ok: false, id, error: { code: "RENDER_FAILED", message: (failure instanceof Error ? failure.message : String(failure)).slice(0, 8192) } })}\n`,
+          `${JSON.stringify({ ok: false, id, error: { code: "RENDER_FAILED", message, ...(diagnostics.length ? { diagnostics } : {}) } })}\n`,
         );
       }
     }

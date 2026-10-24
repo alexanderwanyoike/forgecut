@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { graphicDiagnosticsSchema } from "../../electron/shared/graphic-diagnostic-schema";
 import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
 import type { GraphicDiagnostic } from "../../electron/shared/graphic-source";
 import type { useGraphicSourceDraft } from "./useGraphicSourceDraft";
@@ -36,13 +37,25 @@ export function useGraphicCodeActions(
     [checked, version],
   );
   const message = notice.version === version ? notice : { text: "", error: "" };
-  const failure = (error: unknown) => {
-    if (alive.current)
-      setNotice({
-        version: source.version(),
-        text: "",
-        error: error instanceof Error ? error.message : String(error),
-      });
+  const failure = (error: unknown, token = source.version()) => {
+    let failureMessage = String(error);
+    if (
+      error &&
+      typeof error === "object" &&
+      "message" in error &&
+      typeof error.message === "string"
+    )
+      failureMessage = error.message;
+    const diagnostics = graphicDiagnosticsSchema.safeParse(
+      error && typeof error === "object" && "diagnostics" in error
+        ? error.diagnostics
+        : undefined,
+    );
+    if (alive.current) {
+      if (diagnostics.success)
+        setChecked({ version: token, items: diagnostics.data });
+      setNotice({ version: token, text: "", error: failureMessage });
+    }
   };
   async function inspect() {
     const saved = await source.flush();
@@ -61,6 +74,7 @@ export function useGraphicCodeActions(
     return saved;
   }
   async function preview(): Promise<void> {
+    const requestedEpoch = source.version();
     setChecking(true);
     try {
       const saved = await inspect();
@@ -84,12 +98,13 @@ export function useGraphicCodeActions(
         setNotice({ version: token, text: "Draft preview ready", error: "" });
       }
     } catch (error) {
-      failure(error);
+      failure(error, requestedEpoch);
     } finally {
       if (alive.current) setChecking(false);
     }
   }
   async function apply(): Promise<void> {
+    const requestedEpoch = source.version();
     setChecking(true);
     try {
       const saved = await inspect();
@@ -109,7 +124,7 @@ export function useGraphicCodeActions(
         mappings: mapping.value,
       });
       if (!result.ok) {
-        failure(result.error.message);
+        failure(result.error, requestedEpoch);
         return;
       }
       await source.refreshIfClean();
@@ -120,7 +135,7 @@ export function useGraphicCodeActions(
           error: result.value.warning ?? "",
         });
     } catch (error) {
-      failure(error);
+      failure(error, requestedEpoch);
     } finally {
       if (alive.current) setChecking(false);
     }
