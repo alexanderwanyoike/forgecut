@@ -153,3 +153,71 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
     }
   },
 );
+
+it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
+  "renders an image and literal text without hidden video underneath",
+  async () => {
+    const dir = await mkdtemp(join(tmpdir(), "forgecut-card-"));
+    try {
+      const path = join(dir, "image.png");
+      ffmpeg([
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=white:s=8x8",
+        "-frames:v",
+        "1",
+        "-threads",
+        "1",
+        path,
+      ]);
+      const state = new AppState();
+      const editing = new EditingService(state);
+      await editing.execute("update_project", {
+        settings: { width: 64, height: 36, fps: 10 },
+      });
+      await editing.execute("import_assets", { paths: [path] });
+      await editing.execute("add_image_overlay", {
+        assetId: state.project.assets[0].id,
+        timelineStartUs: 0,
+        durationUs: 1000000,
+        x: 0,
+        y: 0,
+        width: 8,
+        height: 8,
+        opacity: 0.5,
+      });
+      await editing.execute("add_text_overlay", {
+        trackId: "titles",
+        timelineStartUs: 0,
+        durationUs: 1000000,
+        text: "A:B 'C' 50% \\ \n next",
+        fontSize: 10,
+        color: "#ffffff",
+        x: 0,
+        y: 20,
+      });
+      const output = join(dir, "card.mp4");
+      await exportProject(state.project, output);
+      const pixels = ffmpeg([
+        "-ss",
+        "0.5",
+        "-i",
+        output,
+        "-frames:v",
+        "1",
+        "-an",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "pipe:1",
+      ]);
+      expect(pixels[0]).toBeGreaterThan(100);
+      expect(pixels[0]).toBeLessThan(150);
+      expect(pixels[30]).toBeLessThan(10);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);
