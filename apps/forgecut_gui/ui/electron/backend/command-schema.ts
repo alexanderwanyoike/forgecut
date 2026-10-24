@@ -79,6 +79,15 @@ const patch = z.discriminatedUnion("kind", [
 ]);
 const none = z.strictObject({}).optional();
 export const editSchemas = {
+  delete_sequence: z.strictObject({ sequenceId: id }),
+  rename_sequence: z.strictObject({
+    sequenceId: id,
+    name: z.string().trim().min(1).max(200),
+  }),
+  create_sequence: z.strictObject({
+    name: z.string().trim().min(1).max(200),
+    settings: settingsSchema.partial().optional(),
+  }),
   add_graphic_item: z.strictObject({
     templateId: id,
     trackId: id,
@@ -234,6 +243,7 @@ export const commandSchemas = {
   recover_project: z.strictObject({ path: z.string().min(1) }),
   get_project_settings: none,
   get_project_snapshot: none,
+  get_sequences: none,
   get_editing_context: none,
   set_editing_context: z.strictObject({
     sessionId: id,

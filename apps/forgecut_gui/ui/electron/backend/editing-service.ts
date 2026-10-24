@@ -1,5 +1,6 @@
 import { ZodError } from "zod";
 import { createHash } from "node:crypto";
+import { sequenceCommands } from "./commands/sequences.js";
 import { graphicEditorCommands } from "./commands/graphic-editor.js";
 import { graphicPromotionCommands } from "./commands/graphic-promotion.js";
 import { GraphicDraftStore } from "./GraphicDraftStore.js";
@@ -47,6 +48,7 @@ const handlers: Record<
   CommandHandler
 > = {
   ...projectCommands,
+  ...sequenceCommands,
   ...timelineCommands,
   ...graphicsCommands,
   ...graphicSourceCommands,
@@ -127,13 +129,10 @@ export class EditingService {
       }
       if (command === "get_project_snapshot") value = this.state.snapshot();
       else if (Object.prototype.hasOwnProperty.call(editSchemas, command)) {
-        this.applyOperations(
+        value = this.applyOperations(
           [{ command, args } as EditOperation],
           meta?.editGroup,
         );
-        if (command === "update_project") value = this.state.project;
-        else if (command === "remove_asset") value = undefined;
-        else value = this.state.project.timeline;
       } else {
         const { sessionId } = this.state;
         const { revision } = this.state;
@@ -289,9 +288,13 @@ export class EditingService {
     return structuredClone(snapshot);
   }
 
-  private applyOperations(operations: EditOperation[], group?: string): void {
+  private applyOperations(
+    operations: EditOperation[],
+    group?: string,
+  ): unknown {
     // Reuse command semantics on an isolated owner; publish only the final batch.
     const draft = new AppState({ count: 0 }, this.state.project);
+    let value: unknown;
     for (const operation of operations) {
       const args = editSchemas[operation.command].parse(
         operation.args,
@@ -301,10 +304,12 @@ export class EditingService {
       });
       if (result instanceof Promise)
         throw new Error("Asynchronous commands cannot be batched");
+      value = result;
     }
     this.state.executeProjectChange(
       (project) => Object.assign(project, draft.project),
       { group },
     );
+    return value;
   }
 }
