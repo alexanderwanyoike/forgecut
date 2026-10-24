@@ -5,12 +5,21 @@ import * as Tooltip from "@radix-ui/react-tooltip";
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   icon?: LucideIcon;
   tooltip?: string;
+  tooltipContainer?: HTMLElement | null;
   iconOnly?: boolean;
 };
 
 const ActionButton = forwardRef<HTMLButtonElement, Props>(
   (
-    { icon: Icon, tooltip, iconOnly, className = "", children, ...props },
+    {
+      icon: Icon,
+      tooltip,
+      tooltipContainer,
+      iconOnly,
+      className = "",
+      children,
+      ...props
+    },
     ref,
   ) => {
     const button = (
@@ -30,7 +39,7 @@ const ActionButton = forwardRef<HTMLButtonElement, Props>(
       <Tooltip.Provider delayDuration={400}>
         <Tooltip.Root>
           <Tooltip.Trigger asChild>{button}</Tooltip.Trigger>
-          <Tooltip.Portal>
+          <Tooltip.Portal container={tooltipContainer}>
             <Tooltip.Content className="control-tooltip" sideOffset={7}>
               {tooltip}
               <Tooltip.Arrow className="control-tooltip-arrow" />

@@ -1,5 +1,5 @@
 import { FileBadge, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
 import ActionButton from "./ActionButton";
 import CreditForm from "./CreditForm";
@@ -12,7 +12,7 @@ export default function CreditsDialog({
   snapshot: ProjectSnapshot;
   onClose: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
+  const [dialog, setDialog] = useState<HTMLDialogElement | null>(null);
   const entries = [
     ...snapshot.project.assets.map((value) => ({
       id: value.id,
@@ -34,11 +34,11 @@ export default function CreditsDialog({
   >(entries[0]);
   const target = entries.find((value) => value.id === selected?.id);
   useEffect(() => {
-    dialog.current?.showModal();
-  }, []);
+    if (dialog && !dialog.open) dialog.showModal();
+  }, [dialog]);
   return (
     <dialog
-      ref={dialog}
+      ref={setDialog}
       className="credits-dialog"
       aria-labelledby="credits-heading"
       onCancel={onClose}
@@ -53,6 +53,7 @@ export default function CreditsDialog({
           icon={X}
           iconOnly
           tooltip="Close project credits"
+          tooltipContainer={dialog}
           onClick={onClose}
         />
       </header>
