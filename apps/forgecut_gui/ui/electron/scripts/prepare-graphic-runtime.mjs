@@ -38,6 +38,32 @@ await bundle({
   outDir: resolve(runtime, "composition"),
   publicDir: null,
 });
+await build({
+  absWorkingDir: root,
+  entryPoints: ["electron/graphics/runtime/PreviewEntry.tsx"],
+  outfile: resolve(runtime, "preview.js"),
+  bundle: true,
+  platform: "browser",
+  format: "iife",
+  jsx: "automatic",
+  target: "es2020",
+  legalComments: "inline",
+});
+await build({
+  absWorkingDir: root,
+  entryPoints: ["electron/backend/graphic-preview-worker.ts"],
+  outfile: resolve(runtime, "preview-worker.cjs"),
+  bundle: true,
+  platform: "node",
+  target: "node20",
+  format: "cjs",
+  legalComments: "inline",
+  external: ["bufferutil", "utf-8-validate"],
+  banner: {
+    js: 'const __forgecutImportMetaUrl = require("node:url").pathToFileURL(__filename).href;',
+  },
+  define: { "import.meta.url": "__forgecutImportMetaUrl" },
+});
 const compiled = await build({
   absWorkingDir: root,
   entryPoints: ["electron/backend/graphic-worker.ts"],

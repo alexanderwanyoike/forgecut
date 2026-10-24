@@ -6,7 +6,7 @@ import type { Result } from "../shared/result.js";
 import type { GraphicRenderJob } from "./graphic-render-job.js";
 import { runGraphicWorker } from "./graphic-worker-process.js";
 
-function runtimeDirectory(): string {
+export function graphicRuntimeDirectory(): string {
   const packaged =
     "resourcesPath" in process && typeof process.resourcesPath === "string"
       ? join(process.resourcesPath, "graphic-runtime")
@@ -24,7 +24,7 @@ export async function renderGraphic(
   directory: string,
   signal?: AbortSignal,
 ): Promise<Result<string>> {
-  const runtime = runtimeDirectory();
+  const runtime = graphicRuntimeDirectory();
   if (!existsSync(join(runtime, "runtime.json")))
     return {
       ok: false,

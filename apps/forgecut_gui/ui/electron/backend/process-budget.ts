@@ -16,6 +16,24 @@ export async function budgetedMediaCommand(
       );
     }));
   if (!supported) return { command: executable, args };
+  const aggregate = await new Promise<boolean>((resolve) => {
+    execFile(
+      "systemctl",
+      [
+        "--user",
+        "set-property",
+        "--runtime",
+        "forgecut-media.slice",
+        "MemoryMax=3221225472",
+        "MemoryHigh=2147483648",
+        "MemorySwapMax=268435456",
+        "CPUQuota=150%",
+      ],
+      { timeout: 1000, maxBuffer: 4096 },
+      (error) => resolve(!error),
+    );
+  });
+  if (!aggregate) return { command: executable, args };
   const unit = `forgecut-media-${randomUUID()}.scope`;
   return {
     unit,
@@ -25,6 +43,7 @@ export async function budgetedMediaCommand(
       "--scope",
       "--quiet",
       "--collect",
+      "--slice=forgecut-media.slice",
       `--unit=${unit}`,
       "--property=MemoryMax=3221225472",
       "--property=MemoryHigh=2147483648",

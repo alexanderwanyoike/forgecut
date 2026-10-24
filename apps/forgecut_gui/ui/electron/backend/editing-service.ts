@@ -1,5 +1,7 @@
 import { ZodError } from "zod";
 import { createHash } from "node:crypto";
+import { GraphicPreviewService } from "./GraphicPreviewService.js";
+import { graphicPreviewCommands } from "./commands/graphic-preview.js";
 import { changedItemIds } from "./project-diff.js";
 import type {
   CommandName,
@@ -44,6 +46,7 @@ const handlers: Record<
   ...timelineCommands,
   ...graphicsCommands,
   ...graphicSourceCommands,
+  ...graphicPreviewCommands,
   ...graphicResourceCommands,
   ...mediaCommands,
   ...autosaveCommands,
@@ -57,11 +60,25 @@ type CachedEdit = {
 export class EditingService {
   readonly jobs = new JobQueue();
 
+  private readonly preview = new GraphicPreviewService();
+
+  closeGraphicsPreview(): Promise<void> {
+    return this.preview.close();
+  }
+
   private readonly handlers = { ...handlers, ...exportCommands(this.jobs) };
 
   private requests = new Map<string, CachedEdit>();
 
-  constructor(readonly state: AppState) {}
+  constructor(readonly state: AppState) {
+    let currentSessionId: string = state.sessionId;
+    state.subscribe((snapshot) => {
+      if (snapshot.sessionId !== currentSessionId) {
+        currentSessionId = snapshot.sessionId;
+        void this.preview.reset();
+      }
+    });
+  }
 
   async execute(
     command: string,
@@ -128,6 +145,7 @@ export class EditingService {
             | "cancel_media_job"
         ](args, {
           state: this.state,
+          preview: this.preview,
           ...options,
         });
         if (

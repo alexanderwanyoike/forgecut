@@ -168,6 +168,11 @@ export const metadataSchema = z
   .strictObject({ sessionId: id.optional(), editGroup: id.optional() })
   .optional();
 export const commandSchemas = {
+  get_graphic_preview: z.strictObject({
+    itemId: id,
+    frame: time,
+    props: graphicValuesSchema.optional(),
+  }),
   check_graphic_source: z.strictObject({
     source: graphicSourceSchema,
   }),

@@ -1,5 +1,6 @@
 /** @vitest-environment node */
 import { spawnSync } from "node:child_process";
+import { dirname } from "node:path";
 import { readFile } from "node:fs/promises";
 import { expect, it } from "vitest";
 import { runMediaProcess } from "../media-process";
@@ -20,6 +21,9 @@ it.skipIf(!available)(
       high: string;
       swap: string;
       cpu: string;
+      parent: string;
+      parentMemory: string;
+      parentCpu: string;
     }) => void;
     let rejectLimits!: (error: unknown) => void;
     const observed = new Promise<{
@@ -28,6 +32,9 @@ it.skipIf(!available)(
       high: string;
       swap: string;
       cpu: string;
+      parent: string;
+      parentMemory: string;
+      parentCpu: string;
     }>((resolve, reject) => {
       resolveLimits = resolve;
       rejectLimits = reject;
@@ -82,6 +89,13 @@ it.skipIf(!available)(
               const root = `/sys/fs/cgroup${group}`;
               return {
                 group,
+                parent: dirname(group),
+                parentMemory: (
+                  await readFile(`${dirname(root)}/memory.max`, "utf8")
+                ).trim(),
+                parentCpu: (
+                  await readFile(`${dirname(root)}/cpu.max`, "utf8")
+                ).trim(),
                 memory: (await readFile(`${root}/memory.max`, "utf8")).trim(),
                 high: (await readFile(`${root}/memory.high`, "utf8")).trim(),
                 swap: (
@@ -98,6 +112,9 @@ it.skipIf(!available)(
     try {
       const limits = await observed;
       expect(limits).toMatchObject({
+        parentMemory: "3221225472",
+        parentCpu: "150000 100000",
+        parent: expect.stringContaining("forgecut-media.slice"),
         memory: "3221225472",
         high: "2147483648",
         swap: "268435456",
