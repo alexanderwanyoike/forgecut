@@ -36,14 +36,23 @@ export function exportCommands(jobs: JobQueue) {
         );
       return result.value;
     },
-    export_project: (args, { state }) => {
+    export_project: (args, { state, sequenceId }) => {
       const result = startExportJob(state, jobs, {
         sessionId: state.sessionId,
         expectedRevision: state.revision,
         requestId: randomUUID(),
         outputPath: requiredString(args, "outputPath"),
+        sequenceId:
+          typeof args?.sequenceId === "string" ? args.sequenceId : sequenceId,
       });
-      if (!result.ok) throw new EditingError("IO_ERROR", result.error.message);
+      if (!result.ok)
+        throw new EditingError(
+          result.error.code === "INVALID_INPUT" ||
+            result.error.code === "NOT_FOUND"
+            ? result.error.code
+            : "IO_ERROR",
+          result.error.message,
+        );
       return result.value;
     },
   } satisfies CommandRegistry;
