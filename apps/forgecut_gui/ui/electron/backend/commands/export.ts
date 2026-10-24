@@ -6,6 +6,15 @@ import { requiredString, type CommandRegistry } from "./types.js";
 
 export function exportCommands(jobs: JobQueue) {
   return {
+    cancel_media_job: (args) => {
+      const result = jobs.cancel(requiredString(args, "jobId"), requiredString(args, "sessionId"));
+      if (!result.ok) {
+        let code: "COMMITTING" | "PROJECT_CHANGED" | "NOT_FOUND" = "NOT_FOUND";
+        if (result.error.code === "COMMITTING" || result.error.code === "PROJECT_CHANGED") code = result.error.code;
+        throw new EditingError(code, result.error.message);
+      }
+      return result.value;
+    },
     get_media_job: (args) => {
       const result = jobs.read(requiredString(args, "jobId"), requiredString(args, "sessionId"));
       if (!result.ok) throw new EditingError(result.error.code === "PROJECT_CHANGED" ? "PROJECT_CHANGED" : "NOT_FOUND", result.error.message);

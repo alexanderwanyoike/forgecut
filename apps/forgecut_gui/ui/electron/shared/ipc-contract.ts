@@ -138,6 +138,7 @@ export type SequenceFrame = {
 };
 
 export type EditErrorCode =
+  | "COMMITTING"
   | "CANCELLED"
   | "INVALID_INPUT"
   | "CONFLICT"
@@ -345,6 +346,7 @@ export type CommandMap = {
   get_waveform: { args: { assetId: string }; result: WaveformData };
 
   // Export (progress arrives via forgecut:event:export-progress events)
+  cancel_media_job: {args: {sessionId: string; jobId: string}; result: JobSnapshot};
   get_media_job: {args: {sessionId: string; jobId: string}; result: JobSnapshot};
   export_project: { args: { outputPath: string }; result: JobSnapshot };
 };
