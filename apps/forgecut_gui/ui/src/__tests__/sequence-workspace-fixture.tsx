@@ -60,9 +60,17 @@ export async function sequenceWorkspaceFixture() {
       ],
     }),
   ).toMatchObject({ ok: true });
-  const rootItem = state.project.timeline.tracks[0].items[0].TextOverlay!.id;
-  const clipItem =
-    state.project.sequences![0].timeline.tracks[0].items[0].TextOverlay!.id;
+  const rootTitle = state.project.timeline.tracks[0].items[0];
+  const clipTitle = state.project.sequences![0].timeline.tracks[0].items[0];
+  if (
+    !("TextOverlay" in rootTitle) ||
+    !rootTitle.TextOverlay ||
+    !("TextOverlay" in clipTitle) ||
+    !clipTitle.TextOverlay
+  )
+    throw new Error("Missing fixture titles");
+  const rootItem = rootTitle.TextOverlay.id;
+  const clipItem = clipTitle.TextOverlay.id;
   state.selectSequence(state.sessionId, clip);
   state.setEditingContext({
     sessionId: state.sessionId,

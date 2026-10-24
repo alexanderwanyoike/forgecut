@@ -48,12 +48,12 @@ it("switches every editing surface and restores each sequence context without cr
   fireEvent.blur(input);
   await waitFor(() =>
     expect(
-      state.project.sequences![0].timeline.tracks[0].items[0].TextOverlay!.text,
-    ).toBe("Manual clip wording"),
+      state.project.sequences![0].timeline.tracks[0].items[0],
+    ).toMatchObject({ TextOverlay: { text: "Manual clip wording" } }),
   );
-  expect(state.project.timeline.tracks[0].items[0].TextOverlay!.text).toBe(
-    "Root wording",
-  );
+  expect(state.project.timeline.tracks[0].items[0]).toMatchObject({
+    TextOverlay: { text: "Root wording" },
+  });
   fireEvent.change(picker, { target: { value: root } });
   await waitFor(() =>
     expect((screen.getByLabelText("Text") as HTMLInputElement).value).toBe(
