@@ -71,3 +71,30 @@ it("allows a new export when an old job result is no longer retained", async () 
   await screen.findByRole("alert");
   expect(screen.getByRole("button", { name: "Export" })).toBeTruthy();
 });
+
+it("shows a cleanup diagnostic without misreporting a published export as failed", async () => {
+  api.save.mockResolvedValue("/result.mp4");
+  api.invoke.mockResolvedValue({
+    id: "complete",
+    sessionId: "session",
+    projectRevision: 1,
+    requestId: "export",
+    kind: "export",
+    label: "Export",
+    status: "completed",
+    progress: 1,
+    result: {
+      ok: true,
+      value: {
+        outputPath: "/result.mp4",
+        cleanupWarning: "Temporary export files could not be removed.",
+      },
+    },
+  });
+  render(<ExportDialog open onClose={() => {}} />);
+  fireEvent.click(screen.getByRole("button", { name: "Export" }));
+  await screen.findByText("Export complete");
+  expect(screen.getByRole("alert").textContent).toContain(
+    "Temporary export files could not be removed.",
+  );
+});
