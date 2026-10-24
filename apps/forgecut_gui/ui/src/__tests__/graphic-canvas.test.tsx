@@ -1,3 +1,5 @@
+import { useLayoutEffect } from "react";
+import GraphicCanvas from "../components/GraphicCanvas";
 import {
   cleanup,
   fireEvent,
@@ -196,6 +198,118 @@ it("nudges by one composition pixel or ten with Shift", async () => {
               },
             },
           },
+        ],
+      }),
+    ),
+  );
+});
+it("keeps an active drag through a preview redraw at the same project revision", async () => {
+  const { target, view, props } = await fixture();
+  fireEvent.mouseDown(target, { button: 0, clientX: 100, clientY: 100 });
+  fireEvent.mouseMove(window, { clientX: 150, clientY: 125 });
+  view.rerender(
+    <Preview {...props} project={structuredClone(props.project)} />,
+  );
+  fireEvent.mouseMove(window, { clientX: 160, clientY: 130 });
+  fireEvent.mouseUp(window, { clientX: 160, clientY: 130 });
+  await waitFor(() =>
+    expect(invoke).toHaveBeenCalledExactlyOnceWith(
+      "apply_edits",
+      expect.objectContaining({
+        expectedRevision: props.projectVersion,
+        operations: [
+          expect.objectContaining({
+            args: expect.objectContaining({
+              patch: {
+                kind: "RemotionGraphic",
+                changes: { props: { title_x: 270, title_y: 480 } },
+              },
+            }),
+          }),
+        ],
+      }),
+    ),
+  );
+});
+it("removes the transient drag position when the project revision changes", async () => {
+  const { target, view, props } = await fixture();
+  fireEvent.mouseDown(target, { button: 0, clientX: 100, clientY: 100 });
+  fireEvent.mouseMove(window, { clientX: 150, clientY: 125 });
+  expect(target.parentElement?.style.left).toBe("250px");
+  view.rerender(
+    <Preview {...props} projectVersion={props.projectVersion + 1} />,
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Select Title" }).parentElement?.style
+        .left,
+    ).toBe("150px"),
+  );
+  fireEvent.mouseUp(window);
+  expect(invoke).not.toHaveBeenCalled();
+});
+
+it("accepts a drag as soon as its canvas is visible before passive effects", async () => {
+  const { view, props, item } = await fixture();
+  view.unmount();
+  const component = props.project.components![0];
+  function VisibleCanvas() {
+    useLayoutEffect(() => {
+      const target = screen.getByRole("button", { name: "Select Title" });
+      const stage = target.closest("[data-graphic-stage]")!;
+      vi.spyOn(stage, "getBoundingClientRect").mockReturnValue({
+        left: 20,
+        top: 40,
+        width: 960,
+        height: 540,
+        right: 980,
+        bottom: 580,
+        x: 20,
+        y: 40,
+        toJSON: () => ({}),
+      });
+      fireEvent.mouseDown(target, { button: 0, clientX: 100, clientY: 100 });
+      fireEvent.mouseMove(window, { clientX: 150, clientY: 125 });
+      fireEvent.mouseUp(window, { clientX: 150, clientY: 125 });
+    }, []);
+    return (
+      <GraphicCanvas
+        component={component}
+        resources={[]}
+        item={item}
+        frame={0}
+        settings={props.project.settings}
+        placement={{
+          x: 0,
+          y: 0,
+          width: 1920,
+          height: 1080,
+          opacity: 1,
+          fit: "contain",
+        }}
+        sessionId={props.sessionId}
+        revision={props.projectVersion}
+        selected
+        editable
+        selectedLayerId={titleId}
+      />
+    );
+  }
+  render(<VisibleCanvas />);
+  await waitFor(() =>
+    expect(invoke).toHaveBeenCalledExactlyOnceWith(
+      "apply_edits",
+      expect.objectContaining({
+        expectedRevision: props.projectVersion,
+        operations: [
+          expect.objectContaining({
+            args: expect.objectContaining({
+              patch: {
+                kind: "RemotionGraphic",
+                changes: { props: { title_x: 250, title_y: 470 } },
+              },
+            }),
+          }),
         ],
       }),
     ),

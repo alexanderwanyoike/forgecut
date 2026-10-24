@@ -1,5 +1,5 @@
 import {
-  useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type MouseEvent,
@@ -71,11 +71,14 @@ export function useGraphicGesture({
       setDraft(null);
     }
   };
-  useEffect(() => {
+  const latest = useRef({ item, component, width, height, commit });
+  latest.current = { item, component, width, height, commit };
+  useLayoutEffect(() => {
     const move = (event: globalThis.MouseEvent) => {
       const gesture = active.current;
       if (!gesture) return;
-      const bounds = layerBounds(item, gesture.layer);
+      const { current } = latest;
+      const bounds = layerBounds(current.item, gesture.layer);
       if (!bounds) return;
       const dx = (event.clientX - gesture.x) / gesture.scale;
       const dy = (event.clientY - gesture.y) / gesture.scale;
@@ -86,7 +89,7 @@ export function useGraphicGesture({
           [bindings.width, bounds.width + dx],
           [bindings.height, bounds.height + dy],
         ] as const) {
-          const property = component?.properties[key];
+          const property = current.component?.properties[key];
           next[key] = Math.max(
             property?.type === "number" ? (property.min ?? 1) : 1,
             Math.min(
@@ -100,10 +103,16 @@ export function useGraphicGesture({
       } else {
         let x = bounds.x + dx;
         let y = bounds.y + dy;
-        if (Math.abs(x + bounds.width / 2 - width / 2) * gesture.scale < 6)
-          x = (width - bounds.width) / 2;
-        if (Math.abs(y + bounds.height / 2 - height / 2) * gesture.scale < 6)
-          y = (height - bounds.height) / 2;
+        if (
+          Math.abs(x + bounds.width / 2 - current.width / 2) * gesture.scale <
+          6
+        )
+          x = (current.width - bounds.width) / 2;
+        if (
+          Math.abs(y + bounds.height / 2 - current.height / 2) * gesture.scale <
+          6
+        )
+          y = (current.height - bounds.height) / 2;
         next[bindings.x] = x;
         next[bindings.y] = y;
       }
@@ -113,7 +122,7 @@ export function useGraphicGesture({
     const up = () => {
       const gesture = active.current;
       active.current = null;
-      if (gesture) void commit(gesture.next);
+      if (gesture) void latest.current.commit(gesture.next);
     };
     const key = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") cancel();
@@ -127,7 +136,7 @@ export function useGraphicGesture({
       window.removeEventListener("mouseup", up);
       window.removeEventListener("keydown", key);
     };
-  }, [item, component, sessionId, revision, width, height]);
+  }, [item.id, component?.version, sessionId, revision, width, height]);
   const begin = (
     layer: GraphicLayer,
     event: MouseEvent<HTMLButtonElement>,
