@@ -334,7 +334,8 @@ export class AppState {
 
 function createProject(name: string): Project {
   return {
-    schema_version: 1,
+    schema_version: 2,
+    components: [],
     id: randomUUID(),
     name,
     settings: {

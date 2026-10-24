@@ -11,6 +11,8 @@ import {
   fitSchema,
 } from "./project-schema.js";
 
+import { graphicValuesSchema } from "./graphic-schema.js";
+
 const nonempty = <T extends z.ZodRawShape>(shape: T) =>
   z
     .strictObject(shape)
@@ -19,6 +21,14 @@ const nonempty = <T extends z.ZodRawShape>(shape: T) =>
       "At least one property is required",
     );
 const patch = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("RemotionGraphic"),
+    changes: nonempty({
+      props: graphicValuesSchema.optional(),
+      transform: visualPlacementSchema.optional(),
+      layer_order: layerOrderSchema.optional(),
+    }),
+  }),
   z.strictObject({
     kind: z.literal("VideoClip"),
     changes: nonempty({
@@ -61,6 +71,13 @@ const patch = z.discriminatedUnion("kind", [
 ]);
 const none = z.strictObject({}).optional();
 export const editSchemas = {
+  add_graphic_item: z.strictObject({
+    templateId: id,
+    trackId: id,
+    timelineStartUs: time,
+    durationUs: time.positive(),
+    props: graphicValuesSchema.optional(),
+  }),
   set_sequence_end: z.strictObject({ endUs: time.positive().nullable() }),
   add_clip_to_timeline: z.strictObject({
     assetId: id,
@@ -145,6 +162,7 @@ export const metadataSchema = z
   .strictObject({ sessionId: id.optional(), editGroup: id.optional() })
   .optional();
 export const commandSchemas = {
+  get_graphic_components: none,
   ...editSchemas,
   create_project: none,
   save_project: z.strictObject({ path: z.string().min(1) }),

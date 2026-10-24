@@ -8,6 +8,12 @@ import {
   timelineStartUs,
 } from "./timeline-ops.js";
 
+import {
+  graphicComponentSchema,
+  graphicValuesSchema,
+} from "./graphic-schema.js";
+import { validateProjectGraphics } from "./project-graphics.js";
+
 export const idSchema = z
   .string()
   .min(1)
@@ -79,6 +85,7 @@ export const trackKindSchema = z.enum([
   "Audio",
   "OverlayImage",
   "OverlayText",
+  "Graphics",
 ]);
 export const assetSchema = z.strictObject({
   id: idSchema,
@@ -98,7 +105,11 @@ export const assetSchema = z.strictObject({
     .nullable(),
 });
 const projectSchema = z.strictObject({
-  schema_version: z.literal(1).default(1),
+  schema_version: z
+    .union([z.literal(1), z.literal(2)])
+    .default(1)
+    .transform(() => 2 as const),
+  components: z.array(graphicComponentSchema).max(100).default([]),
   id: idSchema,
   name: z.string(),
   settings: settingsSchema,
@@ -124,6 +135,19 @@ const projectSchema = z.strictObject({
             }),
             z.strictObject({ ImageOverlay: image }),
             z.strictObject({ TextOverlay: text }),
+            z.strictObject({
+              RemotionGraphic: z.strictObject({
+                id: idSchema,
+                track_id: idSchema,
+                timeline_start_us: timeSchema,
+                duration_us: timeSchema.positive(),
+                component_id: idSchema,
+                component_version: z.string().regex(/^[a-f0-9]{64}$/),
+                props: graphicValuesSchema,
+                transform: visualPlacementSchema.optional(),
+                layer_order: layerOrderSchema.optional(),
+              }),
+            }),
           ]),
         ),
       }),
@@ -147,6 +171,7 @@ export function validateProject(input: unknown): Project {
     AudioClip: "Audio",
     ImageOverlay: "OverlayImage",
     TextOverlay: "OverlayText",
+    RemotionGraphic: "Graphics",
   };
   for (const track of project.timeline.tracks) {
     unique(track.id);
@@ -189,5 +214,6 @@ export function validateProject(input: unknown): Project {
         throw new Error("Overlap detected");
     }
   }
+  validateProjectGraphics(project);
   return project;
 }

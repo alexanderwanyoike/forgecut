@@ -26,6 +26,16 @@ export default function VisualProperties({ project, item, update }: Props) {
           transform: { ...(item.VideoClip.transform ?? placement), ...changes },
         },
       });
+    if ("RemotionGraphic" in item && placement)
+      return update({
+        kind: "RemotionGraphic",
+        changes: {
+          transform: {
+            ...(item.RemotionGraphic.transform ?? placement),
+            ...changes,
+          },
+        },
+      });
     return update({ kind: "ImageOverlay", changes });
   };
   const trackIndex = project.timeline.tracks.findIndex(

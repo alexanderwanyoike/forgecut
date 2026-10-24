@@ -92,7 +92,11 @@ export const timelineCommands = {
   add_track: (args, { state }) =>
     state.executeTimelineChange((timeline) => {
       const kind = requiredString(args, "kind") as Track["kind"];
-      if (!["Video", "Audio", "OverlayImage", "OverlayText"].includes(kind)) {
+      if (
+        !["Video", "Audio", "OverlayImage", "OverlayText", "Graphics"].includes(
+          kind,
+        )
+      ) {
         throw new Error(`Unknown track kind: ${kind}`);
       }
       timeline.tracks.push({ id: randomUUID(), kind, items: [] });
@@ -182,7 +186,15 @@ export const timelineCommands = {
       const patch = args?.patch as ItemPatch;
       const data = patch && patch.kind in item ? itemData(item) : undefined;
       if (!data) throw new Error("Patch kind does not match the selected item");
-      Object.assign(data, patch.changes);
+      if (patch.kind === "RemotionGraphic" && "RemotionGraphic" in item) {
+        const { props, ...changes } = patch.changes;
+        Object.assign(item.RemotionGraphic, changes);
+        if (props)
+          item.RemotionGraphic.props = {
+            ...item.RemotionGraphic.props,
+            ...props,
+          };
+      } else Object.assign(data, patch.changes);
     }),
 } satisfies CommandRegistry;
 
