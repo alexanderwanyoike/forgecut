@@ -187,3 +187,26 @@ it("keeps a manual credit draft when an agent changes the same metadata and requ
       .disabled,
   ).toBe(false);
 });
+
+it("keeps the credit draft visible and blocks saving when its media is removed", async () => {
+  const { service } = await fixture();
+  fireEvent.change(screen.getByLabelText("Licence / permission"), {
+    target: { value: "Manual permission" },
+  });
+  fireEvent.change(screen.getByLabelText("Licence notice"), {
+    target: { value: "Manual notice" },
+  });
+  await act(async () => {
+    await service.execute("remove_asset", { id: "music" });
+  });
+  await screen.findByText(
+    "This media is no longer available. Choose another credit above.",
+  );
+  expect(
+    (screen.getByLabelText("Licence / permission") as HTMLInputElement).value,
+  ).toBe("Manual permission");
+  expect(
+    (screen.getByRole("button", { name: "Save credits" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+});
