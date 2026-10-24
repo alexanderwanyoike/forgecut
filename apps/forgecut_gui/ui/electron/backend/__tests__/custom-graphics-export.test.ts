@@ -44,7 +44,7 @@ it.skipIf(!available)(
     try {
       const { state, service } =
         await fixture(`import {useCurrentFrame} from "remotion";
-    export default function Card({values}:{values:Record<string,string|number|boolean|null>}){
+    export default function Card({values}:ForgeCut.Props){
       const frame=useCurrentFrame();
       const browserProcess=Reflect.get(globalThis,"process") as {cwd?:unknown;versions?:{node?:unknown};env?:Record<string,unknown>}|undefined;
       const isolated=typeof Reflect.get(globalThis,"forgecut")==="undefined" && typeof browserProcess?.cwd!=="function" && !browserProcess?.versions?.node && browserProcess?.env?.FORGECUT_HOST_SECRET===undefined;
