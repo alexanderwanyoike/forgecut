@@ -530,7 +530,10 @@ export type CommandMap = {
     args: { sessionId: string; jobId: string };
     result: JobSnapshot;
   };
-  export_project: { args: { outputPath: string }; result: JobSnapshot };
+  export_project: {
+    args: { outputPath: string; sequenceId?: string };
+    result: JobSnapshot;
+  };
 };
 
 export type CommandName = keyof CommandMap;

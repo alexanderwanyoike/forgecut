@@ -25,6 +25,7 @@ export const jobRequestSchema = z.strictObject({
 export const exportRequestSchema = importRequestSchema
   .omit({ paths: true })
   .extend({
+    sequenceId: idSchema.optional(),
     outputPath: z
       .string()
       .min(1)

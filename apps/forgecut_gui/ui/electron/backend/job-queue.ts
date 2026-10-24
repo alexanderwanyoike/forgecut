@@ -14,6 +14,9 @@ type Entry = {
   timedOut?: boolean;
 };
 
+const requestFingerprint = (request: JobRequest) =>
+  createHash("sha256").update(JSON.stringify(request)).digest("hex");
+
 export class JobQueue {
   private entries = new Map<string, Entry>();
 
@@ -27,7 +30,7 @@ export class JobQueue {
 
   constructor(private readonly options: { timeoutMs?: number } = {}) {}
 
-  start(request: JobRequest, run: Runner): Result<JobSnapshot> {
+  replay(request: JobRequest): Result<JobSnapshot | undefined> {
     if (this.closed)
       return {
         ok: false,
@@ -36,9 +39,7 @@ export class JobQueue {
           message: "The media job queue is shutting down.",
         },
       };
-    const fingerprint = createHash("sha256")
-      .update(JSON.stringify(request))
-      .digest("hex");
+    const fingerprint = requestFingerprint(request);
     const existing = [...this.entries.values()].find(
       (entry) =>
         entry.snapshot.sessionId === request.sessionId &&
@@ -55,6 +56,14 @@ export class JobQueue {
         };
       return { ok: true, value: structuredClone(existing.snapshot) };
     }
+    return { ok: true, value: undefined };
+  }
+
+  start(request: JobRequest, run: Runner): Result<JobSnapshot> {
+    const replayed = this.replay(request);
+    if (!replayed.ok) return replayed;
+    if (replayed.value) return { ok: true, value: replayed.value };
+    const fingerprint = requestFingerprint(request);
     if (this.pending.length + Number(this.running) >= 16)
       return {
         ok: false,

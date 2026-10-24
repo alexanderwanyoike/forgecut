@@ -279,5 +279,8 @@ export const commandSchemas = {
   get_waveform: z.strictObject({ assetId: id }),
   cancel_media_job: z.strictObject({ sessionId: id, jobId: z.uuid() }),
   get_media_job: z.strictObject({ sessionId: id, jobId: z.uuid() }),
-  export_project: z.strictObject({ outputPath: z.string().min(1) }),
+  export_project: z.strictObject({
+    outputPath: z.string().min(1),
+    sequenceId: id.optional(),
+  }),
 } satisfies Record<CommandName, z.ZodType>;
