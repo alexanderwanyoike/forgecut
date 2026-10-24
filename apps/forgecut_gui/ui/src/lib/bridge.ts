@@ -49,6 +49,7 @@ const electronApi = () =>
 let activeSession: string | undefined;
 let activeRevision = -1;
 let activeSequenceId: string | undefined;
+let activeSequenceRevision = -1;
 
 function acceptVersion(sessionId: string, revision: number): void {
   if (revision >= activeRevision) {
@@ -57,11 +58,20 @@ function acceptVersion(sessionId: string, revision: number): void {
   }
 }
 
-function acceptSnapshot(snapshot: ProjectSnapshot): void {
-  if (snapshot.revision < activeRevision) return;
+function acceptSnapshot(snapshot: ProjectSnapshot): boolean {
+  const sequenceRevision = snapshot.sequenceRevision ?? 0;
+  if (
+    snapshot.revision < activeRevision ||
+    (snapshot.sessionId === activeSession &&
+      snapshot.revision === activeRevision &&
+      sequenceRevision < activeSequenceRevision)
+  )
+    return false;
   acceptVersion(snapshot.sessionId, snapshot.revision);
   activeSequenceId =
     snapshot.activeSequenceId ?? snapshot.project.default_sequence?.id;
+  activeSequenceRevision = sequenceRevision;
+  return true;
 }
 
 function requireElectronApi(): ForgeCutElectronApi {
@@ -156,8 +166,7 @@ export function listen<E extends keyof EventPayloads>(
     requireElectronApi().events.listen<EventPayloads[E]>(event, (message) => {
       if (event === "project-changed") {
         const snapshot = message.payload as EventPayloads["project-changed"];
-        if (snapshot.revision < activeRevision) return;
-        acceptSnapshot(snapshot);
+        if (!acceptSnapshot(snapshot)) return;
       }
       callback(message);
     }),
