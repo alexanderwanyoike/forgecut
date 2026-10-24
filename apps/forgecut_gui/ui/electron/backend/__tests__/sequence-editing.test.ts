@@ -31,3 +31,42 @@ it("creates a named sequence with independent settings and one undo action", asy
   await service.jobs.close();
   await service.closeGraphicsPreview();
 });
+it("renames default and standalone sequences by stable identity in one guarded batch", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  const created = await service.execute("create_sequence", { name: "Clip" });
+  if (!created.ok) throw new Error(created.error.message);
+  const extra = state.project.sequences![0];
+  const before = state.snapshot();
+  const result = await service.execute("apply_edits", {
+    sessionId: state.sessionId,
+    expectedRevision: state.revision,
+    requestId: crypto.randomUUID(),
+    operations: [
+      {
+        command: "rename_sequence",
+        args: {
+          sequenceId: state.project.default_sequence!.id,
+          name: "Trailer",
+        },
+      },
+      {
+        command: "rename_sequence",
+        args: { sequenceId: extra.id, name: "Standalone" },
+      },
+    ],
+  });
+  expect(result).toMatchObject({ ok: true });
+  expect(await service.execute("get_sequences")).toMatchObject({
+    ok: true,
+    value: [
+      { id: state.project.default_sequence!.id, name: "Trailer" },
+      { id: extra.id, name: "Standalone" },
+    ],
+  });
+  expect(state.revision).toBe(before.revision + 1);
+  expect(await service.execute("undo")).toMatchObject({ ok: true });
+  expect(state.project).toEqual(before.project);
+  await service.jobs.close();
+  await service.closeGraphicsPreview();
+});
