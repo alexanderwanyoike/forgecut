@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Project } from "../shared/ipc-contract.js";
 import {
@@ -149,10 +150,22 @@ const timelineSchema = z.strictObject({
 });
 
 const projectSchema = z.strictObject({
-  schema_version: z
-    .union([z.literal(1), z.literal(2)])
-    .default(1)
-    .transform(() => 2 as const),
+  schema_version: z.literal(3),
+  default_sequence: z.strictObject({
+    id: idSchema,
+    name: z.string().trim().min(1).max(200),
+  }),
+  sequences: z
+    .array(
+      z.strictObject({
+        id: idSchema,
+        name: z.string().trim().min(1).max(200),
+        settings: settingsSchema,
+        timeline: timelineSchema,
+      }),
+    )
+    .max(31)
+    .default([]),
   resources: z.array(graphicResourceSchema).max(100).default([]),
   components: z.array(graphicComponentSchema).max(100).default([]),
   id: idSchema,
@@ -163,13 +176,31 @@ const projectSchema = z.strictObject({
 });
 
 export function validateProject(input: unknown): Project {
-  const project = projectSchema.parse(input);
+  const previous = z.record(z.string(), z.unknown()).parse(input);
+  const legacy =
+    previous.schema_version === undefined ||
+    previous.schema_version === 1 ||
+    previous.schema_version === 2;
+  const project = projectSchema.parse(
+    legacy
+      ? {
+          ...previous,
+          schema_version: 3,
+          default_sequence: previous.default_sequence ?? {
+            id: randomUUID(),
+            name: "Main",
+          },
+        }
+      : previous,
+  );
   const ids = new Set<string>();
   const unique = (id: string) => {
     if (ids.has(id)) throw new Error(`Duplicate ID: ${id}`);
     ids.add(id);
   };
   unique(project.id);
+  unique(project.default_sequence.id);
+  project.sequences.forEach((sequence) => unique(sequence.id));
   project.assets.forEach((asset) => unique(asset.id));
   project.resources.forEach((resource) => unique(resource.id));
   const assets = new Map(project.assets.map((asset) => [asset.id, asset]));
