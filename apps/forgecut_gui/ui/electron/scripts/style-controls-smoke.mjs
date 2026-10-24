@@ -44,7 +44,7 @@ export async function verifyStyleControls(send) {
       clip.scrollIntoView({ block: 'nearest' });
       const bounds = clip.getBoundingClientRect();
       label.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, clientX: bounds.x + 20, clientY: bounds.y + 10 }));
-      window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0, clientX: bounds.x + 20, clientY: bounds.y + 10 }));
       await click('Save project style');
       await set('Style name', 'Octane card');
       await click('Create style');
@@ -74,14 +74,14 @@ export async function verifyStyleControls(send) {
       const scroll = document.querySelector('.timeline-scroll');
       const rect = scroll.getBoundingClientRect();
       document.querySelector('.time-ruler').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, clientX: rect.x + 48 + 500 - scroll.scrollLeft, clientY: rect.y + 10 }));
-      window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0, clientX: rect.x + 48 + 500 - scroll.scrollLeft, clientY: rect.y + 10 }));
       await wait(() => document.querySelector('.preview-time')?.textContent === '00:00:05.000', 'selected source preview');
       const sourceLabel = [...document.querySelectorAll('.clip-label')].find(element => element.textContent === 'Manual card');
       const sourceClip = sourceLabel.closest('.clip');
       sourceClip.scrollIntoView({ block: 'nearest' });
       const sourceBounds = sourceClip.getBoundingClientRect();
       sourceLabel.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, clientX: sourceBounds.x + 20, clientY: sourceBounds.y + 10 }));
-      window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0, clientX: sourceBounds.x + 20, clientY: sourceBounds.y + 10 }));
       await settle();
       await click('Save project style');
       await wait(() => field('Style name'), 'style form');
