@@ -275,3 +275,62 @@ it("protects the default sequence and deletes another sequence with one-step und
   await waitFor(() => expect(state.project).toEqual(before));
   expect(screen.getByRole("option", { name: "Portrait clip" })).toBeTruthy();
 });
+
+it("ignores a delayed context reply after the visible sequence has changed", async () => {
+  const { state, root, clip, App } = await fixture();
+  const native = window.forgecut!.invoke;
+  let release!: () => void;
+  let began!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    began = resolve;
+  });
+  let paused = false;
+  window.forgecut!.invoke = async <T,>(
+    command: string,
+    args?: Record<string, unknown>,
+    metadata?: CommandMetadata,
+  ): Promise<CommandResponse<T>> => {
+    const result = await native<T>(command, args, metadata);
+    const value = result.ok ? result.value : null;
+    if (
+      command === "get_editing_context" &&
+      !paused &&
+      value &&
+      typeof value === "object" &&
+      "activeSequenceId" in value &&
+      value.activeSequenceId === root
+    ) {
+      paused = true;
+      began();
+      await held;
+    }
+    return result;
+  };
+  try {
+    render(<App />);
+    await started;
+    await act(async () => {
+      state.selectSequence(state.sessionId, clip);
+    });
+    await waitFor(() =>
+      expect((screen.getByLabelText("Text") as HTMLInputElement).value).toBe(
+        "Clip wording",
+      ),
+    );
+    await act(async () => {
+      release();
+    });
+    expect(
+      (screen.getByLabelText("Active sequence") as HTMLSelectElement).value,
+    ).toBe(clip);
+    expect((screen.getByLabelText("Text") as HTMLInputElement).value).toBe(
+      "Clip wording",
+    );
+    expect(state.getEditingContext().playheadUs).toBe(250000);
+  } finally {
+    release();
+  }
+});
