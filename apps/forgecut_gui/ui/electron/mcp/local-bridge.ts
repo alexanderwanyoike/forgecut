@@ -8,7 +8,7 @@ import { chmod, lstat, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
-import { dispatchLocal } from "./dispatch.js";
+import { dispatchLocal, bridgeRequestSchema } from "./dispatch.js";
 import type { EditingService } from "../backend/editing-service.js";
 import {
   MAX_MESSAGE_BYTES,
@@ -20,6 +20,7 @@ import { sessionDirectory } from "./sessions.js";
 export async function startLocalBridge(
   service: EditingService,
   directory = sessionDirectory(),
+  onActivity?: (label: string) => void,
 ) {
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const info = await lstat(directory);
@@ -99,7 +100,31 @@ export async function startLocalBridge(
       });
       return;
     }
-    send(res, await dispatchLocal(service, input));
+    const result = await dispatchLocal(service, input);
+    if (result.ok && onActivity) {
+      const request = bridgeRequestSchema.parse(input);
+      const labels = {
+        summary: "Read project",
+        assets: "Read assets",
+        timeline: "Read timeline",
+        item: "Read item",
+        apply: "Apply edits",
+        history: "Change history",
+        save: "Save project",
+        open: "Open project",
+        context: "Read editing context",
+      };
+      let label = labels[request.action];
+      if (request.action === "apply") label = request.label;
+      if (request.action === "history")
+        label = request.request.direction === "undo" ? "Undo" : "Redo";
+      try {
+        onActivity(label);
+      } catch (error) {
+        console.warn("MCP activity listener failed", error);
+      }
+    }
+    send(res, result);
   };
   const server = createServer((req, res) => {
     void serve(req, res).catch(() =>
