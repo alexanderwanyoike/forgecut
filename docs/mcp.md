@@ -102,3 +102,11 @@ Visual `update_item` patches support a complete video `transform`, image `fit` a
 Imports use the same `committing` barrier as export publication. Once that short project commit starts, cancellation returns `COMMITTING` and the job completes with its actual result. Cancellation cannot claim that an already committed import was discarded.
 
 Resource and licence imports accept regular files only. Nonblocking opens reject pipes before they can occupy the serial queue, and bounded reads check cancellation between chunks. Each resource is limited to 8 MiB.
+
+## Source drafts and Apply
+
+`read_graphic_source` targets an explicit item and session. Choose `view: "draft"` (the default) or `"active"`. Without a file it lists filenames, byte counts, the entry and current draft/base revisions. Supply `file` to read one source body, limited to 128 KiB. Set `includeMetadata` when editing the draft's property/layer schemas or dependencies; source bodies remain separate.
+
+`patch_graphic_draft_file` saves or removes one file using `expectedDraftRevision` and the active `baseVersion`. It preserves other files and schema changes. `save_graphic_draft` replaces the complete component draft when schema changes are intentional. The 1 MiB transport limit still applies; use per-file reads/patches for larger workspaces. Conflicts require rereading and reconciling, and never authorize overwriting a manual buffer. `revert_graphic_draft` replaces the draft with active source through a newer draft revision. These operations leave active graphics and project history unchanged.
+
+`start_graphic_source_check` returns located compilation diagnostics without executing source. `start_graphic_promotion` queues Apply using the expected project and draft revisions plus a unique request ID. Poll `get_job`; cancellation uses `cancel_job`. Default scope forks the selected instance. Explicit shared scope targets instances pinned to its original component version. Property/layer migration maps use stable old IDs and new IDs, or null to explicitly discard/reset a value. Successful Apply creates one project undo action. Source execution requires the supported Linux isolation and aggregate resource boundary. No arbitrary package installation or shell execution is exposed.

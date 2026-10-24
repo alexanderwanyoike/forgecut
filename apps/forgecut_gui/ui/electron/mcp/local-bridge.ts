@@ -104,6 +104,11 @@ export async function startLocalBridge(
     if (result.ok && onActivity) {
       const request = bridgeRequestSchema.parse(input);
       const labels = {
+        "source-read": "Read graphic source",
+        "draft-file": "Save graphic draft file",
+        "draft-save": "Save graphic draft",
+        "draft-revert": "Revert graphic draft",
+        "source-promote": "Apply graphic source",
         export: "Export project",
         import: "Import media",
         frame: "Source frame",

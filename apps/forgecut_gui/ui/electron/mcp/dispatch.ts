@@ -1,5 +1,7 @@
 import { isAbsolute } from "node:path";
 import { z } from "zod";
+import { sourceActionSchemas } from "./draft-schema.js";
+import { dispatchGraphicSource } from "./source-actions.js";
 import { sourceCheckRequestSchema } from "./source-schema.js";
 import type { GraphicComponent } from "../shared/graphics.js";
 import { resolveSequenceFrame } from "../domain/sequence.js";
@@ -47,6 +49,7 @@ export const projectFileRequestSchema = z.strictObject({
     .refine(isAbsolute, "Use an absolute project path"),
 });
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
+  ...sourceActionSchemas,
   sourceCheckRequestSchema.extend({ action: z.literal("source-check") }),
   resourceRequestSchema.extend({ action: z.literal("resource") }),
   z.strictObject({ action: z.literal("resources"), ...resourcePageFields }),
@@ -136,6 +139,14 @@ export async function dispatchLocal(
   const request = parsed.data;
   const { state } = service;
   try {
+    if (
+      request.action === "source-read" ||
+      request.action === "draft-file" ||
+      request.action === "draft-save" ||
+      request.action === "draft-revert" ||
+      request.action === "source-promote"
+    )
+      return await dispatchGraphicSource(service, request);
     if (request.action === "export")
       return startExportJob(state, service.jobs, request);
     if (request.action === "job")
