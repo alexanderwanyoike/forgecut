@@ -319,7 +319,12 @@ export type CommandMap = {
     args: {
       path: string;
       kind: "Image" | "Font";
-      target?: { itemId: string; property: string };
+      target?: {
+        itemId: string;
+        property: string;
+        sessionId: string;
+        expectedRevision: number;
+      };
     } & (
       | { license: ResourceLicense; licensePath?: never }
       | { licensePath: string; license?: never }

@@ -5,19 +5,24 @@ import type {
   GraphicValue,
   RemotionGraphicItem,
 } from "../../electron/shared/graphics";
-import type { ItemPatch } from "../../electron/shared/ipc-contract";
+import type {
+  ProjectSnapshot,
+  ItemPatch,
+} from "../../electron/shared/ipc-contract";
 import ColorProperty from "./ColorProperty";
 import PropertyInput from "./PropertyInput";
 import NumberProperty from "./NumberProperty";
 
 type Props = {
   component: GraphicComponent;
+  origin?: Pick<ProjectSnapshot, "sessionId" | "revision">;
   item: RemotionGraphicItem;
   resources: GraphicResource[];
   update: (patch: ItemPatch) => Promise<void>;
 };
 export default function GraphicProperties({
   component,
+  origin,
   item,
   resources,
   update,
@@ -32,6 +37,7 @@ export default function GraphicProperties({
           return (
             <ResourceProperty
               key={`${item.id}:${property.id}`}
+              origin={origin}
               itemId={item.id}
               property={key}
               label={property.label}

@@ -195,6 +195,7 @@ export default function App() {
       />
 
       <Inspector
+        sessionId={snapshot?.sessionId}
         selectedClipId={selectedClipId}
         project={snapshot?.project}
         projectVersion={projectVersion}

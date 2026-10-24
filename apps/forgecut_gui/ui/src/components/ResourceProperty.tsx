@@ -1,8 +1,10 @@
 import { useState } from "react";
+import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
 import { invoke, open } from "../lib/bridge";
 import type { GraphicResource } from "../../electron/shared/graphic-resources";
 
 type Props = {
+  origin?: Pick<ProjectSnapshot, "sessionId" | "revision">;
   itemId: string;
   property: string;
   label: string;
@@ -11,6 +13,7 @@ type Props = {
   onValueChange: (value: string) => void;
 };
 export default function ResourceProperty({
+  origin,
   itemId,
   property,
   label,
@@ -21,26 +24,38 @@ export default function ResourceProperty({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const importFont = async () => {
-    const path = await open<string | null>({
-      multiple: false,
-      title: "Choose a font",
-      filters: [{ name: "Fonts", extensions: ["ttf", "otf", "woff", "woff2"] }],
-    });
-    if (!path) return;
-    const licensePath = await open<string | null>({
-      multiple: false,
-      title: "Choose this font's licence text",
-      filters: [{ name: "Licence text", extensions: ["*"] }],
-    });
-    if (!licensePath) return;
+    const captured = origin;
+    if (!captured) {
+      setError("The project is not ready for resource import.");
+      return;
+    }
     setPending(true);
     setError("");
     try {
+      const path = await open<string | null>({
+        multiple: false,
+        title: "Choose a font",
+        filters: [
+          { name: "Fonts", extensions: ["ttf", "otf", "woff", "woff2"] },
+        ],
+      });
+      if (!path) return;
+      const licensePath = await open<string | null>({
+        multiple: false,
+        title: "Choose this font's licence text",
+        filters: [{ name: "Licence text", extensions: ["*"] }],
+      });
+      if (!licensePath) return;
       await invoke("import_graphic_resource", {
         path,
         kind: "Font",
         licensePath,
-        target: { itemId, property },
+        target: {
+          itemId,
+          property,
+          sessionId: captured.sessionId,
+          expectedRevision: captured.revision,
+        },
       });
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
@@ -72,13 +87,7 @@ export default function ResourceProperty({
         className="preview-btn"
         aria-label="Import font"
         disabled={pending}
-        onClick={() => {
-          void importFont().catch((failure: unknown) =>
-            setError(
-              failure instanceof Error ? failure.message : String(failure),
-            ),
-          );
-        }}
+        onClick={importFont}
       >
         {pending ? "Importing font…" : "Import font…"}
       </button>

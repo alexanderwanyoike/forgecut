@@ -38,6 +38,12 @@ const resourceImportFields = {
     .strictObject({
       itemId: z.string().min(1).max(256),
       property: z.string().min(1).max(128),
+      sessionId: z.string().min(1).max(256),
+      expectedRevision: z
+        .number()
+        .int()
+        .nonnegative()
+        .max(Number.MAX_SAFE_INTEGER),
     })
     .optional(),
 };

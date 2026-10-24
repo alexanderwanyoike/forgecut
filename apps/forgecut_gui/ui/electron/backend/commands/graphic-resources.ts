@@ -8,6 +8,14 @@ import type { CommandRegistry } from "./types.js";
 export const graphicResourceCommands = {
   import_graphic_resource: async (args, { state, signal }) => {
     const input = args as CommandMap["import_graphic_resource"]["args"];
+    if (input.target) {
+      state.assertSession(input.target.sessionId);
+      if (state.revision !== input.target.expectedRevision)
+        throw new EditingError(
+          "CONFLICT",
+          "The project changed while choosing the resource. Start the import again.",
+        );
+    }
     const { sessionId, revision } = state;
     let { license } = input;
     if (input.licensePath) {
