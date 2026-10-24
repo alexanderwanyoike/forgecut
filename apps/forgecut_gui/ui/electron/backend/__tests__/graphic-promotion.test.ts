@@ -285,3 +285,23 @@ it("cancels promotion before the project commit and retains the active version",
   expect((await finish(service, request)).status).toBe("cancelled");
   expect(state.snapshot()).toEqual(before);
 });
+
+it("advances the recoverable draft to the applied component so editing can continue", async () => {
+  const { state, service, items, request } = await fixture();
+  expect((await finish(service, request)).result).toMatchObject({ ok: true });
+  const active = state.project.timeline.tracks[0].items[0];
+  if (!("RemotionGraphic" in active)) throw new Error("Missing graphic");
+  expect(
+    await service.execute("get_graphic_draft", { itemId: items[0].id }),
+  ).toMatchObject({
+    ok: true,
+    value: {
+      revision: 2,
+      baseVersion: active.RemotionGraphic.component_version,
+      component: {
+        id: active.RemotionGraphic.component_id,
+        version: active.RemotionGraphic.component_version,
+      },
+    },
+  });
+});
