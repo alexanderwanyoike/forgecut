@@ -229,3 +229,15 @@ it("keeps an active drag through a preview redraw at the same project revision",
     ),
   );
 });
+it("removes the transient drag position when the project revision changes", async () => {
+  const { target, view, props } = await fixture();
+  fireEvent.mouseDown(target, { button: 0, clientX: 100, clientY: 100 });
+  fireEvent.mouseMove(window, { clientX: 150, clientY: 125 });
+  expect(target.parentElement?.style.left).toBe("250px");
+  view.rerender(
+    <Preview {...props} projectVersion={props.projectVersion + 1} />,
+  );
+  await waitFor(() => expect(target.parentElement?.style.left).toBe("150px"));
+  fireEvent.mouseUp(window);
+  expect(invoke).not.toHaveBeenCalled();
+});
