@@ -1,6 +1,10 @@
+import type { CommandMap } from "../../shared/ipc-contract.js";
 import { requiredString, type CommandRegistry } from "./types.js";
 
 export const projectCommands = {
+  get_editing_context: (_args, { state }) => state.getEditingContext(),
+  set_editing_context: (args, { state }) =>
+    state.setEditingContext(args as CommandMap["set_editing_context"]["args"]),
   create_project: (_args, { state }) => JSON.stringify(state.createProject()),
 
   save_project: (args, { state }) =>

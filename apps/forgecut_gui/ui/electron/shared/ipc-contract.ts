@@ -101,6 +101,13 @@ export type Project = {
   timeline: Timeline;
 };
 
+export type EditingContext = {
+  sessionId: string;
+  contextRevision: number;
+  selectedItemIds: string[];
+  playheadUs: TimeUs;
+};
+
 export type ProjectSnapshot = {
   project: Project;
   sessionId: string;
@@ -219,6 +226,11 @@ export type CommandMap = {
   load_project: { args: { path: string }; result: string };
   get_project_settings: { args: undefined; result: ProjectSettings };
   get_project_snapshot: { args: undefined; result: ProjectSnapshot };
+  get_editing_context: { args: undefined; result: EditingContext };
+  set_editing_context: {
+    args: { sessionId: string; selectedItemIds: string[]; playheadUs: TimeUs };
+    result: EditingContext;
+  };
   apply_edits: { args: EditRequest; result: ProjectSnapshot };
   apply_history: { args: HistoryRequest; result: ProjectSnapshot };
   update_project: {
