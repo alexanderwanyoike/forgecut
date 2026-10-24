@@ -35,7 +35,7 @@ it("shows a queued export and cancels the same scoped job", async () => {
       };
     throw new Error(`Unexpected command ${command}`);
   });
-  render(<ExportDialog onClose={() => {}} />);
+  render(<ExportDialog open onClose={() => {}} />);
   fireEvent.click(screen.getByRole("button", { name: "Export" }));
   await waitFor(() => expect(screen.getByText(/Queued/)).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: "Cancel export" }));

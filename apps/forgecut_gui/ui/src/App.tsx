@@ -214,7 +214,7 @@ export default function App() {
         ])}
       />
 
-      {showExport && <ExportDialog onClose={() => setShowExport(false)} />}
+      <ExportDialog open={showExport} onClose={() => setShowExport(false)} />
     </div>
   );
 }
