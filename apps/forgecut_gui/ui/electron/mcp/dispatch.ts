@@ -415,8 +415,6 @@ export async function dispatchLocal(
               ? {
                   license: {
                     identifier: license.identifier,
-                    attribution: license.attribution,
-                    source_url: license.source_url,
                   },
                 }
               : {}),
