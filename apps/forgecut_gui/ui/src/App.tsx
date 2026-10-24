@@ -1,6 +1,7 @@
 import * as Popover from "@radix-ui/react-popover";
 import {
   Clapperboard,
+  FileBadge,
   Download,
   FolderOpen,
   Redo2,
@@ -8,6 +9,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import CreditsDialog from "./components/CreditsDialog";
 import ActionButton from "./components/ActionButton";
 import AppearanceControls from "./components/AppearanceControls";
 import McpStatus from "./components/McpStatus";
@@ -25,6 +27,7 @@ import { useProject } from "./hooks/useProject";
 const CodeWorkspace = lazy(() => import("./components/CodeWorkspace"));
 
 export default function App() {
+  const [showCredits, setShowCredits] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [exportTarget, setExportTarget] = useState<ExportTarget | undefined>();
   const [sourceItemId, setSourceItemId] = useState<string | null>(null);
@@ -48,6 +51,7 @@ export default function App() {
   const projectVersion = snapshot?.revision ?? 0;
   const projectName = snapshot?.project.name ?? "Untitled Project";
   useEffect(() => {
+    setShowCredits(false);
     setSourceItemId(null);
     setSourceAssetId(null);
     if (snapshot && snapshot.project.timeline.tracks.length === 0) {
@@ -144,6 +148,18 @@ export default function App() {
                   onClick={handleSave}
                 >
                   Save Project...
+                </ActionButton>
+                <ActionButton
+                  icon={FileBadge}
+                  className="quiet-action"
+                  disabled={!snapshot}
+                  onClick={() => {
+                    setShowFileMenu(false);
+                    setPlaying(false);
+                    setShowCredits(true);
+                  }}
+                >
+                  Project credits
                 </ActionButton>
               </Popover.Content>
             </Popover.Portal>
@@ -342,6 +358,13 @@ export default function App() {
         />
       )}
 
+      {showCredits && snapshot && (
+        <CreditsDialog
+          key={snapshot.sessionId}
+          snapshot={snapshot}
+          onClose={() => setShowCredits(false)}
+        />
+      )}
       <ExportDialog
         open={showExport}
         target={exportTarget}
