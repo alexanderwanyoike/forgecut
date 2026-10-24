@@ -323,3 +323,36 @@ it("targets chronological undo explicitly and never groups edits across sequence
   await service.jobs.close();
   await service.closeGraphicsPreview();
 });
+it("rolls back a batch that deletes its target before a later timeline operation", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  await service.execute("create_sequence", { name: "Clip" });
+  const clip = state.project.sequences![0].id;
+  const before = state.snapshot();
+  const result = await service.execute("apply_edits", {
+    sessionId: state.sessionId,
+    expectedRevision: state.revision,
+    requestId: crypto.randomUUID(),
+    sequenceId: clip,
+    operations: [
+      { command: "delete_sequence", args: { sequenceId: clip } },
+      {
+        command: "add_text_overlay",
+        args: {
+          trackId: "titles",
+          timelineStartUs: 0,
+          durationUs: 1000000,
+          text: "Never retarget this",
+          fontSize: 48,
+          color: "#ffffff",
+          x: 10,
+          y: 20,
+        },
+      },
+    ],
+  });
+  expect(result).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+  expect(state.snapshot()).toEqual(before);
+  await service.jobs.close();
+  await service.closeGraphicsPreview();
+});
