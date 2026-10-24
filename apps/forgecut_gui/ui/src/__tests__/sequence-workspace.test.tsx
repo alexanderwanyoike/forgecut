@@ -367,3 +367,24 @@ it("adds an audio track to an empty sequence without changing another timeline",
     ).toEqual([]),
   );
 });
+
+it("keeps an outgoing view's track command bound to that view during a native switch", async () => {
+  const { state, root, clip, App } = await fixture();
+  const requests = vi.spyOn(window.forgecut!, "invoke");
+  render(<App />);
+  await screen.findByLabelText("Text");
+  const add = screen.getByRole("button", { name: "+ Track" });
+  await act(async () => {
+    state.selectSequence(state.sessionId, clip);
+    fireEvent.click(add);
+  });
+  expect(requests).toHaveBeenCalledWith(
+    "add_track",
+    { kind: "Video" },
+    expect.objectContaining({ sequenceId: root }),
+  );
+  await waitFor(() => expect(state.project.timeline.tracks).toHaveLength(2));
+  expect(state.project.timeline.tracks[1].kind).toBe("Video");
+  expect(state.project.sequences![0].timeline.tracks).toHaveLength(1);
+  expect(state.getEditingContext().activeSequenceId).toBe(clip);
+});
