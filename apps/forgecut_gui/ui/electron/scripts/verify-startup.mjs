@@ -180,7 +180,7 @@ async function main() {
   }
   await verifyMcp(mcpDirectory, send);
   await verifyAudio(mcpDirectory, send);
-  await verifyGraphicsPreview(send);
+  await verifyGraphicsPreview(mcpDirectory, send);
   ws.close();
 
   const value = result.result?.result?.value;
@@ -203,7 +203,7 @@ async function main() {
   }
 
   console.log(
-    "Electron startup, shared editing, live MCP and preview audio verified",
+    "Electron startup, shared editing, live MCP, preview audio and graphics export verified",
   );
 }
 
