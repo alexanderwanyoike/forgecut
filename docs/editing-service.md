@@ -43,7 +43,7 @@ The owner freezes committed data. Consumers receive detached snapshots and canno
 
 ## Project files
 
-Files use `schema_version: 1`. Unversioned valid files migrate on load and gain a version when saved. Future versions and invalid references/timing are rejected before the current project is replaced. Missing source files are reported while preserving the project and its timeline.
+Files use `schema_version: 3`. Valid unversioned files and formats 1 and 2 migrate on load and retain their content. The original root timeline/settings gain stable `default_sequence` name/identity metadata; additional named timelines and settings live in `sequences` and share project assets/resources/components. Future versions and invalid references/timing are rejected before the current project is replaced. Missing source files are reported while preserving the project and its timeline.
 
 Saving writes a temporary file beside the destination, syncs it and atomically renames it. Linux also syncs the containing directory. Before replacement, a valid previous file is copied to `<project>.forgecut.bak`. After a failed open, the editor offers **Open recovery copy**. A backup is available after a previous valid save has been replaced. An interrupted first save either leaves its prior primary intact or leaves no completed project file.
 
