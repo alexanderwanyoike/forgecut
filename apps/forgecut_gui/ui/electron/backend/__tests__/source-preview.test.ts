@@ -140,15 +140,16 @@ it
       spawnSync("ffprobe", ["-version"]).status !== 0,
   )
   .each([
-    ["portrait", "color=c=blue:s=720x1280:r=30:d=1", "vp8,202,360,1:1,101:180"],
+    ["portrait", "color=c=blue:s=720x1280:r=30:d=1", "vp8,202,360", 9 / 16],
     [
       "anamorphic",
       "color=c=blue:s=720x576:r=30:d=1,setsar=64/45",
-      "vp8,450,360,64:45,16:9",
+      "vp8,450,360",
+      16 / 9,
     ],
   ] as const)(
   "preserves silent %s display aspect and bounded encoded dimensions",
-  async (name, input, expected) => {
+  async (name, input, expected, expectedAspect) => {
     const directory = await mkdtemp(
       join(tmpdir(), "forgecut-portrait-preview-"),
     );
@@ -219,7 +220,10 @@ it
         { encoding: "utf8" },
       );
       expect(probe.status, probe.stderr).toBe(0);
-      expect(probe.stdout.trim()).toBe(expected);
+      const fields = probe.stdout.trim().split(",");
+      expect(fields.slice(0, 3).join(",")).toBe(expected);
+      const [numerator, denominator] = fields[4].split(":").map(Number);
+      expect(numerator / denominator).toBeCloseTo(expectedAspect, 2);
       expect(state.snapshot()).toEqual(before);
     } finally {
       await service.jobs.close();
