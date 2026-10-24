@@ -1,5 +1,6 @@
 /** @vitest-environment node */
 import { expect, it } from "vitest";
+import { AppState } from "../state";
 import { validateProject } from "../project-schema";
 
 it.each([undefined, 1, 2])(
@@ -51,3 +52,51 @@ it.each([undefined, 1, 2])(
     expect(validateProject(migrated)).toEqual(migrated);
   },
 );
+
+it("validates shared media references and item identities across additional sequences", () => {
+  const project = structuredClone(new AppState().project);
+  project.assets.push({
+    id: "recording",
+    name: "recording.mp4",
+    path: "/private/recording.mp4",
+    kind: "Video",
+    probe: null,
+  });
+  project.sequences = [
+    {
+      id: "b3bc5c73-ec4c-48f3-887a-51f7bb3e5716",
+      name: "Standalone clip",
+      settings: { ...project.settings, width: 1080, height: 1920 },
+      timeline: {
+        tracks: [
+          {
+            id: "video",
+            kind: "Video",
+            items: [
+              {
+                VideoClip: {
+                  id: "shot",
+                  track_id: "video",
+                  asset_id: "recording",
+                  timeline_start_us: 0,
+                  source_in_us: 0,
+                  source_out_us: 1000000,
+                },
+              },
+            ],
+          },
+        ],
+        markers: [],
+      },
+    },
+  ];
+  expect(validateProject(project).assets).toEqual(project.assets);
+  const missing = structuredClone(project);
+  const item = missing.sequences![0].timeline.tracks[0].items[0];
+  if (!("VideoClip" in item)) throw new Error("Missing clip");
+  item.VideoClip.asset_id = "missing";
+  expect(() => validateProject(missing)).toThrow("Missing asset reference");
+  const duplicate = structuredClone(project);
+  duplicate.timeline = structuredClone(project.sequences[0].timeline);
+  expect(() => validateProject(duplicate)).toThrow("Duplicate ID");
+});
