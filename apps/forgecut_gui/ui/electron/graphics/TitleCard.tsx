@@ -80,8 +80,11 @@ export default function TitleCard({
   let alignment: "left" | "center" | "right" = "left";
   if (values.alignment === "center" || values.alignment === "right")
     alignment = values.alignment;
+  const artworkBehindTitle =
+    (layerStates["1c1dfd1c-520b-4c83-8a82-b00fdf9b8d90"]?.order ?? 0) <=
+    (layerStates["3aa35212-adf2-46b6-b406-2c4b1bb4f93a"]?.order ?? 1);
   return (
-    <div style={{ position: "absolute", inset: 0 }}>
+    <div style={{ position: "absolute", inset: 0, isolation: "isolate" }}>
       <div
         style={{
           position: "absolute",
@@ -106,8 +109,7 @@ export default function TitleCard({
               opacity: numeric(values, "image_opacity"),
               objectFit:
                 text(values, "image_fit") === "contain" ? "contain" : "cover",
-              zIndex:
-                layerStates["1c1dfd1c-520b-4c83-8a82-b00fdf9b8d90"]?.order ?? 0,
+              zIndex: artworkBehindTitle ? 1 : 2,
             }}
           />
         )}
@@ -124,8 +126,7 @@ export default function TitleCard({
           display: layerStates["3aa35212-adf2-46b6-b406-2c4b1bb4f93a"]?.hidden
             ? "none"
             : undefined,
-          zIndex:
-            layerStates["3aa35212-adf2-46b6-b406-2c4b1bb4f93a"]?.order ?? 1,
+          zIndex: artworkBehindTitle ? 2 : 1,
           fontFamily: font ? fontFamily(font) : "sans-serif",
           fontWeight: 700,
           lineHeight: 1.05,
