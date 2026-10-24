@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { McpStatus } from "./shared/ipc-contract.js";
 
 contextBridge.exposeInMainWorld("forgecut", {
   invoke: (
@@ -6,6 +7,10 @@ contextBridge.exposeInMainWorld("forgecut", {
     args?: Record<string, unknown>,
     metadata?: Record<string, unknown>,
   ) => ipcRenderer.invoke("forgecut:invoke", command, args, metadata),
+  mcp: {
+    status: () =>
+      ipcRenderer.invoke("forgecut:mcp-status") as Promise<McpStatus>,
+  },
   dialog: {
     open: (options?: Record<string, unknown>) =>
       ipcRenderer.invoke("forgecut:dialog:open", options),

@@ -4,6 +4,8 @@ import { stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
+import type { EventSink } from "./backend/commands/types.js";
+import type { McpStatus } from "./shared/ipc-contract.js";
 import { startLocalBridge } from "./mcp/local-bridge.js";
 import { AppState } from "./backend/state.js";
 import { EditingService } from "./backend/editing-service.js";
@@ -25,12 +27,19 @@ app.on("before-quit", (event) => {
     .catch((error: unknown) => console.error(error))
     .finally(() => app.quit());
 });
-state.subscribe((snapshot) => {
+const broadcast: EventSink = (event, payload) => {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.webContents.isDestroyed())
-      win.webContents.send("forgecut:event:project-changed", snapshot);
+      win.webContents.send(`forgecut:event:${event}`, payload);
   }
-});
+};
+state.subscribe((snapshot) => broadcast("project-changed", snapshot));
+let mcpStatus: McpStatus = {
+  available: false,
+  statusRevision: 0,
+  lastAction: null,
+};
+ipcMain.handle("forgecut:mcp-status", (): McpStatus => mcpStatus);
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -103,7 +112,19 @@ ipcMain.handle(
 
 void app.whenReady().then(async () => {
   try {
-    localBridge = await startLocalBridge(editing);
+    localBridge = await startLocalBridge(editing, undefined, (label) => {
+      mcpStatus = {
+        available: true,
+        statusRevision: mcpStatus.statusRevision + 1,
+        lastAction: label,
+      };
+      broadcast("mcp-status", mcpStatus);
+    });
+    mcpStatus = {
+      available: true,
+      statusRevision: mcpStatus.statusRevision + 1,
+      lastAction: null,
+    };
   } catch (error) {
     console.warn("MCP connection unavailable:", error);
   }

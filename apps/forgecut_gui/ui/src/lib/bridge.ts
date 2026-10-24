@@ -5,6 +5,7 @@ import type {
   EventPayloads,
   CommandResponse,
   CommandMetadata,
+  McpStatus,
 } from "../../electron/shared/ipc-contract";
 
 type InvokeArgs = Record<string, unknown>;
@@ -16,6 +17,7 @@ type ForgeCutElectronApi = {
     args?: InvokeArgs,
     metadata?: CommandMetadata,
   ) => Promise<CommandResponse<T>>;
+  mcp: { status: () => Promise<McpStatus> };
   dialog: {
     open: <T>(options?: InvokeArgs) => Promise<T>;
     save: <T>(options?: InvokeArgs) => Promise<T>;
@@ -146,4 +148,8 @@ export function getCurrentWindow() {
 
 export function mediaUrl(path: string): string {
   return requireElectronApi().mediaUrl(path);
+}
+
+export function getMcpStatus(): Promise<McpStatus> {
+  return requireElectronApi().mcp.status();
 }

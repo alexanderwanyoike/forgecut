@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import McpStatus from "./components/McpStatus";
 import { useEditingContext } from "./hooks/useEditingContext";
 import { getItemData } from "./lib/timeline/items";
 import { invoke, open, save } from "./lib/bridge";
@@ -157,6 +158,7 @@ export default function App() {
         >
           {theme === "dark" ? "Light" : "Dark"}
         </button>
+        <McpStatus />
         <span className="project-name">{projectName}</span>
       </header>
 

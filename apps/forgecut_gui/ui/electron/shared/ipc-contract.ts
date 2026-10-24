@@ -101,6 +101,12 @@ export type Project = {
   timeline: Timeline;
 };
 
+export type McpStatus = {
+  available: boolean;
+  statusRevision: number;
+  lastAction: string | null;
+};
+
 export type EditingContext = {
   sessionId: string;
   contextRevision: number;
@@ -332,6 +338,7 @@ export type CommandResultOf<K extends CommandName> = CommandMap[K]["result"];
  */
 export type EventPayloads = {
   "project-changed": ProjectSnapshot;
+  "mcp-status": McpStatus;
   "export-progress": RenderProgress;
   "export-complete": { output_path: string };
 };
