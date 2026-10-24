@@ -13,12 +13,24 @@ export default function CreditsDialog({
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [selectedId, setSelectedId] = useState(
-    snapshot.project.assets[0]?.id ?? "",
-  );
-  const asset = snapshot.project.assets.find(
-    (value) => value.id === selectedId,
-  );
+  const entries = [
+    ...snapshot.project.assets.map((value) => ({
+      id: value.id,
+      name: value.name,
+      kind: value.kind,
+      license: value.license,
+      type: "asset" as const,
+    })),
+    ...(snapshot.project.resources ?? []).map((value) => ({
+      id: value.id,
+      name: value.name,
+      kind: value.kind,
+      license: value.license,
+      type: "resource" as const,
+    })),
+  ];
+  const [selectedId, setSelectedId] = useState(entries[0]?.id ?? "");
+  const target = entries.find((value) => value.id === selectedId);
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
@@ -45,14 +57,14 @@ export default function CreditsDialog({
         <p className="credits-intro">
           Keep the source, permission and attribution with your project.
         </p>
-        {snapshot.project.assets.length > 0 ? (
+        {entries.length > 0 ? (
           <label className="credit-picker">
             Credit for
             <select
               value={selectedId}
               onChange={(event) => setSelectedId(event.target.value)}
             >
-              {snapshot.project.assets.map((value) => (
+              {entries.map((value) => (
                 <option key={value.id} value={value.id}>
                   {value.name} · {value.kind}
                 </option>
@@ -62,8 +74,8 @@ export default function CreditsDialog({
         ) : (
           <p>Import media to record its credits.</p>
         )}
-        {asset && (
-          <CreditForm key={asset.id} snapshot={snapshot} asset={asset} />
+        {target && (
+          <CreditForm key={target.id} snapshot={snapshot} target={target} />
         )}
       </div>
     </dialog>

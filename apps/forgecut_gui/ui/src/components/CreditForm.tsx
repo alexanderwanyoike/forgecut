@@ -1,22 +1,28 @@
 import { Save } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import type {
-  Asset,
+  EditOperation,
   ProjectSnapshot,
 } from "../../electron/shared/ipc-contract";
 import type { ResourceLicense } from "../../electron/shared/graphic-resources";
 import { invokeInContext } from "../lib/bridge";
 import ActionButton from "./ActionButton";
 
+export type CreditTarget = {
+  id: string;
+  type: "asset" | "resource";
+  license?: ResourceLicense;
+};
+
 export default function CreditForm({
   snapshot,
-  asset,
+  target,
 }: {
   snapshot: ProjectSnapshot;
-  asset: Asset;
+  target: CreditTarget;
 }) {
   const [draft, setDraft] = useState<ResourceLicense>(
-    asset.license ?? { identifier: "", text: "" },
+    target.license ?? { identifier: "", text: "" },
   );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -30,6 +36,22 @@ export default function CreditForm({
     setBusy(true);
     setError("");
     try {
+      const license: ResourceLicense = {
+        identifier: draft.identifier,
+        text: draft.text,
+        ...(draft.attribution ? { attribution: draft.attribution } : {}),
+        ...(draft.source_url ? { source_url: draft.source_url } : {}),
+      };
+      const operation: EditOperation =
+        target.type === "asset"
+          ? {
+              command: "set_asset_license",
+              args: { assetId: target.id, license },
+            }
+          : {
+              command: "set_resource_license",
+              args: { resourceId: target.id, license },
+            };
       await invokeInContext(
         {
           sessionId: snapshot.sessionId,
@@ -40,22 +62,7 @@ export default function CreditForm({
           sessionId: snapshot.sessionId,
           expectedRevision: snapshot.revision,
           requestId: crypto.randomUUID(),
-          operations: [
-            {
-              command: "set_asset_license",
-              args: {
-                assetId: asset.id,
-                license: {
-                  identifier: draft.identifier,
-                  text: draft.text,
-                  ...(draft.attribution
-                    ? { attribution: draft.attribution }
-                    : {}),
-                  ...(draft.source_url ? { source_url: draft.source_url } : {}),
-                },
-              },
-            },
-          ],
+          operations: [operation],
         },
       );
       setMessage("Credits saved");
