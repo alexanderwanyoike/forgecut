@@ -133,3 +133,89 @@ it.skipIf(
     }
   },
 );
+
+it.skipIf(
+  spawnSync("ffmpeg", ["-version"]).status !== 0 ||
+    spawnSync("ffprobe", ["-version"]).status !== 0,
+)(
+  "fits a silent portrait recording inside the preview bounds without inventing an audio stream",
+  async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), "forgecut-portrait-preview-"),
+    );
+    const state = new AppState();
+    const service = new EditingService(state);
+    try {
+      const path = join(directory, "portrait.mp4");
+      const generated = spawnSync("ffmpeg", [
+        "-v",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=blue:s=720x1280:r=30:d=1",
+        "-an",
+        "-c:v",
+        "libx264",
+        "-threads",
+        "1",
+        "-preset",
+        "ultrafast",
+        path,
+      ]);
+      expect(generated.status, generated.stderr.toString()).toBe(0);
+      expect(
+        await service.execute("import_assets", { paths: [path] }),
+      ).toMatchObject({ ok: true });
+      const before = state.snapshot();
+      const started = await service.execute("start_source_review", {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        requestId: "portrait-preview",
+        assetId: state.project.assets[0].id,
+        kind: "preview",
+        startUs: 100000,
+        endUs: 900000,
+      });
+      expect(started).toMatchObject({ ok: true });
+      if (!started.ok) throw new Error(started.error.message);
+      const completed = await finish(
+        service,
+        (started.value as JobSnapshot).id,
+      );
+      expect(completed).toMatchObject({
+        status: "completed",
+        result: { ok: true },
+      });
+      if (!completed.result?.ok) throw new Error("Missing portrait preview");
+      const output = join(directory, "portrait.webm");
+      await writeFile(
+        output,
+        Buffer.from(
+          (completed.result.value as { data: string }).data,
+          "base64",
+        ),
+      );
+      const probe = spawnSync(
+        "ffprobe",
+        [
+          "-v",
+          "error",
+          "-show_entries",
+          "stream=codec_name,width,height",
+          "-of",
+          "csv=p=0",
+          output,
+        ],
+        { encoding: "utf8" },
+      );
+      expect(probe.status, probe.stderr).toBe(0);
+      expect(probe.stdout.trim()).toBe("vp8,202,360");
+      expect(state.snapshot()).toEqual(before);
+    } finally {
+      await service.jobs.close();
+      await service.closeGraphicsPreview();
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
