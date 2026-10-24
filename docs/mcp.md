@@ -48,6 +48,12 @@ For projects with multiple sequences, pass `sequenceId` to `read_timeline`, `rea
 
 Explicit reads and edits leave the user's active sequence unchanged. To intentionally switch the visible editor, call `select_sequence` with the project session, target sequence ID and `expectedSequenceRevision` from a fresh context or sequence read. A stale activation epoch returns `CONFLICT`, including when the user switched away and back. Selection changes transient context, not the creative revision or undo history. Ordinary edit and history requests retain their existing revision and retry guards.
 
+## Independent landscape and portrait variants
+
+Use `create_sequence_variant` in `apply_edits` with `sourceSequenceId`, a name and optional settings overrides. The copied sequence, tracks and items receive fresh IDs. Shared project assets and exact graphic component versions are retained. `read_sequences` exposes `variantSourceSequenceId`, and copied items include `origin_item_id` in ordinary timeline/item reads.
+
+Edits remain independent. To deliberately copy current source timing to selected copied items, use `sync_variant_timing` with `itemIds` and target the variant through the edit request's `sequenceId`. It preserves variant wording, crop, props, media and source in points. It aligns starts and durations; video/audio out points follow their existing in points plus that duration. Invalid bounds or overlaps reject the whole batch. The existing revision, retry and sequence history rules apply. Missing source sequences/items return typed failures while keeping the independent variant usable.
+
 ## History and project files
 
 `apply_history` takes `sessionId`, `expectedRevision`, `requestId` and `direction` (`undo` or `redo`). It uses the same bounded retry cache as edits, returns the original response on a retry and rejects reused IDs with different input.
