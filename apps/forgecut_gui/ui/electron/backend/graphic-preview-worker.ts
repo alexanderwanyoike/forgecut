@@ -21,7 +21,7 @@ async function main() {
   const server = createServer((request, response) => {
     response.setHeader(
       "Content-Security-Policy",
-      "default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'",
+      "default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src data:; object-src 'none'; frame-src 'none'; worker-src 'none'",
     );
     if (request.url === "/") {
       response.setHeader("Content-Type", "text/html");
