@@ -10,6 +10,7 @@ export type StylePreset = Pick<
   purpose: "card" | "ending";
 };
 export type StylePresetInput = {
+  presetId?: string;
   sourceSequenceId: string;
   itemId: string;
   name: string;

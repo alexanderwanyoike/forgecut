@@ -25,7 +25,7 @@ export const stylePresetCommands = {
         "Choose a graphic in the source sequence",
       );
     const preset: StylePreset = {
-      id: randomUUID(),
+      id: input.presetId ?? randomUUID(),
       canvas_size: {
         width: sourceSequence.settings.width,
         height: sourceSequence.settings.height,
@@ -44,9 +44,18 @@ export const stylePresetCommands = {
     };
     state.executeProjectChange((project) => {
       project.style_presets ??= [];
-      project.style_presets.push(preset);
+      if (input.presetId) {
+        const index = project.style_presets.findIndex(
+          (value) => value.id === input.presetId,
+        );
+        if (index < 0)
+          throw new EditingError("NOT_FOUND", "Style preset not found");
+        project.style_presets[index] = preset;
+      } else project.style_presets.push(preset);
     });
-    return state.project.style_presets!.at(-1)!;
+    return state.project.style_presets!.find(
+      (value) => value.id === preset.id,
+    )!;
   },
   add_graphic_from_preset: (args, { state }) => {
     const input = args as CommandMap["add_graphic_from_preset"]["args"];

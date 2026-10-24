@@ -80,6 +80,7 @@ const patch = z.discriminatedUnion("kind", [
 const none = z.strictObject({}).optional();
 export const editSchemas = {
   save_style_preset: z.strictObject({
+    presetId: id.optional(),
     sourceSequenceId: id,
     itemId: id,
     name: z.string().trim().min(1).max(200),
