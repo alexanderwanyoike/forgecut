@@ -30,7 +30,7 @@ it("replaces artwork from the bin through a guarded edit and excludes locked hit
     name: "Ending artwork",
     kind: "Image" as const,
     mime: "image/png" as const,
-    relative_path: ".forgecut-resources/hash",
+    path: ".forgecut-resources/hash",
     license: { identifier: "fixture", text: "Fixture" },
   };
   const item = {
