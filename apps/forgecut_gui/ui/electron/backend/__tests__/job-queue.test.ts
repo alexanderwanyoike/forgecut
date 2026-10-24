@@ -325,3 +325,50 @@ it("allows a production export window while still enforcing its deadline", async
     vi.useRealTimers();
   }
 });
+
+it("retains worker cleanup diagnostics when cancellation finalizes", async () => {
+  const jobs = new JobQueue();
+  try {
+    const job = jobs.start(
+      {
+        sessionId: "session",
+        projectRevision: 0,
+        requestId: "cleanup",
+        kind: "export",
+        label: "Export",
+        input: null,
+      },
+      async (signal) => {
+        await new Promise<void>((resolve) =>
+          signal.addEventListener("abort", () => resolve(), { once: true }),
+        );
+        return {
+          ok: false,
+          error: {
+            code: "CANCELLED",
+            message: "Cancelled. Staging cleanup failed.",
+          },
+        };
+      },
+    );
+    if (!job.ok) throw new Error(job.error.message);
+    jobs.cancel(job.value.id, "session");
+    await vi.waitFor(() =>
+      expect(jobs.read(job.value.id, "session")).toMatchObject({
+        ok: true,
+        value: {
+          status: "cancelled",
+          result: {
+            ok: false,
+            error: {
+              code: "CANCELLED",
+              message: expect.stringContaining("Staging cleanup failed"),
+            },
+          },
+        },
+      }),
+    );
+  } finally {
+    await jobs.close();
+  }
+});
