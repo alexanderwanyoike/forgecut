@@ -1,3 +1,4 @@
+import type { Result } from "../shared/result.js";
 import { spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join, resolve as resolvePath } from "node:path";
@@ -18,6 +19,7 @@ export type RenderProgress = {
 };
 
 type ExportOptions = {
+  signal?: AbortSignal;
   onProgress?: (progress: RenderProgress) => void;
 };
 
@@ -25,15 +27,30 @@ export async function exportProject(
   project: Project,
   outputPath: string,
   options: ExportOptions = {},
-): Promise<void> {
-  const plan = compileExportPlan(project);
-  plan.outputPath = outputPath;
-
-  await executeRenderPlan(
-    plan,
-    totalTimelineDurationUs(project) / 1_000_000,
-    options.onProgress,
-  );
+): Promise<Result<{ outputPath: string }>> {
+  if (options.signal?.aborted)
+    return {
+      ok: false,
+      error: { code: "CANCELLED", message: "Export cancelled." },
+    };
+  try {
+    const plan = compileExportPlan(project);
+    plan.outputPath = outputPath;
+    await executeRenderPlan(
+      plan,
+      totalTimelineDurationUs(project) / 1_000_000,
+      options.onProgress,
+    );
+    return { ok: true, value: { outputPath } };
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        code: "IO_ERROR",
+        message: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
 }
 
 export function buildFfmpegArgs(plan: RenderPlan): string[] {
