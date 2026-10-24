@@ -101,6 +101,10 @@ export async function verifyAppearance(send, state) {
         }
         const root = document.querySelector('.shell').getBoundingClientRect();
         if (root.width > innerWidth + 1) issues.push('Editor overflows window');
+        if ('${state}' === 'code' && innerWidth === 1024) {
+          const editor = document.querySelector('.code-editor-host').getBoundingClientRect();
+          if (editor.width < 500 || editor.height < 200) issues.push('Code editor is cramped: ' + Math.round(editor.width) + 'x' + Math.round(editor.height));
+        }
         const selected = document.querySelector('.clip-selected');
         const scroll = document.querySelector('.timeline-scroll');
         if (selected && scroll) {
