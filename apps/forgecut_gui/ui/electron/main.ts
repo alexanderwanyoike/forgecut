@@ -19,11 +19,10 @@ const editing = new EditingService(state);
 let localBridge: Awaited<ReturnType<typeof startLocalBridge>> | undefined;
 let quitting = false;
 app.on("before-quit", (event) => {
-  if (!localBridge || quitting) return;
+  if (quitting) return;
   event.preventDefault();
   quitting = true;
-  void localBridge
-    .close()
+  void Promise.all([editing.jobs.close(), localBridge?.close()])
     .catch((error: unknown) => console.error(error))
     .finally(() => app.quit());
 });
