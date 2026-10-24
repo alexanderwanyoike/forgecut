@@ -21,3 +21,11 @@ The [TypeScript Compiler API](https://github.com/microsoft/TypeScript/wiki/Using
 ## Verification
 
 Maintained tests check a local TSX import, strict type errors, syntax errors and forbidden Node imports. A top-level sentinel proves source is not executed during checking. An official MCP SDK workflow checks the actual packaged title source through the running owner's job queue. The compiled STDIO/native Electron smoke also checks source from an unrelated working directory. These checks establish compilation and transport, not custom-code execution isolation.
+
+## Graphics filesystem and network boundary
+
+All graphics jobs now use an explicit system/runtime view rather than binding the host root. The Bubblewrap view contains read-only system libraries/tools/fonts, the prepared runtime and executable directory. Writable host access is limited to the private job directory; temporary files have a private `/tmp`. Jobs receive a clean environment and separate process, network, IPC and hostname namespaces. Parent-death handling and the existing process-tree cleanup remain in force. This follows the namespace/mount pattern documented by [Bubblewrap](https://github.com/containers/bubblewrap), also used in ADR 0001.
+
+A maintained real worker probe attempts to read a host sentinel outside its grants, connect to a host loopback service, read an inherited environment secret and overwrite its runtime. All four are denied while its job output is writable. Existing detached-child cancellation/crash checks and real font/artwork renders remain passing. The namespace policy applies to the existing renderer now; enabling custom components still requires its own runtime and promotion checks.
+
+Per-file source limits are measured in UTF-8 bytes as documented, rather than JavaScript string length. A Unicode regression covers a file below the character limit but above 128 KiB.
