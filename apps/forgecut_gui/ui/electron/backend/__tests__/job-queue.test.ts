@@ -50,3 +50,57 @@ it("keeps heavy work serial and makes queued work observable immediately", async
     }),
   );
 });
+
+it("cancels queued work without starting it and aborts a running worker", async () => {
+  const jobs = new JobQueue();
+  let finish!: () => void;
+  const stopped = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const first = jobs.start(
+    {
+      sessionId: "session",
+      projectRevision: 0,
+      requestId: "first",
+      kind: "import",
+      label: "Import",
+      input: {},
+    },
+    async (signal) => {
+      signal.addEventListener("abort", finish, { once: true });
+      await stopped;
+      return { ok: true, value: "Ignored after cancellation" };
+    },
+  );
+  let secondStarted = false;
+  const second = jobs.start(
+    {
+      sessionId: "session",
+      projectRevision: 0,
+      requestId: "second",
+      kind: "frame",
+      label: "Frame",
+      input: {},
+    },
+    () => {
+      secondStarted = true;
+      return Promise.resolve({ ok: true, value: "second" });
+    },
+  );
+  if (!first.ok || !second.ok) throw new Error("Jobs were rejected");
+  expect(jobs.cancel(second.value.id, "session")).toMatchObject({
+    ok: true,
+    value: { status: "cancelled" },
+  });
+  jobs.cancel(first.value.id, "session");
+  await vi.waitFor(() =>
+    expect(jobs.read(first.value.id, "session")).toMatchObject({
+      ok: true,
+      value: {
+        status: "cancelled",
+        result: { ok: false, error: { code: "CANCELLED" } },
+      },
+    }),
+  );
+  expect(secondStarted).toBe(false);
+});
