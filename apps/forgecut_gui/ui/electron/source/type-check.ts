@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { executableSource } from "./import-policy.js";
 import type { GraphicComponent } from "../shared/graphics.js";
 import type { GraphicDiagnostic } from "../shared/graphic-source.js";
 
@@ -30,6 +31,8 @@ export function checkTypes(
     moduleResolution: ts.ModuleResolutionKind.Bundler,
     jsx: ts.JsxEmit.ReactJSX,
     strict: true,
+    allowJs: true,
+    checkJs: true,
     skipLibCheck: true,
     noEmit: true,
     allowSyntheticDefaultImports: true,
@@ -60,7 +63,7 @@ export function checkTypes(
   };
   const program = ts.createProgram(
     Object.keys(source.files)
-      .filter((name) => /\.tsx?$/.test(name))
+      .filter((name) => executableSource.test(name))
       .map((name) => root + name),
     options,
     host,

@@ -1,5 +1,6 @@
 import { posix } from "node:path";
 import { build, type Message, type BuildFailure } from "esbuild";
+import { executableSource, importDiagnostics } from "./import-policy.js";
 import type { GraphicComponent } from "../shared/graphics.js";
 import {
   graphicPackages,
@@ -20,6 +21,8 @@ export async function compileGraphicSource(
       diagnostics,
     },
   });
+  const policy = importDiagnostics(source);
+  if (policy.length) return invalid(policy);
   try {
     const result = await build({
       entryPoints: [source.entry],
