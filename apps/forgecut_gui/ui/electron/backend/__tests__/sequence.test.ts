@@ -86,3 +86,43 @@ it("resolves gaps and half-open cuts on the project frame grid without accumulat
     await editing.execute("get_sequence_frame", { playheadUs: 3000000 }),
   ).toMatchObject({ ok: true, value: { layers: [] } });
 });
+
+it("round trips fractional frame rates at microsecond boundaries without adding a frame", async () => {
+  const state = new AppState();
+  state.executeProjectChange((project) => {
+    project.settings.fps = 24000 / 1001;
+    project.timeline.tracks.push({
+      id: "titles",
+      kind: "OverlayText",
+      items: [
+        {
+          TextOverlay: {
+            id: "card",
+            track_id: "titles",
+            timeline_start_us: 41708,
+            duration_us: 125125,
+            text: "Card",
+            font_size: 24,
+            color: "#ffffff",
+            x: 0,
+            y: 0,
+          },
+        },
+      ],
+    });
+  });
+  const editing = new EditingService(state);
+  expect(
+    await editing.execute("get_sequence_frame", { playheadUs: 41708 }),
+  ).toMatchObject({
+    ok: true,
+    value: {
+      frame: 1,
+      frameCount: 4,
+      layers: [{ item: { TextOverlay: { id: "card" } } }],
+    },
+  });
+  expect(
+    await editing.execute("get_sequence_frame", { playheadUs: 166833 }),
+  ).toMatchObject({ ok: true, value: { frame: 4, frameCount: 4, layers: [] } });
+});
