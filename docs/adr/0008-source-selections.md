@@ -10,7 +10,7 @@ An audio/video selection requires probed positive source duration, and its out p
 
 Project format 4 adds `source_selections`. Format 3 upgrades preserve the existing default sequence identity and all timelines. Older supported versions retain their established default-sequence migration. Invalid or future formats fail before replacement. Old editors reject format 4 rather than silently discarding editorial notes.
 
-`save_source_selection` creates a selection or replaces an explicitly identified one. `delete_source_selection` removes an identified selection. Both use the same atomic edits, expected revision, retry cache and undo history as other project changes. Callers must read the current record before replacing it so manual notes are preserved.
+`save_source_selection` creates a selection or replaces an explicitly identified one. `update_source_selection` merges a nonempty typed field patch, retaining untouched editorial fields and validating the complete resulting range. `delete_source_selection` removes an identified selection. Both use the same atomic edits, expected revision, retry cache and undo history as other project changes. Callers must read the current record before replacing it so manual notes are preserved.
 
 `read_source_selections` returns at most 20 records, optionally filtered by asset ID. There are at most 1000 selections per project; notes and rationale are each limited to 2000 characters. Pagination happens inside the editor before transport serialization. Thumbnail, waveform and short-preview jobs remain a separate production slice.
 

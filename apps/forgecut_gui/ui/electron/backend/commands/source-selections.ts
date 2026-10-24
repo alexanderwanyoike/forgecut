@@ -5,6 +5,20 @@ import { EditingError } from "../editing-error.js";
 import type { CommandRegistry } from "./types.js";
 
 export const sourceSelectionCommands = {
+  update_source_selection: (args, { state }) => {
+    const input = args as CommandMap["update_source_selection"]["args"];
+    state.executeProjectChange((project) => {
+      const selection = project.source_selections?.find(
+        (value) => value.id === input.selectionId,
+      );
+      if (!selection)
+        throw new EditingError("NOT_FOUND", "Source selection not found");
+      Object.assign(selection, input.patch);
+    });
+    return state.project.source_selections!.find(
+      (value) => value.id === input.selectionId,
+    )!;
+  },
   save_source_selection: (args, { state }) => {
     const input = args as CommandMap["save_source_selection"]["args"];
     const selection: SourceSelection = {

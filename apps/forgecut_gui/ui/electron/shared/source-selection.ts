@@ -18,3 +18,10 @@ export type SourceSelectionInput = {
   notes: string;
   rationale: string;
 };
+
+export type SourceSelectionPatch = Partial<
+  Pick<
+    SourceSelection,
+    "name" | "source_in_us" | "source_out_us" | "notes" | "rationale"
+  >
+>;

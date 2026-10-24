@@ -34,6 +34,8 @@ If an instance disappears, tools return `UNAVAILABLE`. List sessions and explici
 
 Use `save_source_selection` within `apply_edits` to create a pick or replace one by `selectionId`. Supply `assetId`, `name`, integer `sourceInUs`/`sourceOutUs`, `notes` and `rationale`. Read first and preserve manually changed fields before replacing a record. Positive ranges must fit the probed audio/video duration. `delete_source_selection` removes a pick by `selectionId`. Picks are shared project metadata, so these operations do not require a sequence target. Existing revision, retry, undo and file persistence rules apply.
 
+`update_source_selection` changes only supplied fields on an existing `selectionId`. Its nonempty `patch` accepts `name`, `source_in_us`, `source_out_us`, `notes` and `rationale`. Prefer a partial patch when changing a range or one note so other manual fields are retained. Bounds and references are validated on the merged record; invalid changes publish nothing. Existing session/revision/retry/global-history rules apply.
+
 ## Editing context and activity
 
 `read_context` requires the current project session identity and returns stable selected item IDs, playhead microseconds and `contextRevision`. UI selection/playhead updates do not change the project revision or history. Deleting an item clears its selection, and switching projects resets transient context. Later edits must target explicit IDs rather than resolving an earlier request against a new selection.

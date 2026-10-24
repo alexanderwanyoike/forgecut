@@ -1,6 +1,7 @@
 import type {
   SourceSelection,
   SourceSelectionInput,
+  SourceSelectionPatch,
 } from "./source-selection.js";
 import type { SourceReviewRequest } from "./source-review.js";
 import type { GraphicPromotionRequest } from "./graphic-promotion.js";
@@ -302,6 +303,7 @@ export type ItemPatch =
     };
 
 export type EditCommandName =
+  | "update_source_selection"
   | "create_sequence_variant"
   | "sync_variant_timing"
   | "save_source_selection"
@@ -357,6 +359,10 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  update_source_selection: {
+    args: { selectionId: string; patch: SourceSelectionPatch };
+    result: SourceSelection;
+  };
   create_sequence_variant: {
     args: {
       sourceSequenceId: string;

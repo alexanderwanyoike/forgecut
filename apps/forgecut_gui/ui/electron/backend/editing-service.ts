@@ -326,6 +326,7 @@ export class EditingService {
   ): unknown {
     // Reuse command semantics on an isolated owner; publish only the final batch.
     const globalCommands = new Set<EditOperation["command"]>([
+      "update_source_selection",
       "save_source_selection",
       "delete_source_selection",
       "create_sequence_variant",
