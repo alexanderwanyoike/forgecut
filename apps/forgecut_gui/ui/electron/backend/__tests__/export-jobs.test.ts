@@ -119,9 +119,18 @@ it("cancels a queued export through the renderer command boundary", async () => 
     });
     if (!started.ok) throw new Error(started.error.message);
     const job = started.value as JobSnapshot;
+    const reading = editing.execute("get_media_job", {
+      sessionId: job.sessionId,
+      jobId: job.id,
+    });
+    state.createProject();
+    expect(await reading).toMatchObject({
+      ok: true,
+      value: { id: job.id, sessionId: job.sessionId },
+    });
     expect(
       await editing.execute("cancel_media_job", {
-        sessionId: state.sessionId,
+        sessionId: job.sessionId,
         jobId: job.id,
       }),
     ).toMatchObject({
