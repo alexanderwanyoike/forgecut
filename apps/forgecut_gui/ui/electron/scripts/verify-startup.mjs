@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { verifyGraphicsPreview } from "./graphics-preview-smoke.mjs";
+import { verifyCanvas } from "./canvas-smoke.mjs";
 import { verifyAudio } from "./audio-smoke.mjs";
 import { verifyMcp } from "./mcp-smoke.mjs";
 import { spawn } from "node:child_process";
@@ -182,6 +183,7 @@ async function main() {
   await verifyMcp(mcpDirectory, send);
   await verifyAudio(mcpDirectory, send);
   await verifyGraphicsPreview(mcpDirectory, send);
+  await verifyCanvas(send);
   ws.close();
 
   const value = result.result?.result?.value;
@@ -204,7 +206,7 @@ async function main() {
   }
 
   console.log(
-    "Electron startup, shared editing, live MCP, preview audio and graphics export verified",
+    "Electron startup, shared editing, live MCP, preview audio, graphics export and canvas editing verified",
   );
 }
 
