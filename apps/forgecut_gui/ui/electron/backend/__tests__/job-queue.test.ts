@@ -152,3 +152,48 @@ it("enforces a cooperative deadline and shuts down its workers", async () => {
     vi.useRealTimers();
   }
 });
+
+it("bounds cancelled-job retention while another worker remains active", async () => {
+  const jobs = new JobQueue();
+  jobs.start(
+    {
+      sessionId: "session",
+      projectRevision: 0,
+      requestId: "held",
+      kind: "import",
+      label: "Held",
+      input: {},
+    },
+    async (signal) => {
+      await new Promise<void>((resolve) => {
+        signal.addEventListener("abort", () => resolve(), { once: true });
+      });
+      return { ok: true, value: null };
+    },
+  );
+  let oldest = "";
+  try {
+    for (let i = 0; i < 80; i += 1) {
+      const queued = jobs.start(
+        {
+          sessionId: "session",
+          projectRevision: 0,
+          requestId: `cancel-${i}`,
+          kind: "frame",
+          label: "Frame",
+          input: {},
+        },
+        () => Promise.resolve({ ok: true, value: null }),
+      );
+      if (!queued.ok) throw new Error("Queue admission failed");
+      if (i === 0) oldest = queued.value.id;
+      jobs.cancel(queued.value.id, "session");
+    }
+    expect(jobs.read(oldest, "session")).toMatchObject({
+      ok: false,
+      error: { code: "NOT_FOUND" },
+    });
+  } finally {
+    await jobs.close();
+  }
+});
