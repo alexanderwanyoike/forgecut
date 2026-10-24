@@ -32,6 +32,7 @@ export const projectFileRequestSchema = z.strictObject({
 });
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("summary") }),
+  z.strictObject({ action: z.literal("context"), sessionId: idSchema }),
   projectFileRequestSchema.extend({ action: z.literal("save") }),
   projectFileRequestSchema.extend({ action: z.literal("open") }),
   z.strictObject({
@@ -111,6 +112,8 @@ export async function dispatchLocal(
       };
     }
     state.assertSession(request.sessionId);
+    if (request.action === "context")
+      return { ok: true, value: state.getEditingContext() };
     if (request.action === "save" || request.action === "open") {
       if (request.expectedRevision !== state.revision)
         return {
