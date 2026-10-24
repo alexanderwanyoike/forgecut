@@ -1,6 +1,7 @@
 import { mkdir, open } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { lock } from "proper-lockfile";
 import type { GraphicDraft } from "../shared/graphic-draft.js";
 import type { GraphicComponent } from "../shared/graphics.js";
 import type { Result } from "../shared/result.js";
@@ -29,50 +30,103 @@ export class GraphicDraftStore {
     component: GraphicComponent,
     baseVersion: string,
   ): Promise<DraftResult> {
-    const operation = this.pending.then(async (): Promise<DraftResult> => {
-      const current = await this.load(initial);
-      if (!current.ok) return current;
-      if (current.value.revision !== expectedRevision)
-        return {
-          ok: false,
-          error: {
-            code: "CONFLICT",
-            message:
-              "The source draft changed. Keep your buffer and reload or reconcile the latest draft.",
-          },
-        };
-      try {
-        const draft = graphicDraftSchema.parse({
-          ...initial,
-          revision: expectedRevision + 1,
-          component,
-          baseVersion,
-        });
-        const data = JSON.stringify(draft);
-        if (Buffer.byteLength(data) > 4 * 1024 * 1024)
+    const operation = this.pending.then(() =>
+      this.locked(initial, async (): Promise<DraftResult> => {
+        const current = await this.load(initial);
+        if (!current.ok) return current;
+        if (current.value.revision !== expectedRevision)
           return {
             ok: false,
             error: {
-              code: "INVALID_INPUT",
-              message: "The source draft exceeds 4 MiB",
+              code: "CONFLICT",
+              message:
+                "The source draft changed. Keep your buffer and reload or reconcile the latest draft.",
             },
           };
-        await mkdir(this.directory, { recursive: true, mode: 0o700 });
-        await atomicWrite(this.path(draft), data);
-        return { ok: true, value: draft };
-      } catch (failure) {
-        return {
-          ok: false,
-          error: {
-            code: "IO_ERROR",
-            message:
-              failure instanceof Error ? failure.message : String(failure),
-          },
-        };
-      }
-    });
+        try {
+          const draft = graphicDraftSchema.parse({
+            ...initial,
+            revision: expectedRevision + 1,
+            component,
+            baseVersion,
+          });
+          const data = JSON.stringify(draft);
+          if (Buffer.byteLength(data) > 4 * 1024 * 1024)
+            return {
+              ok: false,
+              error: {
+                code: "INVALID_INPUT",
+                message: "The source draft exceeds 4 MiB",
+              },
+            };
+          await atomicWrite(this.path(draft), data);
+          return { ok: true, value: draft };
+        } catch (failure) {
+          return {
+            ok: false,
+            error: {
+              code: "IO_ERROR",
+              message:
+                failure instanceof Error ? failure.message : String(failure),
+            },
+          };
+        }
+      }),
+    );
     this.pending = operation;
     return operation;
+  }
+
+  private async locked(
+    initial: GraphicDraft,
+    operation: () => Promise<DraftResult>,
+  ): Promise<DraftResult> {
+    let release: (() => Promise<void>) | undefined;
+    let outcome: DraftResult;
+    let compromised: Error | undefined;
+    try {
+      await mkdir(this.directory, { recursive: true, mode: 0o700 });
+      release = await lock(this.path(initial), {
+        realpath: false,
+        stale: 10000,
+        update: 5000,
+        onCompromised: (error) => {
+          compromised = error;
+        },
+      });
+      outcome = await operation();
+      if (compromised) throw compromised;
+    } catch (failure) {
+      const contention = (failure as NodeJS.ErrnoException).code === "ELOCKED";
+      const message =
+        failure instanceof Error ? failure.message : String(failure);
+      outcome = {
+        ok: false,
+        error: {
+          code: contention ? "CONFLICT" : "IO_ERROR",
+          message: contention
+            ? "Another editor is saving this draft. Reload its latest revision before retrying."
+            : message,
+        },
+      };
+    }
+    if (release) {
+      try {
+        await release();
+      } catch (failure) {
+        const cleanup = `Draft lock cleanup failed: ${failure instanceof Error ? failure.message : String(failure)}`;
+        outcome = {
+          ok: false,
+          error: outcome.ok
+            ? { code: "IO_ERROR", message: cleanup }
+            : {
+                ...outcome.error,
+                message: `${outcome.error.message}; ${cleanup}`,
+              },
+        };
+      }
+    }
+    return outcome;
   }
 
   private path(draft: GraphicDraft): string {
