@@ -11,7 +11,7 @@ import {
 } from "./timeline-ops.js";
 
 export function frameAtOrAfter(timeUs: number, fps: number): number {
-  return Math.ceil((timeUs * fps) / 1_000_000 - 1e-9);
+  return Math.ceil(((timeUs - 0.5) * fps) / 1_000_000 - 1e-9);
 }
 
 export function frameTimeUs(frame: number, fps: number): number {
@@ -21,9 +21,7 @@ export function frameTimeUs(frame: number, fps: number): number {
 export function sequenceDurationUs(project: Project): number {
   const end = Math.max(
     0,
-    ...project.timeline.tracks.flatMap((track) =>
-      track.items.map(timelineEndUs),
-    ),
+    ...project.timeline.tracks.flatMap((track) => track.items.map(timelineEndUs)),
   );
   return frameTimeUs(
     frameAtOrAfter(end, project.settings.fps),
@@ -43,7 +41,7 @@ export function resolveSequenceFrame(
   playheadUs: number,
 ): SequenceFrame {
   const { fps } = project.settings;
-  const frame = Math.floor((playheadUs * fps) / 1_000_000 + 1e-9);
+  const frame = Math.floor(((playheadUs + 0.5) * fps) / 1_000_000 + 1e-9);
   const durationUs = sequenceDurationUs(project);
   const layers = project.timeline.tracks.flatMap((track, trackIndex) =>
     track.items.flatMap((item) => {
