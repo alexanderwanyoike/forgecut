@@ -104,3 +104,51 @@ it("cancels queued work without starting it and aborts a running worker", async 
   );
   expect(secondStarted).toBe(false);
 });
+
+it("enforces a cooperative deadline and shuts down its workers", async () => {
+  vi.useFakeTimers();
+  try {
+    const jobs = new JobQueue({ timeoutMs: 10 });
+    const first = jobs.start(
+      {
+        sessionId: "session",
+        projectRevision: 0,
+        requestId: "slow",
+        kind: "frame",
+        label: "Slow frame",
+        input: {},
+      },
+      async (signal) => {
+        await new Promise<void>((resolve) => {
+          signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+        return { ok: true, value: "late" };
+      },
+    );
+    if (!first.ok) throw new Error("Job rejected");
+    await vi.advanceTimersByTimeAsync(11);
+    expect(jobs.read(first.value.id, "session")).toMatchObject({
+      ok: true,
+      value: {
+        status: "failed",
+        result: { ok: false, error: { code: "TIMEOUT" } },
+      },
+    });
+    await jobs.close();
+    expect(
+      jobs.start(
+        {
+          sessionId: "session",
+          projectRevision: 0,
+          requestId: "new",
+          kind: "frame",
+          label: "Frame",
+          input: {},
+        },
+        () => Promise.resolve({ ok: true, value: "new" }),
+      ),
+    ).toMatchObject({ ok: false, error: { code: "QUEUE_CLOSED" } });
+  } finally {
+    vi.useRealTimers();
+  }
+});
