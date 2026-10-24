@@ -120,6 +120,8 @@ export async function startLocalBridge(
         sequences: "Read sequences",
         "select-sequence": "Select sequence",
         "source-selections": "Read source selections",
+        "style-presets": "Read project styles",
+        "style-preset-values": "Read saved style values",
         timeline: "Read timeline",
         sequence: "Read sequence frame",
         item: "Read item",
