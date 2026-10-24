@@ -77,3 +77,21 @@ it.skipIf(spawnSync("ffprobe", ["-version"]).status !== 0)(
     }
   },
 );
+
+it("does not publish a cancelled media import", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  const before = state.snapshot();
+  const controller = new AbortController();
+  controller.abort();
+  expect(
+    await service.execute(
+      "import_assets",
+      { paths: ["/cancelled.png"] },
+      undefined,
+      undefined,
+      { signal: controller.signal },
+    ),
+  ).toMatchObject({ ok: false, error: { code: "CANCELLED" } });
+  expect(state.snapshot()).toEqual(before);
+});
