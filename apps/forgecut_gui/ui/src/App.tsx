@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import AppearanceControls from "./components/AppearanceControls";
 import McpStatus from "./components/McpStatus";
 import { useSequenceEditor } from "./hooks/useSequenceEditor";
 import SequenceControls from "./components/SequenceControls";
@@ -34,15 +35,6 @@ export default function App() {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const projectVersion = snapshot?.revision ?? 0;
   const projectName = snapshot?.project.name ?? "Untitled Project";
-  const [theme, setTheme] = useState(
-    () => localStorage.getItem("forgecut-theme") || "dark",
-  );
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("forgecut-theme", theme);
-  }, [theme]);
-
   useEffect(() => {
     setSourceItemId(null);
     if (snapshot && snapshot.project.timeline.tracks.length === 0) {
@@ -175,12 +167,7 @@ export default function App() {
             }}
           />
         )}
-        <button
-          className="theme-toggle"
-          onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-        >
-          {theme === "dark" ? "Light" : "Dark"}
-        </button>
+        <AppearanceControls />
         <McpStatus />
         <span className="project-name">{projectName}</span>
       </header>

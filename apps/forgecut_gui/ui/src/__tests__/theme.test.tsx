@@ -25,7 +25,10 @@ describe("Editor appearance", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Light" }));
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(localStorage.getItem("forgecut-theme")).toBe("light");
-    expect(screen.getByRole("radio", { name: "Light" })).toHaveProperty("checked", true);
+    expect(screen.getByRole("radio", { name: "Light" })).toHaveProperty(
+      "checked",
+      true,
+    );
   });
 
   it("changes the accent independently of the mode", () => {
@@ -45,7 +48,10 @@ describe("Editor appearance", () => {
     openAppearance();
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(document.documentElement.dataset.accent).toBe("copper");
-    expect(screen.getByRole("radio", { name: "Copper" })).toHaveProperty("checked", true);
+    expect(screen.getByRole("radio", { name: "Copper" })).toHaveProperty(
+      "checked",
+      true,
+    );
   });
 
   it("replaces unsupported saved values with usable defaults", () => {
