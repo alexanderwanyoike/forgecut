@@ -8,6 +8,10 @@ import type { CommandMap, ProjectSequence } from "../../shared/ipc-contract.js";
 import type { CommandRegistry } from "./types.js";
 
 export const sequenceCommands = {
+  get_sequence_timeline: (args, { state }) => {
+    const input = args as CommandMap["get_sequence_timeline"]["args"];
+    return state.sequenceIn(state.project, input.sequenceId).timeline;
+  },
   select_sequence: (args, { state }) => {
     const input = args as CommandMap["select_sequence"]["args"];
     return state.selectSequence(input.sessionId, input.sequenceId);
@@ -51,7 +55,7 @@ export const sequenceCommands = {
     const sequence: ProjectSequence = {
       id: randomUUID(),
       name: input.name,
-      settings: { ...state.project.settings, ...input.settings },
+      settings: { ...state.activeSequence.settings, ...input.settings },
       timeline: { tracks: [], markers: [] },
     };
     state.executeProjectChange((project) => {

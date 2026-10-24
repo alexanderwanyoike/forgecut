@@ -153,6 +153,7 @@ export const editSchemas = {
 } satisfies Record<EditCommandName, z.ZodType>;
 
 export const editRequestSchema = z.strictObject({
+  sequenceId: id.optional(),
   sessionId: id,
   expectedRevision: time,
   requestId: id,
@@ -176,7 +177,11 @@ export const historyRequestSchema = z.strictObject({
   direction: z.enum(["undo", "redo"]),
 });
 export const metadataSchema = z
-  .strictObject({ sessionId: id.optional(), editGroup: id.optional() })
+  .strictObject({
+    sessionId: id.optional(),
+    editGroup: id.optional(),
+    sequenceId: id.optional(),
+  })
   .optional();
 const stableMappings = z
   .record(z.uuid(), z.uuid().nullable())
@@ -244,6 +249,7 @@ export const commandSchemas = {
   get_project_settings: none,
   get_project_snapshot: none,
   get_sequences: none,
+  get_sequence_timeline: z.strictObject({ sequenceId: id }),
   select_sequence: z.strictObject({ sessionId: id, sequenceId: id }),
   get_editing_context: none,
   set_editing_context: z.strictObject({

@@ -91,7 +91,11 @@ export class AppState {
     const id =
       this.context.snapshot().activeSequenceId ??
       projectSequences(this.project)[0].id;
-    const found = findProjectSequence(this.project, id);
+    return this.sequenceIn(this.project, id);
+  }
+
+  sequenceIn(project: Project, sequenceId = this.activeSequence.id) {
+    const found = findProjectSequence(project, sequenceId);
     if (!found.ok) throw new EditingError("NOT_FOUND", found.error.message);
     return found.value;
   }
@@ -224,22 +228,16 @@ export class AppState {
     return this.project;
   }
 
-  initDefaultTracks(): Timeline {
-    if (this.project.timeline.tracks.length === 0) {
-      this.executeProjectChange((project) => {
-        project.timeline.tracks.push({
-          id: randomUUID(),
-          kind: "Video",
-          items: [],
-        });
-        project.timeline.tracks.push({
-          id: randomUUID(),
-          kind: "Audio",
-          items: [],
-        });
-      });
+  initDefaultTracks(sequenceId = this.activeSequence.id): Timeline {
+    if (
+      this.sequenceIn(this.project, sequenceId).timeline.tracks.length === 0
+    ) {
+      this.executeTimelineChange((timeline) => {
+        timeline.tracks.push({ id: randomUUID(), kind: "Video", items: [] });
+        timeline.tracks.push({ id: randomUUID(), kind: "Audio", items: [] });
+      }, sequenceId);
     }
-    return this.project.timeline;
+    return this.sequenceIn(this.project, sequenceId).timeline;
   }
 
   executeProjectChange(
@@ -287,9 +285,14 @@ export class AppState {
     return this.project;
   }
 
-  executeTimelineChange(mutator: (timeline: Timeline) => void): Timeline {
-    this.executeProjectChange((project) => mutator(project.timeline));
-    return this.project.timeline;
+  executeTimelineChange(
+    mutator: (timeline: Timeline) => void,
+    sequenceId = this.activeSequence.id,
+  ): Timeline {
+    this.executeProjectChange((project) =>
+      mutator(this.sequenceIn(project, sequenceId).timeline),
+    );
+    return this.sequenceIn(this.project, sequenceId).timeline;
   }
 
   undo(): Timeline {

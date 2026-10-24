@@ -235,7 +235,11 @@ export type CommandResponse<T = unknown> =
       };
     };
 
-export type CommandMetadata = { sessionId?: string; editGroup?: string };
+export type CommandMetadata = {
+  sessionId?: string;
+  editGroup?: string;
+  sequenceId?: string;
+};
 
 export type ItemPatch =
   | {
@@ -305,6 +309,7 @@ export type EditOperation = {
   [K in EditCommandName]: { command: K; args: CommandMap[K]["args"] };
 }[EditCommandName];
 export type EditRequest = {
+  sequenceId?: string;
   sessionId: string;
   expectedRevision: number;
   requestId: string;
@@ -333,6 +338,7 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  get_sequence_timeline: { args: { sequenceId: string }; result: Timeline };
   select_sequence: {
     args: { sessionId: string; sequenceId: string };
     result: EditingContext;

@@ -30,7 +30,7 @@ export const timelineCommands = {
       if (args?.endUs === null) delete timeline.duration_us;
       else timeline.duration_us = requiredNumber(args, "endUs");
     }),
-  get_timeline: (_args, { state }) => state.project.timeline,
+  get_timeline: (_args, { state }) => state.activeSequence.timeline,
   init_default_tracks: (_args, { state }) => state.initDefaultTracks(),
   add_clip_to_timeline: (args, { state }) =>
     state.executeTimelineChange((timeline) => {
@@ -154,7 +154,7 @@ export const timelineCommands = {
     }),
   get_snap_points: (args, { state }) =>
     collectSnapPoints(
-      state.project.timeline,
+      state.activeSequence.timeline,
       optionalString(args, "excludeItemId"),
     ),
   get_sequence_frame: (args, { state }) =>
@@ -168,7 +168,7 @@ export const timelineCommands = {
     }),
   get_item_details: (args, { state }) => {
     const item = structuredClone(
-      findItem(state.project.timeline, requiredString(args, "itemId")),
+      findItem(state.activeSequence.timeline, requiredString(args, "itemId")),
     );
     const data = itemData(item);
     const assetId = assetIdOf(item);

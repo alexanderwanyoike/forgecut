@@ -118,7 +118,11 @@ export class EditingService {
       if (command === "apply_edits" || command === "apply_history") {
         const snapshot =
           command === "apply_edits"
-            ? this.applyEdits(args as EditRequest)
+            ? this.applyEdits({
+                ...(args as EditRequest),
+                sequenceId:
+                  (args as EditRequest).sequenceId ?? meta?.sequenceId,
+              })
             : this.applyHistory(args);
         return {
           ok: true,
@@ -132,6 +136,7 @@ export class EditingService {
         value = this.applyOperations(
           [{ command, args } as EditOperation],
           meta?.editGroup,
+          meta?.sequenceId,
         );
       } else {
         const { sessionId } = this.state;
@@ -230,6 +235,7 @@ export class EditingService {
       this.applyOperations(
         request.operations as EditOperation[],
         request.editGroup,
+        request.sequenceId,
       ),
     );
   }
@@ -291,9 +297,29 @@ export class EditingService {
   private applyOperations(
     operations: EditOperation[],
     group?: string,
+    sequenceId?: string,
   ): unknown {
     // Reuse command semantics on an isolated owner; publish only the final batch.
+    const globalCommands = new Set<EditOperation["command"]>([
+      "create_sequence",
+      "rename_sequence",
+      "delete_sequence",
+      "remove_asset",
+    ]);
+    if (
+      !sequenceId &&
+      (this.state.project.sequences?.length ?? 0) > 0 &&
+      operations.some((operation) => !globalCommands.has(operation.command))
+    )
+      throw new EditingError(
+        "INVALID_INPUT",
+        "Provide a sequence ID before editing a multi-sequence project",
+      );
     const draft = new AppState({ count: 0 }, this.state.project);
+    draft.selectSequence(
+      draft.sessionId,
+      sequenceId ?? this.state.activeSequence.id,
+    );
     let value: unknown;
     for (const operation of operations) {
       const args = editSchemas[operation.command].parse(

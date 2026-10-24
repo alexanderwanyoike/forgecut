@@ -19,8 +19,9 @@ export const projectCommands = {
   update_project: (args, { state }) =>
     state.executeProjectChange((project) => {
       if (typeof args?.name === "string") project.name = args.name;
-      if (args?.settings) Object.assign(project.settings, args.settings);
+      if (args?.settings)
+        Object.assign(state.sequenceIn(project).settings, args.settings);
     }),
 
-  get_project_settings: (_args, { state }) => state.project.settings,
+  get_project_settings: (_args, { state }) => state.activeSequence.settings,
 } satisfies CommandRegistry;
