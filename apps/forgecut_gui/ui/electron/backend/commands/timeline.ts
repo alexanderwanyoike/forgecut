@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { resolveSequenceFrame } from "../sequence.js";
 import type { Asset, TimelineItem, Track } from "../state.js";
 import type { ItemPatch } from "../../shared/ipc-contract.js";
 import {
@@ -147,6 +148,8 @@ export const timelineCommands = {
       state.project.timeline,
       optionalString(args, "excludeItemId"),
     ),
+  get_sequence_frame: (args, { state }) =>
+    resolveSequenceFrame(state.project, requiredNumber(args, "playheadUs")),
   get_clip_at_playhead: (args, { state }) => {
     const playheadUs = requiredNumber(args, "playheadUs");
     return findClipAtPlayhead(
