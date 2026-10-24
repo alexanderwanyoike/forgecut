@@ -37,44 +37,36 @@ export default function VisualProperties({ project, item, update }: Props) {
     <>
       {placement && (
         <>
-          {
-            <NumberProperty
-              label={"X"}
-              value={placement.x}
-              onValueChange={(x) => {
-                void change({ x });
-              }}
-            />
-          }
-          {
-            <NumberProperty
-              label={"Y"}
-              value={placement.y}
-              onValueChange={(y) => {
-                void change({ y });
-              }}
-            />
-          }
-          {
-            <NumberProperty
-              label={"Width"}
-              value={placement.width}
-              onValueChange={(width) => {
-                void change({ width });
-              }}
-              min={1}
-            />
-          }
-          {
-            <NumberProperty
-              label={"Height"}
-              value={placement.height}
-              onValueChange={(height) => {
-                void change({ height });
-              }}
-              min={1}
-            />
-          }
+          <NumberProperty
+            label="X"
+            value={placement.x}
+            onValueChange={(x) => {
+              void change({ x });
+            }}
+          />
+          <NumberProperty
+            label="Y"
+            value={placement.y}
+            onValueChange={(y) => {
+              void change({ y });
+            }}
+          />
+          <NumberProperty
+            label="Width"
+            value={placement.width}
+            onValueChange={(width) => {
+              void change({ width });
+            }}
+            min={1}
+          />
+          <NumberProperty
+            label="Height"
+            value={placement.height}
+            onValueChange={(height) => {
+              void change({ height });
+            }}
+            min={1}
+          />
           <label className="inspector-row">
             <span className="inspector-label">Fit</span>
             <select
@@ -105,16 +97,14 @@ export default function VisualProperties({ project, item, update }: Props) {
           </label>
         </>
       )}
-      {
-        <NumberProperty
-          label={"Layer order"}
-          value={order}
-          onValueChange={(layer_order) => {
-            if (Number.isSafeInteger(layer_order))
-              void update({ kind, changes: { layer_order } });
-          }}
-        />
-      }
+      <NumberProperty
+        label="Layer order"
+        value={order}
+        onValueChange={(layer_order) => {
+          if (Number.isSafeInteger(layer_order))
+            void update({ kind, changes: { layer_order } });
+        }}
+      />
     </>
   );
 }

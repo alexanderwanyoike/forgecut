@@ -141,38 +141,30 @@ export default function Inspector({
           />
         </label>
       )}
-      {
-        <NumberProperty
-          label={"Width"}
-          value={projectSettings.width}
-          onValueChange={(width) => updateSettings({ width })}
-          min={1}
-        />
-      }
-      {
-        <NumberProperty
-          label={"Height"}
-          value={projectSettings.height}
-          onValueChange={(height) => updateSettings({ height })}
-          min={1}
-        />
-      }
-      {
-        <NumberProperty
-          label={"FPS"}
-          value={projectSettings.fps}
-          onValueChange={(fps) => updateSettings({ fps })}
-          min={1}
-        />
-      }
-      {
-        <NumberProperty
-          label={"Sample Rate"}
-          value={projectSettings.sample_rate}
-          onValueChange={(sample_rate) => updateSettings({ sample_rate })}
-          min={1}
-        />
-      }
+      <NumberProperty
+        label="Width"
+        value={projectSettings.width}
+        onValueChange={(width) => updateSettings({ width })}
+        min={1}
+      />
+      <NumberProperty
+        label="Height"
+        value={projectSettings.height}
+        onValueChange={(height) => updateSettings({ height })}
+        min={1}
+      />
+      <NumberProperty
+        label="FPS"
+        value={projectSettings.fps}
+        onValueChange={(fps) => updateSettings({ fps })}
+        min={1}
+      />
+      <NumberProperty
+        label="Sample Rate"
+        value={projectSettings.sample_rate}
+        onValueChange={(sample_rate) => updateSettings({ sample_rate })}
+        min={1}
+      />
     </div>
   ) : (
     <div className="inspector-empty">No selection</div>
@@ -229,16 +221,14 @@ export default function Inspector({
                     }
                   />
                 </label>
-                {
-                  <NumberProperty
-                    label={"Font Size"}
-                    value={text.font_size}
-                    onValueChange={(font_size) =>
-                      update({ kind: "TextOverlay", changes: { font_size } })
-                    }
-                    min={1}
-                  />
-                }
+                <NumberProperty
+                  label="Font Size"
+                  value={text.font_size}
+                  onValueChange={(font_size) =>
+                    update({ kind: "TextOverlay", changes: { font_size } })
+                  }
+                  min={1}
+                />
                 <label className="inspector-row">
                   <span className="inspector-label">Color</span>
                   <input
@@ -253,24 +243,20 @@ export default function Inspector({
                     }
                   />
                 </label>
-                {
-                  <NumberProperty
-                    label={"X"}
-                    value={text.x}
-                    onValueChange={(x) =>
-                      update({ kind: "TextOverlay", changes: { x } })
-                    }
-                  />
-                }
-                {
-                  <NumberProperty
-                    label={"Y"}
-                    value={text.y}
-                    onValueChange={(y) =>
-                      update({ kind: "TextOverlay", changes: { y } })
-                    }
-                  />
-                }
+                <NumberProperty
+                  label="X"
+                  value={text.x}
+                  onValueChange={(x) =>
+                    update({ kind: "TextOverlay", changes: { x } })
+                  }
+                />
+                <NumberProperty
+                  label="Y"
+                  value={text.y}
+                  onValueChange={(y) =>
+                    update({ kind: "TextOverlay", changes: { y } })
+                  }
+                />
               </>
             )}
             {project && (
