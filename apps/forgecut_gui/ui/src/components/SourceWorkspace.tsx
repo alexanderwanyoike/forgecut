@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
 import type { SourceSelectionPatch } from "../../electron/shared/source-selection";
 import ActionButton from "./ActionButton";
+import AppendSourceSelection from "./AppendSourceSelection";
 import PropertyInput from "./PropertyInput";
 import PropertyTextarea from "./PropertyTextarea";
 import { invokeGrouped, invokeInContext, mediaUrl } from "../lib/bridge";
@@ -215,6 +216,9 @@ export default function SourceWorkspace({ snapshot, assetId, onClose }: Props) {
                 />
               </label>
             </>
+          )}
+          {selected && (
+            <AppendSourceSelection snapshot={snapshot} selection={selected} />
           )}
           <div className="inspector-section-title">Saved selections</div>
           <div className="source-selections-list">
