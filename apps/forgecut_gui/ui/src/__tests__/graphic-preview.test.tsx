@@ -169,3 +169,16 @@ it("crops the composition when a graphic uses cover placement", async () => {
   expect(parseFloat(player.style.left)).toBeCloseTo(-38.8889, 3);
   expect(player.parentElement?.style.overflow).toBe("hidden");
 });
+
+it("shows RGBA colours accurately and preserves alpha when the picker changes RGB", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  await service.execute("add_graphic_item", { templateId: "title-card", trackId: "graphics", timelineStartUs: 0, durationUs: 2000000, props: { color: "#ff000080" } });
+  const item = state.project.timeline.tracks[0].items[0];
+  if (!("RemotionGraphic" in item)) throw new Error("Invalid fixture");
+  render(<Inspector project={state.project} selectedClipId={item.RemotionGraphic.id} />);
+  expect((screen.getByLabelText("Color") as HTMLInputElement).value).toBe("#ff0000");
+  expect((screen.getByLabelText("Color hex") as HTMLInputElement).value).toBe("#ff000080");
+  fireEvent.change(screen.getByLabelText("Color"), { target: { value: "#00ff00" } });
+  await waitFor(() => expect(update).toHaveBeenCalledWith(expect.any(String), "update_item", { itemId: item.RemotionGraphic.id, patch: { kind: "RemotionGraphic", changes: { props: { color: "#00ff0080" } } } }));
+});
