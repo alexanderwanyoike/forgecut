@@ -110,10 +110,48 @@ it.skipIf(!available)(
         frame: 0,
       });
       expect(pixels(delayed)[1]).toBeGreaterThan(240);
+      source(
+        state,
+        'export default function Card(){throw new Error("Preview draft failure");return null;}',
+      );
+      const failed = await service.execute("get_graphic_preview", {
+        itemId: item.RemotionGraphic.id,
+        frame: 0,
+      });
+      expect(failed).toMatchObject({
+        ok: false,
+        error: {
+          code: "RENDER_FAILED",
+          message: expect.stringContaining("Preview draft failure"),
+        },
+      });
+      source(
+        state,
+        "export default function Card(){while(true){}return null;}",
+      );
+      const hungAt = Date.now();
+      const hung = await service.execute("get_graphic_preview", {
+        itemId: item.RemotionGraphic.id,
+        frame: 0,
+      });
+      expect(hung).toMatchObject({ ok: false, error: { code: "TIMEOUT" } });
+      expect(Date.now() - hungAt).toBeLessThan(15000);
+      source(
+        state,
+        'export default function Card(){return <div style={{position:"absolute",inset:0,backgroundColor:"#00ff00"}}/>}',
+      );
+      expect(
+        pixels(
+          await service.execute("get_graphic_preview", {
+            itemId: item.RemotionGraphic.id,
+            frame: 0,
+          }),
+        )[1],
+      ).toBeGreaterThan(240);
     } finally {
       await service.closeGraphicsPreview?.();
       await service.jobs.close();
     }
   },
-  30000,
+  45000,
 );
