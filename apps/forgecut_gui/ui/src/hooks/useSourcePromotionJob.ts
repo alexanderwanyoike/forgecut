@@ -1,3 +1,4 @@
+import type { GraphicRuntimeFailure } from "../../electron/shared/graphic-diagnostic-schema";
 import { useEffect, useRef, useState } from "react";
 import {
   graphicPromotionResultSchema,
@@ -19,7 +20,7 @@ export function useSourcePromotionJob() {
   }, []);
   async function start(
     request: GraphicPromotionRequest,
-  ): Promise<Result<GraphicPromotionResult>> {
+  ): Promise<Result<GraphicPromotionResult, GraphicRuntimeFailure>> {
     try {
       let current = await invoke("start_graphic_promotion", request);
       if (alive.current) setJob(current);
