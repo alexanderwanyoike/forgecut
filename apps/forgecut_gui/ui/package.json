@@ -37,6 +37,7 @@
     "test:graphics": "node electron/scripts/verify-graphics.mjs"
   },
   "dependencies": {
+    "image-size": "2.0.4",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "zod": "4.3.6"
