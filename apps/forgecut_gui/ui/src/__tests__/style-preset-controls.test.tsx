@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   cleanupSequenceWorkspace,
@@ -77,4 +83,52 @@ it("saves the selected graphic as a project style and adds an independent copy f
     },
   });
   expect(state.project.style_presets![0]).toEqual(preset);
+});
+
+it("replaces a saved look from the current graphic and undoes it without changing existing timeline items", async () => {
+  const { state, service, source, root, App } = await styleFixture();
+  await service.execute("save_style_preset", {
+    sourceSequenceId: root,
+    itemId: source.id,
+    name: "Project card",
+    purpose: "card",
+  });
+  const preset = state.project.style_presets![0];
+  render(<App />);
+  await screen.findByLabelText("Title");
+  fireEvent.click(screen.getByRole("button", { name: "Save project style" }));
+  fireEvent.change(await screen.findByLabelText("Style destination"), {
+    target: { value: preset.id },
+  });
+  await act(async () => {
+    expect(
+      await service.execute(
+        "update_item",
+        {
+          itemId: source.id,
+          patch: {
+            kind: "RemotionGraphic",
+            changes: { props: { color: "#aabbcc" } },
+          },
+        },
+        { sessionId: state.sessionId, sequenceId: root },
+      ),
+    ).toMatchObject({ ok: true });
+  });
+  const before = state.snapshot();
+  fireEvent.change(screen.getByLabelText("Style name"), {
+    target: { value: "Updated card" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Replace style" }));
+  await waitFor(() =>
+    expect(state.project.style_presets![0].props.color).toBe("#aabbcc"),
+  );
+  expect(state.project.style_presets).toHaveLength(1);
+  expect(state.project.style_presets![0]).toMatchObject({
+    id: preset.id,
+    name: "Updated card",
+  });
+  expect(state.project.timeline).toEqual(before.project.timeline);
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  await waitFor(() => expect(state.project).toEqual(before.project));
 });
