@@ -43,6 +43,7 @@ module.exports = {
           "electron/mcp/server.ts",
           "electron/mcp/stdio.ts",
           "electron/graphics/**",
+          "electron/backend/graphic-worker.ts",
           "src/components/GraphicPreview.tsx",
         ],
       },

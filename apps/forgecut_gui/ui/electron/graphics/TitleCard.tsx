@@ -1,4 +1,4 @@
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { interpolate, useCurrentFrame } from "remotion";
 
 type GraphicValues = Record<string, string | number | boolean | null>;
 
@@ -14,9 +14,11 @@ export default function TitleCard({ values }: TitleCardProps) {
           extrapolateRight: "clamp",
         });
   return (
-    <AbsoluteFill>
-      <AbsoluteFill
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div
         style={{
+          position: "absolute",
+          inset: 0,
           backgroundColor: text(values, "background_color"),
           opacity: numeric(values, "background_opacity"),
         }}
@@ -48,7 +50,7 @@ export default function TitleCard({ values }: TitleCardProps) {
           {text(values, "title")}
         </div>
       </div>
-    </AbsoluteFill>
+    </div>
   );
 }
 

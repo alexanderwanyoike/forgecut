@@ -9,10 +9,13 @@ directories:
 files:
   - dist/**
   - electron/dist/**
+  - "!electron/dist/graphic-runtime/**"
   - electron/assets/**
   - package.json
 
 extraResources:
+  - from: electron/dist/graphic-runtime
+    to: graphic-runtime
   - from: electron/dist/mcp-adapter.cjs
     to: mcp-adapter.cjs
   - from: electron/dist/mcp-notices.txt
@@ -33,10 +36,12 @@ linux:
 deb:
   depends:
     - ffmpeg
+    - bubblewrap
 
 rpm:
   depends:
     - ffmpeg
+    - bubblewrap
 
 mac:
   target:

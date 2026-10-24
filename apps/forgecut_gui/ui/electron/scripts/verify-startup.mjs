@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { verifyGraphicsPreview } from "./graphics-preview-smoke.mjs";
 import { verifyAudio } from "./audio-smoke.mjs";
 import { verifyMcp } from "./mcp-smoke.mjs";
 import { spawn } from "node:child_process";
@@ -101,14 +102,21 @@ async function connectCdp(webSocketDebuggerUrl) {
 }
 
 async function main() {
-  spawnChild("yarn", ["dev"], {
-    env: {
-      ...process.env,
-      FORGECUT_MCP_DIR: mcpDirectory,
-      ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
-      ELECTRON_REMOTE_DEBUGGING_PORT: remoteDebuggingPort,
+  const executable = process.env.FORGECUT_VERIFY_EXECUTABLE;
+  spawnChild(
+    executable ?? "yarn",
+    executable
+      ? ["--no-sandbox", `--user-data-dir=${join(mcpDirectory, "profile")}`]
+      : ["dev"],
+    {
+      env: {
+        ...process.env,
+        FORGECUT_MCP_DIR: mcpDirectory,
+        ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
+        ELECTRON_REMOTE_DEBUGGING_PORT: remoteDebuggingPort,
+      },
     },
-  });
+  );
 
   const page = await waitForPage();
   const { ws, send, errors } = await connectCdp(page.webSocketDebuggerUrl);
@@ -172,6 +180,7 @@ async function main() {
   }
   await verifyMcp(mcpDirectory, send);
   await verifyAudio(mcpDirectory, send);
+  await verifyGraphicsPreview(mcpDirectory, send);
   ws.close();
 
   const value = result.result?.result?.value;
@@ -194,7 +203,7 @@ async function main() {
   }
 
   console.log(
-    "Electron startup, shared editing, live MCP and preview audio verified",
+    "Electron startup, shared editing, live MCP, preview audio and graphics export verified",
   );
 }
 

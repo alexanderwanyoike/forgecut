@@ -6,6 +6,8 @@ import type { Project } from "./state.js";
 import { compileExportPlan, type RenderPlan } from "./export-plan.js";
 import { sequenceDurationUs } from "../domain/sequence.js";
 
+import { prepareGraphicInputs } from "./prepare-graphic-inputs.js";
+
 export { compileExportPlan } from "./export-plan.js";
 export type { RenderPlan, RenderInput } from "./export-plan.js";
 
@@ -39,18 +41,26 @@ export async function exportProject(
   let result: Result<ExportOutcome>;
   try {
     const destination = resolvePath(outputPath);
-    const plan = compileExportPlan(project);
     directory = await mkdtemp(join(dirname(destination), ".forgecut-export-"));
-    plan.outputPath = join(directory, "render.mp4");
-    result = await renderPrepared(
-      plan,
-      {
-        directory,
-        destination,
-        totalSeconds: totalTimelineDurationUs(project) / 1_000_000,
-      },
-      options,
+    const prepared = await prepareGraphicInputs(
+      project,
+      directory,
+      options.signal,
     );
+    if (!prepared.ok) result = prepared;
+    else {
+      const plan = compileExportPlan(prepared.value);
+      plan.outputPath = join(directory, "render.mp4");
+      result = await renderPrepared(
+        plan,
+        {
+          directory,
+          destination,
+          totalSeconds: totalTimelineDurationUs(project) / 1_000_000,
+        },
+        options,
+      );
+    }
   } catch (error) {
     result = {
       ok: false,

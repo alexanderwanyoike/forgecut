@@ -2,9 +2,9 @@ import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 
 export async function budgetedMediaCommand(
-  executable: "ffmpeg" | "ffprobe",
+  executable: string,
   args: string[],
-): Promise<{ command: string; args: string[] }> {
+): Promise<{ command: string; args: string[]; unit?: string }> {
   const supported =
     process.platform === "linux" &&
     (await new Promise<boolean>((resolve) => {
@@ -16,14 +16,16 @@ export async function budgetedMediaCommand(
       );
     }));
   if (!supported) return { command: executable, args };
+  const unit = `forgecut-media-${randomUUID()}.scope`;
   return {
+    unit,
     command: "systemd-run",
     args: [
       "--user",
       "--scope",
       "--quiet",
       "--collect",
-      `--unit=forgecut-media-${randomUUID()}`,
+      `--unit=${unit}`,
       "--property=MemoryMax=3221225472",
       "--property=MemoryHigh=2147483648",
       "--property=MemorySwapMax=268435456",

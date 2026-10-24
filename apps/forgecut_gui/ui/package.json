@@ -17,10 +17,10 @@
     "build:renderer": "tsc && vite build",
     "build": "yarn build:renderer && yarn build:electron",
     "verify:electron": "node electron/scripts/verify-startup.mjs",
-    "package": "yarn build && electron-builder --publish never",
-    "package:linux": "yarn build && electron-builder --linux --publish never",
-    "package:mac": "yarn build && electron-builder --mac --publish never",
-    "package:win": "yarn build && electron-builder --win --publish never",
+    "package": "yarn build && yarn build:graphic-runtime && electron-builder --publish never",
+    "package:linux": "yarn build && yarn build:graphic-runtime && electron-builder --linux --publish never",
+    "package:mac": "yarn build && yarn build:graphic-runtime && electron-builder --mac --publish never",
+    "package:win": "yarn build && yarn build:graphic-runtime && electron-builder --win --publish never",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -32,7 +32,9 @@
     "lint": "eslint src electron --ext .ts,.tsx,.cts",
     "mcp": "node electron/dist/mcp-adapter.cjs",
     "build:mcp": "node electron/scripts/build-mcp.mjs",
-    "build:graphics": "node electron/scripts/prepare-graphics.mjs"
+    "build:graphics": "node electron/scripts/prepare-graphics.mjs",
+    "build:graphic-runtime": "node electron/scripts/prepare-graphic-runtime.mjs",
+    "test:graphics": "node electron/scripts/verify-graphics.mjs"
   },
   "dependencies": {
     "react": "^18.3.0",
