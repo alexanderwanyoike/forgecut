@@ -6,6 +6,7 @@ import {
   Plus,
   ScanLine,
   Type,
+  Trash2,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import ActionButton from "./ActionButton";
@@ -46,6 +47,7 @@ interface TimelineProps {
   projectVersion: number;
   projectTimeline?: TimelineData;
   projectStylePresets?: StylePreset[];
+  projectSessionId?: string;
   projectMediaVersion?: string;
 }
 
@@ -71,6 +73,8 @@ export default function Timeline(props: TimelineProps) {
     !styles.some((style) => `style:${style.id}` === graphicPreset)
       ? "title-card"
       : graphicPreset;
+  const [styleBusy, setStyleBusy] = useState(false);
+  const selectedStyle = styles.find((style) => `style:${style.id}` === choice);
   const [newTrackKind, setNewTrackKind] = useState<"Video" | "Audio">("Video");
   const [snapping, setSnapping] = useState(true);
 
@@ -303,6 +307,26 @@ export default function Timeline(props: TimelineProps) {
     }
   };
 
+  const handleDeleteStyle = async () => {
+    if (!selectedStyle || !props.projectSessionId || styleBusy) return;
+    setStyleBusy(true);
+    try {
+      await invoke("apply_edits", {
+        sessionId: props.projectSessionId,
+        expectedRevision: props.projectVersion,
+        requestId: crypto.randomUUID(),
+        operations: [
+          {
+            command: "delete_style_preset",
+            args: { presetId: selectedStyle.id },
+          },
+        ],
+      });
+    } finally {
+      setStyleBusy(false);
+    }
+  };
+
   const timelineWidth = timelineContentWidth(timeline, pixelsPerSecond);
   const rulerInterval = timelineRulerInterval(pixelsPerSecond);
   const rulerTicks = [];
@@ -327,6 +351,7 @@ export default function Timeline(props: TimelineProps) {
         <div className="control-group">
           <select
             aria-label="Graphic template"
+            disabled={styleBusy}
             value={choice}
             onChange={(event) => setGraphicPreset(event.currentTarget.value)}
           >
@@ -350,11 +375,23 @@ export default function Timeline(props: TimelineProps) {
           <ActionButton
             icon={Plus}
             aria-label="Add graphic"
+            disabled={styleBusy}
             tooltip="Add graphic at the playhead"
             onClick={handleAddGraphic}
           >
             Graphic
           </ActionButton>
+          {selectedStyle && (
+            <ActionButton
+              icon={Trash2}
+              iconOnly
+              tooltip={`Delete style: ${selectedStyle.name}`}
+              disabled={styleBusy || !props.projectSessionId}
+              onClick={() => {
+                void handleDeleteStyle().catch(() => {});
+              }}
+            />
+          )}
           <ActionButton
             icon={Type}
             aria-label="Add text"

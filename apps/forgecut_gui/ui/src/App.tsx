@@ -334,6 +334,7 @@ export default function App() {
           projectVersion={projectVersion}
           projectTimeline={project?.timeline}
           projectStylePresets={project?.style_presets}
+          projectSessionId={snapshot?.sessionId}
           projectMediaVersion={JSON.stringify([
             snapshot?.sessionId,
             snapshot?.project.assets,
