@@ -85,3 +85,6 @@
   width: 100%;
   min-width: 0;
 }
+.source-selection-inspector .inspector-body {
+  padding: 14px 16px;
+}
