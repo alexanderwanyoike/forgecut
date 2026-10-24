@@ -1,3 +1,4 @@
+import { verifyAppearance } from "./appearance-smoke.mjs";
 import { writeFile } from "node:fs/promises";
 import { verifyCanvas } from "./canvas-smoke.mjs";
 
@@ -74,9 +75,9 @@ export async function verifyCode(send) {
     `!!document.querySelector('.monaco-source-editor[data-ready="true"]')`,
     "offline Monaco worker",
   );
-  await evaluate(
-    `document.querySelector('button[aria-label="Appearance"]').click()`,
-  );
+  await evaluate(`(() => {
+    document.querySelector('button[aria-label="Appearance"]').click();
+  })()`);
   await wait(
     `!!document.querySelector('input[name="appearance-mode"]')`,
     "appearance menu",
@@ -89,9 +90,9 @@ export async function verifyCode(send) {
     `!!document.querySelector('.monaco-source-editor[data-ready="true"]')`,
     "theme preserves editor",
   );
-  await evaluate(
-    `document.querySelector('button[aria-label="Appearance"]').click()`,
-  );
+  await evaluate(`(() => {
+    document.querySelector('button[aria-label="Appearance"]').click();
+  })()`);
   await wait(
     `!!document.querySelector('input[name="appearance-mode"]')`,
     "appearance menu",
@@ -250,6 +251,7 @@ export async function verifyCode(send) {
     `(async()=>{const value=await ${draft()};return value.component.source.files[${JSON.stringify(component.source.entry)}]===${JSON.stringify(edited)};})()`,
     "Monaco draft redo",
   );
+  await verifyAppearance(send, "code");
   if (process.env.FORGECUT_CHECK_SCREENSHOT) {
     const screenshot = await send("Page.captureScreenshot", { format: "png" });
     await writeFile(

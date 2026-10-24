@@ -19,8 +19,8 @@ export async function verifySequences(send) {
         throw new Error('Sequence editor timed out: ' + label);
       };
       const click = async (label) => {
-        await wait(() => [...document.querySelectorAll('button')].some(button => button.textContent.trim() === label && !button.disabled), label);
-        [...document.querySelectorAll('button')].find(button => button.textContent.trim() === label && !button.disabled).click();
+        await wait(() => [...document.querySelectorAll('button')].some(button => (button.getAttribute('aria-label') ?? button.textContent.trim()) === label && !button.disabled), label);
+        [...document.querySelectorAll('button')].find(button => (button.getAttribute('aria-label') ?? button.textContent.trim()) === label && !button.disabled).click();
       };
       const input = (label) => document.querySelector('input[aria-label="' + label + '"]') ??
         [...document.querySelectorAll('label')].find(element => element.querySelector('.inspector-label')?.textContent.trim() === label)?.querySelector('input');
@@ -51,7 +51,7 @@ export async function verifySequences(send) {
       await wait(async () => (await snapshot()).project.sequences.find(sequence => sequence.id === clip).settings.width === 360, 'portrait width');
       await setInput('Height', '640');
       await wait(async () => (await snapshot()).project.sequences.find(sequence => sequence.id === clip).settings.height === 640, 'portrait height');
-      await click('+ Text');
+      await click('Add text');
       await wait(() => document.querySelector('.clip-label')?.textContent === 'Hello World', 'sequence title');
       const item = (await snapshot()).project.sequences.find(sequence => sequence.id === clip).timeline.tracks.flatMap(track => track.items).find(item => item.TextOverlay).TextOverlay;
       const context = await window.forgecut.invoke('set_editing_context', { sessionId: before.sessionId, sequenceId: clip, selectedItemIds: [item.id], playheadUs: 250000 });
@@ -97,7 +97,7 @@ export async function verifySequences(send) {
         throw new Error('Sequence deletion or undo did not finish');
       };
       const snapshot = async () => (await window.forgecut.invoke('get_project_snapshot')).value;
-      const click = label => [...document.querySelectorAll('button')].find(button => button.textContent.trim() === label && !button.disabled).click();
+      const click = label => [...document.querySelectorAll('button')].find(button => (button.getAttribute('aria-label') ?? button.textContent.trim()) === label && !button.disabled).click();
       click('Delete sequence');
       await wait(async () => (await snapshot()).project.sequences.length === 0);
       await wait(() => [...document.querySelectorAll('button')].some(button => button.textContent.trim() === 'Undo' && !button.disabled));

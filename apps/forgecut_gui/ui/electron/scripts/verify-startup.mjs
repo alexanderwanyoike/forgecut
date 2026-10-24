@@ -1,3 +1,4 @@
+import { verifyAppearance } from "./appearance-smoke.mjs";
 import { mkdtempSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { once } from "node:events";
@@ -158,6 +159,8 @@ async function main() {
     awaitPromise: true,
   });
 
+  await verifyAppearance(send, "empty");
+
   const editing = await send("Runtime.evaluate", {
     expression: `(async () => {
       const invoke = async (command, args) => {
@@ -207,6 +210,7 @@ async function main() {
   await verifyAudio(mcpDirectory, send);
   await verifyGraphicsPreview(mcpDirectory, send);
   await verifyCanvas(send);
+  await verifyAppearance(send, "canvas");
   await verifyCode(send);
   await verifySequences(send);
   ws.close();
@@ -219,7 +223,7 @@ async function main() {
     throw new Error(`ForgeCut preload bridge missing: ${value.bridge}`);
   }
   for (const text of expectedText) {
-    if (!value.text.includes(text)) {
+    if (!value.text.toUpperCase().includes(text)) {
       throw new Error(
         `Renderer did not contain expected text: ${text}\nRendered text:\n${value.text}`,
       );

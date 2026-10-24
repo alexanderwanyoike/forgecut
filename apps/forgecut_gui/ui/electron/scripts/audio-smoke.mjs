@@ -26,7 +26,7 @@ export async function verifyAudio(directory, send) {
           if (predicate()) return;
           await new Promise(resolve => setTimeout(resolve, 20));
         }
-        throw new Error('Preview audio did not reach the expected state: ' + JSON.stringify({ captured: media && { connected: media.isConnected, paused: media.paused, time: media.currentTime }, output: !!output, gain: output?.gain.value, context: output?.context.state, button: document.querySelector('.preview .preview-btn')?.getAttribute('aria-label'), audio: [...document.querySelectorAll('audio')].map(media => ({ src: media.currentSrc, ready: media.readyState, paused: media.paused, time: media.currentTime, error: media.error?.message })), alert: document.querySelector('[role=alert]')?.textContent, time: document.querySelector('.preview-time')?.textContent }));
+        throw new Error('Preview audio did not reach the expected state: ' + JSON.stringify({ captured: media && { connected: media.isConnected, paused: media.paused, time: media.currentTime }, output: !!output, gain: output?.gain.value, context: output?.context.state, button: document.querySelector('.preview-controls button[aria-label]')?.getAttribute('aria-label'), audio: [...document.querySelectorAll('audio')].map(media => ({ src: media.currentSrc, ready: media.readyState, paused: media.paused, time: media.currentTime, error: media.error?.message })), alert: document.querySelector('[role=alert]')?.textContent, time: document.querySelector('.preview-time')?.textContent }));
       };
       const original = AudioNode.prototype.connect;
       const graphs = new WeakMap();
@@ -49,10 +49,10 @@ export async function verifyAudio(directory, send) {
           const current = document.querySelector('.preview audio');
           return current?.readyState >= 2 && graphs.get(current)?.gain.value === 2;
         });
-        document.querySelector('.preview .preview-btn').click();
+        document.querySelector('.preview-controls button[aria-label]').click();
         await waitFor(() => {
           const current = document.querySelector('.preview audio');
-          return current && !current.paused && document.querySelector('.preview .preview-btn')?.getAttribute('aria-label') === 'Pause sequence';
+          return current && !current.paused && document.querySelector('.preview-controls button[aria-label]')?.getAttribute('aria-label') === 'Pause sequence';
         });
         media = document.querySelector('.preview audio');
         output = graphs.get(media);
@@ -64,7 +64,7 @@ export async function verifyAudio(directory, send) {
           analyser.getFloatTimeDomainData(samples);
           return Math.sqrt(samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length) > 0.03;
         });
-        document.querySelector('.preview .preview-btn').click();
+        document.querySelector('.preview-controls button[aria-label]').click();
         await waitFor(() => media.paused);
         analyser.disconnect();
         await invoke('create_project');
