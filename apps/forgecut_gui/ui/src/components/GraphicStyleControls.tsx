@@ -50,24 +50,36 @@ export default function GraphicStyleControls({
     setBusy(true);
     const sequenceId = project.default_sequence?.id ?? project.id;
     try {
-      await invokeInContext({ sessionId, sequenceId }, "apply_edits", {
-        sessionId,
-        sequenceId,
-        expectedRevision: revision,
-        requestId: crypto.randomUUID(),
-        operations: [
-          {
-            command: "save_style_preset",
-            args: {
-              ...(presetId ? { presetId } : {}),
-              sourceSequenceId: sequenceId,
-              itemId: item.id,
-              name,
-              purpose,
+      const next = await invokeInContext(
+        { sessionId, sequenceId },
+        "apply_edits",
+        {
+          sessionId,
+          sequenceId,
+          expectedRevision: revision,
+          requestId: crypto.randomUUID(),
+          operations: [
+            {
+              command: "save_style_preset",
+              args: {
+                ...(presetId ? { presetId } : {}),
+                sourceSequenceId: sequenceId,
+                itemId: item.id,
+                name,
+                purpose,
+              },
             },
-          },
-        ],
-      });
+          ],
+        },
+      );
+      const saved = next.project.style_presets?.find(
+        (style) => style.id === presetId,
+      );
+      if (saved) {
+        setBaseStyle(JSON.stringify(saved));
+        setName(saved.name);
+        setPurpose(saved.purpose);
+      }
       setOpen(false);
     } finally {
       setBusy(false);
