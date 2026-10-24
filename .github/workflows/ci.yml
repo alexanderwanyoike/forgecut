@@ -76,6 +76,12 @@ jobs:
       - name: Build renderer and Electron main
         run: yarn --cwd apps/forgecut_gui/ui build
 
+      - name: Prepare offline graphics runtime
+        run: yarn --cwd apps/forgecut_gui/ui build:graphic-runtime
+
+      - name: Verify graphics rendering
+        run: yarn --cwd apps/forgecut_gui/ui test:graphics
+
       - name: Verify Electron startup
         run: xvfb-run --auto-servernum yarn --cwd apps/forgecut_gui/ui verify:electron
         env:

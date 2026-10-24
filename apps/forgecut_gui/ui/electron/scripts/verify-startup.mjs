@@ -102,14 +102,21 @@ async function connectCdp(webSocketDebuggerUrl) {
 }
 
 async function main() {
-  spawnChild("yarn", ["dev"], {
-    env: {
-      ...process.env,
-      FORGECUT_MCP_DIR: mcpDirectory,
-      ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
-      ELECTRON_REMOTE_DEBUGGING_PORT: remoteDebuggingPort,
+  const executable = process.env.FORGECUT_VERIFY_EXECUTABLE;
+  spawnChild(
+    executable ?? "yarn",
+    executable
+      ? ["--no-sandbox", `--user-data-dir=${join(mcpDirectory, "profile")}`]
+      : ["dev"],
+    {
+      env: {
+        ...process.env,
+        FORGECUT_MCP_DIR: mcpDirectory,
+        ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
+        ELECTRON_REMOTE_DEBUGGING_PORT: remoteDebuggingPort,
+      },
     },
-  });
+  );
 
   const page = await waitForPage();
   const { ws, send, errors } = await connectCdp(page.webSocketDebuggerUrl);

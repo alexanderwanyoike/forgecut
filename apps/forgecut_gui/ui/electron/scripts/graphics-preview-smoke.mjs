@@ -19,7 +19,5 @@ export async function verifyGraphicsPreview(send) {
     awaitPromise: true,
   });
   if (result.result?.result?.value !== true)
-    throw new Error(
-      `Graphics preview failed: ${JSON.stringify(result)}`,
-    );
+    throw new Error(`Graphics preview failed: ${JSON.stringify(result)}`);
 }
