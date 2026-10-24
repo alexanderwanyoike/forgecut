@@ -174,6 +174,81 @@ it("retains component versions used by other sequences when applying default-ins
   await reopened.loadProject(path);
   expect(reopened.project).toEqual(after);
 });
+it.each(["instance", "shared"] as const)(
+  "applies %s source across sequence ownership without discarding the saved draft",
+  async (scope) => {
+    const { state, service, items, draft, request } = await fixture();
+    const clip = randomUUID();
+    state.executeProjectChange((project) => {
+      const moved = project.timeline.tracks[0].items.shift();
+      if (!moved || !("RemotionGraphic" in moved))
+        throw new Error("Missing first graphic");
+      const track = randomUUID();
+      moved.RemotionGraphic.track_id = track;
+      project.sequences = [
+        {
+          id: clip,
+          name: "Portrait",
+          settings: { ...project.settings, width: 360, height: 640, fps: 10 },
+          timeline: {
+            tracks: [{ id: track, kind: "Graphics", items: [moved] }],
+            markers: [],
+          },
+        },
+      ];
+    });
+    const before = structuredClone(state.project);
+    const completed = await finish(service, {
+      ...request,
+      expectedRevision: state.revision,
+      scope,
+    });
+    expect(completed.result).toMatchObject({
+      ok: true,
+      value: { changedItemIds: expect.arrayContaining([items[0].id]) },
+    });
+    const changed = state.project.sequences![0].timeline.tracks[0].items[0];
+    if (!("RemotionGraphic" in changed)) throw new Error("Missing graphic");
+    expect(changed.RemotionGraphic.component_version).not.toBe(
+      items[0].component_version,
+    );
+    const active = state.project.components!.find(
+      (component) =>
+        component.id === changed.RemotionGraphic.component_id &&
+        component.version === changed.RemotionGraphic.component_version,
+    );
+    expect(active?.source).toEqual(draft.component.source);
+    expect(
+      await service.execute("get_graphic_draft", { itemId: items[0].id }),
+    ).toMatchObject({
+      ok: true,
+      value: { component: { source: draft.component.source } },
+    });
+    expect(
+      vi
+        .mocked(GraphicPreviewService.prototype.render)
+        .mock.calls.filter((args) => args[2] === items[0].id)
+        .map((args) => args[4]),
+    ).toEqual([0, 9]);
+    expect(state.snapshot().undoSequenceId).toBe(
+      scope === "shared" ? undefined : clip,
+    );
+    if (scope === "instance")
+      expect(state.project.timeline).toEqual(before.timeline);
+    else {
+      const other = state.project.timeline.tracks[0].items[0];
+      expect(other).toMatchObject({
+        RemotionGraphic: {
+          component_id: changed.RemotionGraphic.component_id,
+          component_version: changed.RemotionGraphic.component_version,
+          props: items[1].props,
+        },
+      });
+    }
+    state.undo(clip);
+    expect(state.project).toEqual(before);
+  },
+);
 it("preserves values by stable property IDs across a shared schema rename", async () => {
   const { state, service, items, draft, request } = await fixture();
   draft.component.properties.caption = draft.component.properties.title;
