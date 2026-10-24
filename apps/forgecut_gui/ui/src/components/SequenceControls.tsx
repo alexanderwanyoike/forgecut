@@ -1,3 +1,5 @@
+import { Layers3, Pencil, Plus, Trash2 } from "lucide-react";
+import ActionButton from "./ActionButton";
 import { useState } from "react";
 import { projectSequences } from "../../electron/domain/project-sequences";
 import type {
@@ -80,6 +82,7 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
   return (
     <div className="sequence-controls">
       <label>
+        <Layers3 size={15} aria-hidden="true" />
         <span>Sequence</span>
         <select
           aria-label="Active sequence"
@@ -96,8 +99,9 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
           ))}
         </select>
       </label>
-      <button
-        className="sequence-action"
+      <ActionButton
+        icon={Plus}
+        tooltip="Create a sequence"
         disabled={busy || form !== null}
         onClick={() =>
           setForm({
@@ -108,9 +112,11 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
         }
       >
         New sequence
-      </button>
-      <button
-        className="sequence-action"
+      </ActionButton>
+      <ActionButton
+        icon={Pencil}
+        iconOnly
+        tooltip="Rename sequence"
         disabled={busy || form !== null}
         onClick={() =>
           setForm({
@@ -119,18 +125,16 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
             sequenceId: selected.id,
           })
         }
-      >
-        Rename sequence
-      </button>
-      <button
-        className="sequence-action"
+      ></ActionButton>
+      <ActionButton
+        icon={Trash2}
+        iconOnly
+        tooltip="Delete sequence"
         disabled={busy || form !== null || selected.id === sequences[0].id}
         onClick={() => {
           void remove().catch(() => {});
         }}
-      >
-        Delete sequence
-      </button>
+      ></ActionButton>
       {form && (
         <form
           className="sequence-name-form"
@@ -154,23 +158,23 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
             />
           </label>
           <div className="sequence-form-actions">
-            <button
+            <ActionButton
               type="submit"
-              className="sequence-action"
+
               disabled={busy || !form.name.trim()}
             >
               {form.kind === "create"
                 ? "Create sequence"
                 : "Save sequence name"}
-            </button>
-            <button
+            </ActionButton>
+            <ActionButton
               type="button"
-              className="sequence-action"
+
               disabled={busy}
               onClick={() => setForm(null)}
             >
               Cancel
-            </button>
+            </ActionButton>
           </div>
         </form>
       )}
