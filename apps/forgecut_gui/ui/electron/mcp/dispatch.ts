@@ -120,7 +120,14 @@ export async function dispatchLocal(
           input: request,
         },
         async (signal, onProgress) => {
-          state.assertSession(request.sessionId);
+          if (state.sessionId !== request.sessionId)
+            return {
+              ok: false,
+              error: {
+                code: "PROJECT_CHANGED",
+                message: "The project changed before the media job started.",
+              },
+            };
           if (state.revision !== request.expectedRevision)
             return {
               ok: false,
