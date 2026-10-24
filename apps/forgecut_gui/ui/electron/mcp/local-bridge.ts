@@ -112,6 +112,7 @@ export async function startLocalBridge(
         export: "Export project",
         import: "Import media",
         frame: "Source frame",
+        "source-review": "Review source range",
         job: "Read job",
         cancel: "Cancel job",
         summary: "Read project",

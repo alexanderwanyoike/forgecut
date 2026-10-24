@@ -35,16 +35,30 @@ export const exportRequestSchema = importRequestSchema
 export const frameRequestSchema = importRequestSchema
   .omit({ paths: true })
   .extend({ assetId: idSchema, timeUs: timeSchema });
-export const frameJobSchema = z.looseObject({
-  kind: z.literal("frame"),
-  result: z.strictObject({
-    ok: z.literal(true),
-    value: z.strictObject({
-      mimeType: z.literal("image/jpeg"),
-      data: z.string().max(700000),
+const imageValueSchema = z.strictObject({
+  mimeType: z.literal("image/jpeg"),
+  data: z.string().max(700000),
+});
+export const imageJobSchema = z.discriminatedUnion("kind", [
+  z.looseObject({
+    kind: z.literal("frame"),
+    result: z.strictObject({ ok: z.literal(true), value: imageValueSchema }),
+  }),
+  z.looseObject({
+    kind: z.literal("contact-sheet"),
+    result: z.strictObject({
+      ok: z.literal(true),
+      value: imageValueSchema.extend({
+        assetId: idSchema,
+        startUs: timeSchema,
+        endUs: timeSchema,
+        columns: z.literal(4),
+        rows: z.literal(3),
+        timesUs: z.array(timeSchema).length(12),
+      }),
     }),
   }),
-});
+]);
 
 const selection = z
   .strictObject({ itemId: idSchema, property: z.string().min(1).max(128) })

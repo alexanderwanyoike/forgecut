@@ -15,6 +15,7 @@ import type {
   ProjectSnapshot,
 } from "../shared/ipc-contract.js";
 import {
+  sourceReviewRequestSchema,
   editRequestSchema,
   historyRequestSchema,
 } from "../backend/command-schema.js";
@@ -42,6 +43,10 @@ export const projectFileRequestSchema = z.strictObject({
 });
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
   ...sourceActionSchemas,
+  z.strictObject({
+    action: z.literal("source-review"),
+    request: sourceReviewRequestSchema,
+  }),
   ...sequenceActionSchemas,
   sourceCheckRequestSchema.extend({ action: z.literal("source-check") }),
   resourceRequestSchema.extend({ action: z.literal("resource") }),
@@ -136,6 +141,13 @@ export async function dispatchLocal(
       request.action === "source-promote"
     )
       return await dispatchGraphicSource(service, request);
+    if (request.action === "source-review") {
+      const response = await service.execute(
+        "start_source_review",
+        request.request,
+      );
+      return response.ok ? { ok: true, value: response.value } : response;
+    }
     if (request.action === "export")
       return startExportJob(state, service.jobs, request);
     if (request.action === "job")

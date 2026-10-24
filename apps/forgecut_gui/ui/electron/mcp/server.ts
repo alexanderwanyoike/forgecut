@@ -8,10 +8,11 @@ import {
   importRequestSchema,
   jobRequestSchema,
   frameRequestSchema,
-  frameJobSchema,
+  imageJobSchema,
 } from "./job-schema.js";
 import { editingCapabilities } from "./capabilities.js";
 import {
+  sourceReviewRequestSchema,
   editRequestSchema,
   historyRequestSchema,
 } from "../backend/command-schema.js";
@@ -26,16 +27,20 @@ import { callBridge, listSessions, sessionDirectory } from "./sessions.js";
 import type { BridgeResult, LocalSession } from "./contract.js";
 
 function toolResult(result: BridgeResult) {
-  const frame = result.ok ? frameJobSchema.safeParse(result.value) : undefined;
+  const frame = result.ok ? imageJobSchema.safeParse(result.value) : undefined;
   if (frame?.success) {
-    const { mimeType, data } = frame.data.result.value;
+    const { mimeType, data, ...imageMetadata } = frame.data.result.value;
     const metadata = {
       ok: true,
       value: {
         ...frame.data,
         result: {
           ok: true,
-          value: { mimeType, bytes: Buffer.byteLength(data, "base64") },
+          value: {
+            ...imageMetadata,
+            mimeType,
+            bytes: Buffer.byteLength(data, "base64"),
+          },
         },
       },
     };
@@ -349,6 +354,16 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
       inputSchema: jobRequestSchema,
     },
     async (request) => call({ action: "cancel", ...request }),
+  );
+  server.registerTool(
+    "start_source_review",
+    {
+      description:
+        "Queue a cached source contact sheet or waveform for a range between 100 milliseconds and 30 seconds. Contact sheets contain 12 uniformly sampled cells and return native image content through get_job. Waveforms have at most 512 min/max bins at 8 kHz. The project is unchanged; jobs use existing retry and cancellation guards.",
+      inputSchema: sourceReviewRequestSchema,
+      annotations: { readOnlyHint: true },
+    },
+    async (request) => call({ action: "source-review", request }),
   );
   server.registerTool(
     "start_source_frame",
