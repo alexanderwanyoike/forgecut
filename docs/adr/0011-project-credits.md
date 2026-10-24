@@ -13,3 +13,9 @@ MCP asset pages include only the bounded licence identifier and omit attribution
 ## Verification
 
 Native service and official MCP SDK workflows cover save/reopen, global undo, independent sequence contents, removing asset metadata, resource content identity, missing IDs, invalid notice/URL rollback, stale revisions and sessions, and identical retries within the bounded request cache. Asset-list transport checks use 100 maximum-length escaped notices, identifiers and attributions, and the single-notice response remains below the local 1 MiB limit. Visual controls are a separate delivery slice.
+
+## Visual editing
+
+File > Project credits opens a native modal for recording/music/image assets and imported artwork/fonts. Its fields reuse the stored licence shape. Saving and explicit asset-credit removal use guarded global edits. Imported resources retain a required notice. The dialog uses existing aluminum surfaces, icons and theme tokens; keyboard focus stays within the modal and Escape closes it.
+
+Open manual drafts survive canonical metadata changes and require explicit Reload before replacing the changed record. A form recognizes its own acknowledged save. If its media disappears, the draft stays visible but cannot be committed. Changing the selected media or closing the dialog discards the unsaved local draft. Project switches close the old session's dialog.
