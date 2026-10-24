@@ -4,6 +4,7 @@ export type CommandArgs = Record<string, unknown> | undefined;
 export type CommandContext = {
   state: AppState;
   signal?: AbortSignal;
+  beginCommit?: () => boolean;
   onProgress?: (progress: number) => void;
 };
 export type CommandHandler = (

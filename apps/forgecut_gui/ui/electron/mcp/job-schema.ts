@@ -1,5 +1,6 @@
 import { isAbsolute } from "node:path";
 import { z } from "zod";
+import { resourceImportSchema } from "../backend/graphic-resource-schema.js";
 import { idSchema, timeSchema } from "../backend/project-schema.js";
 
 export const importRequestSchema = z.strictObject({
@@ -43,3 +44,31 @@ export const frameJobSchema = z.looseObject({
     }),
   }),
 });
+
+const selection = z
+  .strictObject({ itemId: idSchema, property: z.string().min(1).max(128) })
+  .optional();
+const [inlineLicense, fileLicense] = resourceImportSchema.options;
+export const resourceRequestSchema = importRequestSchema
+  .omit({ paths: true })
+  .extend({
+    resource: z
+      .union([
+        inlineLicense.extend({ target: selection }),
+        fileLicense.extend({ target: selection }),
+      ])
+      .superRefine((resource, context) => {
+        if (!isAbsolute(resource.path))
+          context.addIssue({
+            code: "custom",
+            path: ["path"],
+            message: "Use an absolute resource path",
+          });
+        if ("licensePath" in resource && !isAbsolute(resource.licensePath))
+          context.addIssue({
+            code: "custom",
+            path: ["licensePath"],
+            message: "Use an absolute licence path",
+          });
+      }),
+  });

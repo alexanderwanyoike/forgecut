@@ -26,3 +26,9 @@ export type GraphicResourceInput = {
   sha256: string;
   mime: GraphicResource["mime"];
 };
+
+export type GraphicResourceImport = { path: string; kind: "Image" | "Font" } & (
+  | { license: ResourceLicense; licensePath?: never }
+  | { licensePath: string; license?: never }
+);
+export type GraphicResourceSelection = { itemId: string; property: string };

@@ -42,7 +42,8 @@ it.skipIf(spawnSync("ffprobe", ["-version"]).status !== 0)(
       let job = started.value as JobSnapshot;
       for (
         let attempt = 0;
-        attempt < 100 && ["queued", "running"].includes(job.status);
+        attempt < 100 &&
+        ["queued", "running", "committing"].includes(job.status);
         attempt += 1
       ) {
         await new Promise((resolve) => setTimeout(resolve, 10));

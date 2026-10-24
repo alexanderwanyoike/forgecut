@@ -1,7 +1,9 @@
+import { constants } from "node:fs";
 import { createHash } from "node:crypto";
 import { mkdir, open } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
+import { EditingError } from "./editing-error.js";
 import { atomicWrite } from "./atomic-file.js";
 import type { GraphicResource } from "../shared/graphic-resources.js";
 import type { Result } from "../shared/result.js";
@@ -14,18 +16,35 @@ export function resourceStorePath(hash: string): string {
     hash,
   );
 }
-export async function readResourceFile(path: string): Promise<Buffer> {
-  const file = await open(path, "r");
+export async function readResourceFile(
+  path: string,
+  signal?: AbortSignal,
+): Promise<Buffer> {
+  const checkCancelled = () => {
+    if (signal?.aborted)
+      throw new EditingError("CANCELLED", "Resource read cancelled");
+  };
+  checkCancelled();
+  // Nonblocking read-only opens let us reject pipes before they can stall a job.
+  const flags = process.platform === "win32" ? "r" : constants.O_NONBLOCK;
+  const file = await open(path, flags);
   try {
-    if ((await file.stat()).size > 8 * 1024 * 1024)
+    const metadata = await file.stat();
+    if (!metadata.isFile())
+      throw new EditingError(
+        "INVALID_INPUT",
+        "Graphic resources and licences must be regular files",
+      );
+    if (metadata.size > 8 * 1024 * 1024)
       throw new Error("Graphic resource exceeds 8 MiB");
     const bytes = Buffer.alloc(8 * 1024 * 1024 + 1);
     let bytesRead = 0;
     while (bytesRead < bytes.length) {
+      checkCancelled();
       const read = await file.read(
         bytes,
         bytesRead,
-        bytes.length - bytesRead,
+        Math.min(bytes.length - bytesRead, 65536),
         bytesRead,
       );
       if (read.bytesRead === 0) break;

@@ -1,4 +1,8 @@
-import type { GraphicResource, ResourceLicense } from "./graphic-resources.js";
+import type {
+  GraphicResource,
+  GraphicResourceImport,
+  GraphicResourceSelection,
+} from "./graphic-resources.js";
 import type {
   GraphicComponent,
   GraphicValues,
@@ -316,19 +320,12 @@ export type CommandMap = {
 
   // Timeline
   import_graphic_resource: {
-    args: {
-      path: string;
-      kind: "Image" | "Font";
-      target?: {
-        itemId: string;
-        property: string;
+    args: GraphicResourceImport & {
+      target?: GraphicResourceSelection & {
         sessionId: string;
         expectedRevision: number;
       };
-    } & (
-      | { license: ResourceLicense; licensePath?: never }
-      | { licensePath: string; license?: never }
-    );
+    };
     result: GraphicResource;
   };
   get_graphic_components: { args: undefined; result: GraphicComponent[] };

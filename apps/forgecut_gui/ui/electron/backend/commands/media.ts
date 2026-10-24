@@ -9,7 +9,7 @@ import {
 } from "./types.js";
 
 export const mediaCommands = {
-  import_assets: async (args, { state, signal, onProgress }) => {
+  import_assets: async (args, { state, signal, onProgress, beginCommit }) => {
     const { sessionId } = state;
     const { revision } = state;
     const imported: Asset[] = [];
@@ -28,6 +28,11 @@ export const mediaCommands = {
       throw new EditingError(
         "CONFLICT",
         "The project changed while importing media. Read it again and retry.",
+      );
+    if (beginCommit && !beginCommit())
+      throw new EditingError(
+        "CANCELLED",
+        "Import cancelled before publication",
       );
     state.executeProjectChange(
       (project) => {

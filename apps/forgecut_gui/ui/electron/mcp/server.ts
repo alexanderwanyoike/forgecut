@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import {
+  resourceRequestSchema,
   exportRequestSchema,
   importRequestSchema,
   jobRequestSchema,
@@ -13,7 +14,11 @@ import {
   historyRequestSchema,
 } from "../backend/command-schema.js";
 import { idSchema, timeSchema } from "../backend/project-schema.js";
-import { pageFields, projectFileRequestSchema } from "./dispatch.js";
+import {
+  resourcePageFields,
+  pageFields,
+  projectFileRequestSchema,
+} from "./dispatch.js";
 import { callBridge, listSessions, sessionDirectory } from "./sessions.js";
 import type { BridgeResult, LocalSession } from "./contract.js";
 
@@ -159,6 +164,38 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
       inputSchema: z.strictObject({ sessionId: idSchema, itemId: idSchema }),
     },
     async (args) => call({ action: "item", ...args }),
+  );
+  server.registerTool(
+    "start_resource_import",
+    {
+      description:
+        "Queue a bounded font/artwork import with licence metadata and optional graphic-property selection. Uses the supplied session/revision for the entire job; retry the same requestId to recover the same job.",
+      inputSchema: resourceRequestSchema,
+    },
+    async (request) => call({ action: "resource", ...request }),
+  );
+  server.registerTool(
+    "read_graphic_resources",
+    {
+      description:
+        "Read up to 20 project font/artwork metadata records. Full licence text is available through read_graphic_resource.",
+      inputSchema: z.strictObject(resourcePageFields),
+      annotations: { readOnlyHint: true },
+    },
+    async (request) => call({ action: "resources", ...request }),
+  );
+  server.registerTool(
+    "read_graphic_resource",
+    {
+      description:
+        "Read one project's font/artwork metadata and full retained licence text, without binary bytes.",
+      inputSchema: z.strictObject({
+        sessionId: idSchema,
+        resourceId: idSchema,
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    async (request) => call({ action: "resource-details", ...request }),
   );
   server.registerTool(
     "list_graphic_templates",

@@ -92,3 +92,13 @@ Visual `update_item` patches support a complete video `transform`, image `fit` a
 ## Graphics state
 
 `list_graphic_templates` returns the packaged component schema and editable layer metadata. Create an instance with `add_graphic_item` in `apply_edits`, then use `read_graphic_component` for its exact stored version. `update_item` with a `RemotionGraphic` property patch merges only the supplied keys. The standard identity, revision, retry and history rules apply. Source bodies remain project data until the isolated code execution phase.
+
+## Project fonts and artwork
+
+`start_resource_import` queues a font/artwork import with `sessionId`, `expectedRevision`, `requestId` and a `resource` object. Supply an absolute file path, kind, and either licence metadata or an absolute licence-text path. An optional target supplies only the graphic item ID and property name; the owner carries the request's original identity through the job. Retry the identical request ID to recover its job.
+
+`read_graphic_resources` returns up to 20 metadata records per page without binary data or full licence text. `read_graphic_resource` returns one exact record, including retained licence text. Import results identify the new resource; ordinary typed graphic property patches can select existing project fonts.
+
+Imports use the same `committing` barrier as export publication. Once that short project commit starts, cancellation returns `COMMITTING` and the job completes with its actual result. Cancellation cannot claim that an already committed import was discarded.
+
+Resource and licence imports accept regular files only. Nonblocking opens reject pipes before they can occupy the serial queue, and bounded reads check cancellation between chunks. Each resource is limited to 8 MiB.

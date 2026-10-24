@@ -18,6 +18,7 @@ import {
 import { EditingError } from "../backend/editing-error.js";
 import type { BridgeResult } from "./contract.js";
 import {
+  resourceRequestSchema,
   importRequestSchema,
   jobRequestSchema,
   frameRequestSchema,
@@ -31,6 +32,10 @@ export const pageFields = {
   offset: timeSchema.default(0),
   limit: z.number().int().min(1).max(100).default(50),
 };
+export const resourcePageFields = {
+  ...pageFields,
+  limit: z.number().int().min(1).max(20).default(10),
+};
 export const projectFileRequestSchema = z.strictObject({
   sessionId: idSchema,
   expectedRevision: timeSchema,
@@ -41,6 +46,13 @@ export const projectFileRequestSchema = z.strictObject({
     .refine(isAbsolute, "Use an absolute project path"),
 });
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
+  resourceRequestSchema.extend({ action: z.literal("resource") }),
+  z.strictObject({ action: z.literal("resources"), ...resourcePageFields }),
+  z.strictObject({
+    action: z.literal("resource-details"),
+    sessionId: idSchema,
+    resourceId: idSchema,
+  }),
   exportRequestSchema.extend({ action: z.literal("export") }),
   frameRequestSchema.extend({ action: z.literal("frame") }),
   importRequestSchema.extend({ action: z.literal("import") }),
@@ -97,6 +109,7 @@ function summary(source: SummarySource) {
     name: source.project.name.slice(0, 512),
     settings: source.project.settings,
     assetCount: source.project.assets.length,
+    resourceCount: source.project.resources?.length ?? 0,
     trackCount: source.project.timeline.tracks.length,
     tracks: source.project.timeline.tracks.slice(0, 100).map((track) => ({
       id: track.id,
@@ -127,7 +140,11 @@ export async function dispatchLocal(
       return service.jobs.read(request.jobId, request.sessionId);
     if (request.action === "cancel")
       return service.jobs.cancel(request.jobId, request.sessionId);
-    if (request.action === "import" || request.action === "frame") {
+    if (
+      request.action === "import" ||
+      request.action === "frame" ||
+      request.action === "resource"
+    ) {
       return startMediaJob(service, request);
     }
     if (request.action === "summary")
@@ -148,6 +165,45 @@ export async function dispatchLocal(
       };
     }
     state.assertSession(request.sessionId);
+    if (request.action === "resources") {
+      const resources = state.project.resources ?? [];
+      return {
+        ok: true,
+        value: {
+          sessionId: state.sessionId,
+          revision: state.revision,
+          total: resources.length,
+          resources: resources
+            .slice(request.offset, request.offset + request.limit)
+            .map(({ license, ...resource }) => ({
+              ...resource,
+              license: {
+                identifier: license.identifier,
+                attribution: license.attribution,
+                source_url: license.source_url,
+              },
+            })),
+        },
+      };
+    }
+    if (request.action === "resource-details") {
+      const resource = state.project.resources?.find(
+        (candidate) => candidate.id === request.resourceId,
+      );
+      return resource
+        ? {
+            ok: true,
+            value: {
+              sessionId: state.sessionId,
+              revision: state.revision,
+              resource,
+            },
+          }
+        : {
+            ok: false,
+            error: { code: "NOT_FOUND", message: "Graphic resource not found" },
+          };
+    }
     if (request.action === "templates") {
       const result = await service.execute("get_graphic_components");
       if (!result.ok) return result;
