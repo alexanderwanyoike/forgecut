@@ -222,7 +222,14 @@ export function useGraphicSourceDraft(
   }
   async function refreshIfClean(): Promise<void> {
     if (pending.current || epoch.current !== savedEpoch.current) return;
-    await reload();
+    const version = epoch.current;
+    try {
+      const value = await invoke("get_graphic_draft", { itemId });
+      if (alive.current && !pending.current && epoch.current === version)
+        install(value);
+    } catch (failure) {
+      if (alive.current && epoch.current === version) fail(failure);
+    }
   }
   useEffect(() => {
     if (!saved.current) return;
