@@ -46,7 +46,7 @@ async function fixture() {
   });
   render(<value.App />);
   await screen.findByLabelText("Text");
-  fireEvent.click(screen.getByRole("button", { name: "File", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "File" }));
   fireEvent.click(
     await screen.findByRole("button", { name: "Project credits" }),
   );
@@ -209,4 +209,17 @@ it("keeps the credit draft visible and blocks saving when its media is removed",
     (screen.getByRole("button", { name: "Save credits" }) as HTMLButtonElement)
       .disabled,
   ).toBe(true);
+});
+
+it("keeps modal keyboard gestures away from the selected timeline clip", async () => {
+  const { state } = await fixture();
+  const before = structuredClone(state.project);
+  const close = screen.getByRole("button", { name: "Close project credits" });
+  close.focus();
+  for (const key of ["Delete", "s", "Backspace"]) {
+    await act(async () => {
+      fireEvent.keyDown(close, { key });
+    });
+    expect(state.project).toEqual(before);
+  }
 });
