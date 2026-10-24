@@ -29,7 +29,17 @@ const waveformSchema = z.object({
     .min(1)
     .max(512),
 });
-const sourceReviewSchema = z.union([contactSheetSchema, waveformSchema]);
+const previewSchema = contactSheetSchema
+  .omit({ columns: true, rows: true, timesUs: true })
+  .extend({
+    mimeType: z.literal("video/webm"),
+    data: z.base64().min(1).max(700000),
+  });
+const sourceReviewSchema = z.union([
+  contactSheetSchema,
+  waveformSchema,
+  previewSchema,
+]);
 const active = (job: JobSnapshot) =>
   !["completed", "failed", "cancelled"].includes(job.status);
 function stop(job: JobSnapshot | null) {
@@ -124,13 +134,20 @@ export function useSourceReview(input: Input) {
       if (token === generation.current) setBusy(false);
     }
   }
-  function cancel() {
+  function clear(nextStatus: "cancelled" | null) {
     generation.current += 1;
     stop(job.current);
     job.current = null;
     setBusy(false);
-    setStatus("cancelled");
+    setStatus(nextStatus);
     setResult(null);
   }
-  return { result, status, busy, start, cancel };
+  return {
+    result,
+    status,
+    busy,
+    start,
+    cancel: () => clear("cancelled"),
+    clear: () => clear(null),
+  };
 }

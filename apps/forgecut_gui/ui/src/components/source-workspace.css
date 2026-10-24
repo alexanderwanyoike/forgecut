@@ -109,6 +109,7 @@
 .source-review figure {
   margin: 12px 0 0;
 }
+.source-review video,
 .source-review img {
   display: block;
   width: 100%;
@@ -122,4 +123,20 @@
   background: var(--bg-primary);
   stroke: var(--accent);
   stroke-width: 1;
+}
+
+.source-review video {
+  max-height: 240px;
+  background: var(--bg-primary);
+}
+.source-monitor:has(.source-review video) .source-media-stage,
+.source-monitor:has(.source-review video) .source-monitor-help {
+  display: none;
+}
+.source-monitor:has(.source-review video) .source-review {
+  flex: 1;
+  max-height: none;
+}
+.source-review video {
+  object-fit: contain;
 }

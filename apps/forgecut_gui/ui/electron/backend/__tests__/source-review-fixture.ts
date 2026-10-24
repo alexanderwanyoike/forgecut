@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-export function generateReviewSource(path: string): void {
+export function generateReviewSource(path: string, durationSeconds = 2): void {
   const generated = spawnSync("ffmpeg", [
     "-hide_banner",
     "-loglevel",
@@ -15,7 +15,7 @@ export function generateReviewSource(path: string): void {
     "-i",
     "sine=frequency=440:sample_rate=8000",
     "-t",
-    "2",
+    String(durationSeconds),
     "-c:v",
     "libx264",
     "-threads",
