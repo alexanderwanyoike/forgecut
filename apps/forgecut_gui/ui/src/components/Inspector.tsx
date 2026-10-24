@@ -231,7 +231,7 @@ export default function Inspector({
               <>
                 {onEditCode && (
                   <button
-                    className="preview-btn"
+                    className="preview-btn inspector-code-button"
                     onClick={() => onEditCode(graphic.id)}
                   >
                     Edit code
