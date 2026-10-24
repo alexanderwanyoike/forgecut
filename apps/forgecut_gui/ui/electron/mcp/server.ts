@@ -10,6 +10,7 @@ import {
   jobRequestSchema,
   frameRequestSchema,
   imageJobSchema,
+  sourcePreviewJobSchema,
 } from "./job-schema.js";
 import { editingCapabilities } from "./capabilities.js";
 import {
@@ -54,10 +55,27 @@ function toolResult(result: BridgeResult) {
       isError: false,
     };
   }
+  const preview = result.ok
+    ? sourcePreviewJobSchema.safeParse(result.value)
+    : undefined;
+  let visible = result;
+  if (preview?.success) {
+    const { data, ...metadata } = preview.data.result.value;
+    visible = {
+      ok: true,
+      value: {
+        ...preview.data,
+        result: {
+          ok: true,
+          value: { ...metadata, bytes: Buffer.byteLength(data, "base64") },
+        },
+      },
+    };
+  }
   return {
-    content: [{ type: "text" as const, text: JSON.stringify(result) }],
-    structuredContent: result,
-    isError: !result.ok,
+    content: [{ type: "text" as const, text: JSON.stringify(visible) }],
+    structuredContent: visible,
+    isError: !visible.ok,
   };
 }
 
@@ -390,7 +408,7 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
     "start_source_review",
     {
       description:
-        "Queue a cached source contact sheet or waveform for a range between 100 milliseconds and 30 seconds. Contact sheets contain 12 uniformly sampled cells and return native image content through get_job. Waveforms have at most 512 min/max bins at 8 kHz. The project is unchanged; jobs use existing retry and cancellation guards.",
+        "Queue a cached source contact sheet or waveform for a range between 100 milliseconds and 30 seconds. Contact sheets contain 12 uniformly sampled cells and return native image content through get_job. Waveforms have at most 512 min/max bins at 8 kHz. Video previews cover up to 5 seconds with optional audio, are capped at 512 KiB and play in the desktop. MCP returns preview metadata and byte size without video payloads in text. The project is unchanged; jobs use existing retry and cancellation guards.",
       inputSchema: sourceReviewRequestSchema,
       annotations: { readOnlyHint: true },
     },

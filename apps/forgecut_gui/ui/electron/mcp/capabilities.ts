@@ -59,6 +59,8 @@ export const editingCapabilities = {
   jobs: {
     sourceReview: z.toJSONSchema(sourceReviewRequestSchema),
     sourceReviewMaxDurationUs: 30_000_000,
+    sourcePreviewMaxDurationUs: 5_000_000,
+    sourcePreviewMaxBytes: 512 * 1024,
     contactSheetCells: 12,
     waveformMaxBins: 512,
     sourceReviewCacheBytes: 8 * 1024 * 1024,
