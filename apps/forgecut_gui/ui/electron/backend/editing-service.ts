@@ -325,9 +325,11 @@ export class EditingService {
       "delete_sequence",
       "remove_asset",
     ]);
-    const scoped = operations.some(
-      (operation) => !globalCommands.has(operation.command),
-    );
+    const targetsSequence = (operation: EditOperation) =>
+      operation.command === "update_project"
+        ? operation.args.settings !== undefined
+        : !globalCommands.has(operation.command);
+    const scoped = operations.some(targetsSequence);
     if (
       !sequenceId &&
       (this.state.project.sequences?.length ?? 0) > 0 &&
@@ -342,7 +344,7 @@ export class EditingService {
     draft.selectSequence(draft.sessionId, targetId);
     let value: unknown;
     for (const operation of operations) {
-      if (!globalCommands.has(operation.command))
+      if (targetsSequence(operation))
         draft.selectSequence(draft.sessionId, targetId);
       const args = editSchemas[operation.command].parse(
         operation.args,
