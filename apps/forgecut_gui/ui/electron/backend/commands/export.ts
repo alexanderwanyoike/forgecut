@@ -21,6 +21,7 @@ export const exportCommands = {
         result.error.code === "CANCELLED" ? "CANCELLED" : "IO_ERROR",
         result.error.message,
       );
+    if (result.value.cleanupWarning) console.warn(result.value.cleanupWarning);
     emit("export-complete", { output_path: outputPath });
   },
 } satisfies CommandRegistry;
