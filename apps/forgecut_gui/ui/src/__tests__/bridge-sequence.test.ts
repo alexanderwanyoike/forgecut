@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { AppState } from "../../electron/backend/state";
 import { EditingService } from "../../electron/backend/editing-service";
@@ -79,6 +79,39 @@ it("binds UI edits to the accepted active sequence snapshot", async () => {
     expect(
       state.project.sequences![0].timeline.tracks[0].items[0],
     ).toMatchObject({ TextOverlay: { text: "Clip wording" } });
+  } finally {
+    unlisten();
+  }
+});
+it("does not publish a displayed sequence's playhead into a newly selected sequence", async () => {
+  const { state, unlisten } = await fixture();
+  const { useProject } = await import("../hooks/useProject");
+  const { useEditingContext } = await import("../hooks/useEditingContext");
+  function Probe() {
+    const { snapshot } = useProject();
+    useEditingContext(snapshot, null, 1000000);
+    return createElement(
+      "output",
+      { role: "status" },
+      snapshot?.activeSequenceId,
+    );
+  }
+  try {
+    render(createElement(Probe));
+    await waitFor(() =>
+      expect(state.getEditingContext().playheadUs).toBe(1000000),
+    );
+    const root = state.project.default_sequence!.id;
+    const clip = state.project.sequences![0].id;
+    await act(async () => {
+      state.selectSequence(state.sessionId, clip);
+    });
+    expect(screen.getByRole("status").textContent).toBe(clip);
+    expect(state.getEditingContext().playheadUs).toBe(0);
+    await act(async () => {
+      state.selectSequence(state.sessionId, root);
+    });
+    expect(state.getEditingContext().playheadUs).toBe(1000000);
   } finally {
     unlisten();
   }
