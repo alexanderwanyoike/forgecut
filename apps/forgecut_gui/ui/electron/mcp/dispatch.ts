@@ -188,10 +188,13 @@ export async function dispatchLocal(
       },
     };
   } catch (error) {
+    let code = "INVALID_INPUT";
+    if (error instanceof EditingError) code = error.code;
+    else if (error instanceof Error && "code" in error) code = "IO_ERROR";
     return {
       ok: false,
       error: {
-        code: error instanceof EditingError ? error.code : "INVALID_INPUT",
+        code,
         message: error instanceof Error ? error.message : String(error),
       },
     };
