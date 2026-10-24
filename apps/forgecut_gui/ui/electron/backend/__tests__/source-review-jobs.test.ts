@@ -133,6 +133,7 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       expect(
         audio!.peaks.some(([low, high]) => low < -0.01 && high > 0.01),
       ).toBe(true);
+      expect(state.snapshot()).toEqual(before);
       vi.stubEnv("PATH", directory);
       try {
         const repeat = await service.execute("start_source_review", {
@@ -144,10 +145,28 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
           (repeat.ok ? (repeat.value as JobSnapshot) : sheet).id,
         );
         expect(cached.result).toEqual(sheet.result);
+        state.executeProjectChange((project) => {
+          project.assets[0].probe!.duration_us = 1_000_000;
+        });
+        const shorter = await service.execute("start_source_review", {
+          ...request,
+          expectedRevision: state.revision,
+          requestId: "shorter-source",
+        });
+        expect(
+          await finish(
+            (shorter.ok ? (shorter.value as JobSnapshot) : sheet).id,
+          ),
+        ).toMatchObject({
+          status: "failed",
+          result: { ok: false, error: { code: "INVALID_INPUT" } },
+        });
+        state.undo();
         await utimes(path, new Date("2030-01-01"), new Date("2030-01-01"));
         const changed = await service.execute("start_source_review", {
           ...request,
           requestId: "changed-source",
+          expectedRevision: state.revision,
         });
         const invalidated = await finish(
           (changed.ok ? (changed.value as JobSnapshot) : sheet).id,
@@ -159,7 +178,7 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       } finally {
         vi.unstubAllEnvs();
       }
-      expect(state.snapshot()).toEqual(before);
+      expect(state.project).toEqual(before.project);
       expect(
         await service.execute("start_source_review", {
           ...request,
