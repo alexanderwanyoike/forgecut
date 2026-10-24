@@ -16,10 +16,12 @@ export async function verifyStyleControls(send) {
           if (await predicate()) return;
           await new Promise(resolve => setTimeout(resolve, 25));
         }
-        throw new Error('Style controls timed out: ' + label);
+        const snapshot = await read();
+        throw new Error('Style controls timed out: ' + label + ' ' + JSON.stringify({ alerts: [...document.querySelectorAll('[role=alert]')].map(element => element.textContent), title: field('Title')?.value, styleName: field('Style name')?.value, selected: document.querySelector('.clip-selected .clip-label')?.textContent, styles: snapshot.project.style_presets.map(style => ({ name: style.name, title: style.props.title })), revision: snapshot.revision }));
       };
+      const settle = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const button = label => [...document.querySelectorAll('button')].find(element => (element.getAttribute('aria-label') === label || element.textContent.trim() === label) && !element.disabled);
-      const click = async label => { await wait(() => button(label), label); button(label).click(); };
+      const click = async label => { await wait(() => button(label), label); button(label).click(); await settle(); };
       const field = label => [...document.querySelectorAll('label')].find(element => element.textContent.trim().startsWith(label))?.querySelector('input, textarea, select');
       const set = async (label, value) => {
         await wait(() => field(label), label);
@@ -30,8 +32,10 @@ export async function verifyStyleControls(send) {
         element.dispatchEvent(new Event('input', { bubbles: true }));
         element.dispatchEvent(new Event('change', { bubbles: true }));
         element.blur();
+        await settle();
       };
       await invoke('create_project');
+      await settle();
       await invoke('add_graphic_item', { templateId: 'title-card', trackId: 'ui-style-graphics', timelineStartUs: 0, durationUs: 1000000, props: { title: 'After dark', color: '#8293a4', font_size: 60, entrance_frames: 0 } });
       const source = (await read()).project.timeline.tracks.flatMap(track => track.items).find(item => item.RemotionGraphic).RemotionGraphic;
       await wait(() => [...document.querySelectorAll('.clip-label')].some(element => element.textContent === 'After dark'), 'source card');
@@ -55,7 +59,7 @@ export async function verifyStyleControls(send) {
       const copy = (await read()).project.timeline.tracks.flatMap(track => track.items).find(item => item.RemotionGraphic?.id !== source.id && item.RemotionGraphic).RemotionGraphic;
       if (copy.timeline_start_us !== 0 || copy.props.title !== 'After dark' || copy.props.color !== '#8293a4') throw new Error('Picker instance changed the saved look');
       await set('Title', 'Manual card');
-      await wait(async () => (await read()).project.timeline.tracks.flatMap(track => track.items).some(item => item.RemotionGraphic?.id === source.id && item.RemotionGraphic.props.title === 'Manual card'), 'manual source text');
+      await wait(async () => (await read()).project.timeline.tracks.flatMap(track => track.items).some(item => item.RemotionGraphic?.id === source.id && item.RemotionGraphic.props.title === 'Manual card') && field('Title')?.value === 'Manual card', 'manual source text');
       await click('Save project style');
       await set('Style destination', preset.id);
       await click('Replace style');
