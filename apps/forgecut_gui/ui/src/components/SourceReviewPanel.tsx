@@ -57,7 +57,12 @@ export default function SourceReviewPanel({
         </ActionButton>
         <ActionButton
           icon={Film}
-          disabled={review.busy || !valid || asset.kind !== "Video"}
+          disabled={
+            review.busy ||
+            !valid ||
+            endUs - startUs > 5000000 ||
+            asset.kind !== "Video"
+          }
           tooltip="Generate a short video preview with available audio"
           onClick={() => {
             void review.start("preview");
@@ -75,6 +80,9 @@ export default function SourceReviewPanel({
           </ActionButton>
         )}
       </div>
+      {valid && asset.kind === "Video" && endUs - startUs > 5000000 && (
+        <p>Choose a range up to 5 seconds for a video preview.</p>
+      )}
       {!valid && <p>Choose a range between 0.1 and 30 seconds to review.</p>}
       {review.status && <p role="status">Source review: {review.status}</p>}
       {review.result && !review.result.ok && (
