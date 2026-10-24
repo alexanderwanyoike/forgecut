@@ -51,6 +51,7 @@ export const visualPlacementSchema = z.strictObject({
   fit: fitSchema,
 });
 const clip = z.strictObject({
+  origin_item_id: idSchema.optional(),
   id: idSchema,
   asset_id: idSchema,
   track_id: idSchema,
@@ -62,6 +63,7 @@ const clip = z.strictObject({
 const image = z.strictObject({
   fit: fitSchema.optional(),
   layer_order: layerOrderSchema.optional(),
+  origin_item_id: idSchema.optional(),
   id: idSchema,
   asset_id: idSchema,
   track_id: idSchema,
@@ -73,6 +75,7 @@ const image = z.strictObject({
   opacity: z.number().min(0).max(1),
 });
 const text = z.strictObject({
+  origin_item_id: idSchema.optional(),
   layer_order: layerOrderSchema.optional(),
   id: idSchema,
   track_id: idSchema,
@@ -130,6 +133,7 @@ const timelineSchema = z.strictObject({
           z.strictObject({ TextOverlay: text }),
           z.strictObject({
             RemotionGraphic: z.strictObject({
+              origin_item_id: idSchema.optional(),
               id: idSchema,
               track_id: idSchema,
               timeline_start_us: timeSchema,
@@ -165,7 +169,7 @@ export const sourceSelectionSchema = z
   );
 
 const projectSchema = z.strictObject({
-  schema_version: z.literal(4),
+  schema_version: z.literal(5),
   source_selections: z.array(sourceSelectionSchema).max(1000).default([]),
   default_sequence: z.strictObject({
     id: idSchema,
@@ -175,6 +179,7 @@ const projectSchema = z.strictObject({
     .array(
       z.strictObject({
         id: idSchema,
+        variant_source: z.strictObject({ sequence_id: idSchema }).optional(),
         name: z.string().trim().min(1).max(200),
         settings: settingsSchema,
         timeline: timelineSchema,
@@ -201,14 +206,14 @@ export function validateProject(input: unknown): Project {
   if (legacy) {
     migrated = {
       ...previous,
-      schema_version: 4,
+      schema_version: 5,
       default_sequence: previous.default_sequence ?? {
         id: randomUUID(),
         name: "Main",
       },
     };
-  } else if (previous.schema_version === 3) {
-    migrated = { ...previous, schema_version: 4 };
+  } else if (previous.schema_version === 3 || previous.schema_version === 4) {
+    migrated = { ...previous, schema_version: 5 };
   }
   const project = projectSchema.parse(migrated);
   const ids = new Set<string>();

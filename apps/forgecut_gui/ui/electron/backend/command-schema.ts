@@ -79,6 +79,12 @@ const patch = z.discriminatedUnion("kind", [
 ]);
 const none = z.strictObject({}).optional();
 export const editSchemas = {
+  create_sequence_variant: z.strictObject({
+    sourceSequenceId: id,
+    name: z.string().trim().min(1).max(200),
+    settings: settingsSchema.partial().optional(),
+  }),
+  sync_variant_timing: z.strictObject({ itemIds: z.array(id).min(1).max(100) }),
   save_source_selection: z
     .strictObject({
       selectionId: id.optional(),

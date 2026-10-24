@@ -71,6 +71,7 @@ export type AudioSettings = {
 };
 
 export type ClipItem = {
+  origin_item_id?: string;
   id: string;
   asset_id: string;
   track_id: string;
@@ -94,6 +95,7 @@ export type VideoClipItem = ClipItem & {
 };
 
 export type ImageOverlayItem = {
+  origin_item_id?: string;
   fit?: VisualPlacement["fit"];
   layer_order?: number;
   id: string;
@@ -109,6 +111,7 @@ export type ImageOverlayItem = {
 };
 
 export type TextOverlayItem = {
+  origin_item_id?: string;
   layer_order?: number;
   id: string;
   track_id: string;
@@ -155,6 +158,7 @@ export type Timeline = {
 };
 
 export type ProjectSequence = {
+  variant_source?: { sequence_id: string };
   id: string;
   name: string;
   settings: ProjectSettings;
@@ -162,7 +166,7 @@ export type ProjectSequence = {
 };
 
 export type Project = {
-  schema_version?: 2 | 3 | 4;
+  schema_version?: 2 | 3 | 4 | 5;
   source_selections?: SourceSelection[];
   default_sequence?: Pick<ProjectSequence, "id" | "name">;
   sequences?: ProjectSequence[];
@@ -298,6 +302,8 @@ export type ItemPatch =
     };
 
 export type EditCommandName =
+  | "create_sequence_variant"
+  | "sync_variant_timing"
   | "save_source_selection"
   | "delete_source_selection"
   | "create_sequence"
@@ -351,6 +357,15 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  create_sequence_variant: {
+    args: {
+      sourceSequenceId: string;
+      name: string;
+      settings?: Partial<ProjectSettings>;
+    };
+    result: ProjectSequence;
+  };
+  sync_variant_timing: { args: { itemIds: string[] }; result: undefined };
   save_source_selection: {
     args: SourceSelectionInput;
     result: SourceSelection;
