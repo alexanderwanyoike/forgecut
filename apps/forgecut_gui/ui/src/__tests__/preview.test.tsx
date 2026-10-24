@@ -1,225 +1,221 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Preview from "../components/Preview";
+import type { Project } from "../../electron/shared/ipc-contract";
 
-const mockInvoke = vi.hoisted(() => vi.fn());
 vi.mock("../lib/bridge", () => ({
-  invoke: mockInvoke,
-  mediaUrl: (path: string) => `forgecut-media://${path}`,
+  mediaUrl: (path: string) =>
+    `forgecut-media://source?path=${encodeURIComponent(path)}`,
 }));
 
-// Mock ResizeObserver
-class MockResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+function videoProject(): Project {
+  return {
+    id: "project",
+    name: "Preview",
+    settings: { width: 640, height: 360, fps: 30, sample_rate: 48000 },
+    assets: [
+      {
+        id: "source",
+        name: "Video",
+        path: "/clip.mp4",
+        kind: "Video",
+        probe: {
+          duration_us: 12000000,
+          width: 640,
+          height: 360,
+          fps: 30,
+          codec: "h264",
+          audio_channels: 0,
+          audio_sample_rate: 0,
+        },
+      },
+    ],
+    timeline: {
+      markers: [],
+      tracks: [
+        {
+          id: "picture",
+          kind: "Video",
+          items: [
+            {
+              VideoClip: {
+                id: "clip",
+                track_id: "picture",
+                asset_id: "source",
+                timeline_start_us: 0,
+                source_in_us: 0,
+                source_out_us: 12000000,
+              },
+            },
+          ],
+        },
+      ],
+    },
+  };
 }
-vi.stubGlobal("ResizeObserver", MockResizeObserver);
+const idle = {
+  projectVersion: 0,
+  playheadUs: 0,
+  playing: false,
+  onPlayingChange: () => {},
+  onPlayheadChange: () => {},
+};
 
 describe("Preview component", () => {
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
   });
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockInvoke.mockImplementation(async (cmd: string) => {
-      if (cmd === "get_clip_at_playhead") return null;
-      if (cmd === "get_overlays_at_time") return [];
-      return null;
-    });
-  });
-
-  it("renders play button", () => {
-    render(
-      <Preview
-        playheadUs={0}
-        playing={false}
-        onPlayingChange={() => {}}
-        onPlayheadChange={() => {}}
-      />,
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+    vi.spyOn(HTMLMediaElement.prototype, "readyState", "get").mockReturnValue(
+      4,
     );
-    const btn = screen.getByRole("button");
-    expect(btn.textContent).toContain("\u25B6");
   });
-
-  it("shows stop icon when playing", () => {
-    render(
-      <Preview
-        playheadUs={0}
-        playing={true}
-        onPlayingChange={() => {}}
-        onPlayheadChange={() => {}}
-      />,
-    );
-    const btn = screen.getByRole("button");
-    expect(btn.textContent).toContain("\u23F9");
+  it("renders the play control", () => {
+    render(<Preview {...idle} />);
+    expect(screen.getByRole("button").textContent).toContain("▶");
   });
-
-  it("formats playhead time correctly", () => {
-    render(
-      <Preview
-        playheadUs={65_500_000}
-        playing={false}
-        onPlayingChange={() => {}}
-        onPlayheadChange={() => {}}
-      />,
-    );
+  it("shows the stop icon during playback", () => {
+    render(<Preview {...idle} project={videoProject()} playing />);
+    expect(screen.getByRole("button").textContent).toContain("⏹");
+  });
+  it("formats the playhead time", () => {
+    render(<Preview {...idle} playheadUs={65500000} />);
     expect(screen.getByText("00:01:05.500")).toBeTruthy();
   });
-
-  it("calls get_clip_at_playhead when playheadUs changes", async () => {
-    const { unmount } = render(
-      <Preview
-        playheadUs={1_000_000}
-        playing={false}
-        onPlayingChange={() => {}}
-        onPlayheadChange={() => {}}
-      />,
-    );
-
-    await new Promise((r) => setTimeout(r, 50));
-
-    const calls = mockInvoke.mock.calls.filter(
-      (c) => c[0] === "get_clip_at_playhead",
-    );
-    expect(calls.length).toBeGreaterThan(0);
-    expect(calls[0][1]).toEqual({ playheadUs: 1_000_000 });
-
-    unmount();
-  });
-
-  it("seeks the preview video when playheadUs changes within a clip", async () => {
-    mockInvoke.mockImplementation(
-      async (cmd: string, args?: { playheadUs?: number }) => {
-        if (cmd === "get_clip_at_playhead") {
-          return {
-            file_path: "/tmp/clip.mp4",
-            seek_seconds: (args?.playheadUs ?? 0) / 1_000_000,
-            clip_start_us: 0,
-            clip_end_us: 12_000_000,
-            source_in_us: 0,
-          };
-        }
-        if (cmd === "get_overlays_at_time") return [];
-        return null;
-      },
-    );
+  it("seeks the current source when the paused playhead changes", async () => {
+    const project = videoProject();
     const { rerender } = render(
-      <Preview
-        playheadUs={1_000_000}
-        playing={false}
-        onPlayingChange={() => {}}
-        onPlayheadChange={() => {}}
-      />,
+      <Preview {...idle} project={project} playheadUs={1000000} />,
     );
-    const video = document.querySelector(
-      "video.preview-video",
-    ) as HTMLVideoElement;
-
-    await waitFor(() => {
-      expect(video.currentTime).toBe(1);
-    });
-
-    rerender(
-      <Preview
-        playheadUs={4_000_000}
-        playing={false}
-        onPlayingChange={() => {}}
-        onPlayheadChange={() => {}}
-      />,
+    await waitFor(() =>
+      expect(
+        document.querySelector<HTMLVideoElement>("video")?.currentTime,
+      ).toBe(1),
     );
-
-    await waitFor(() => {
-      expect(video.currentTime).toBe(4);
-    });
+    rerender(<Preview {...idle} project={project} playheadUs={4000000} />);
+    await waitFor(() =>
+      expect(
+        document.querySelector<HTMLVideoElement>("video")?.currentTime,
+      ).toBe(4),
+    );
   });
-
-  it("shows 'No clip at playhead' when no clip found", async () => {
-    render(
-      <Preview
-        playheadUs={1_000_000}
-        playing={false}
-        onPlayingChange={() => {}}
-        onPlayheadChange={() => {}}
-      />,
-    );
-
-    await new Promise((r) => setTimeout(r, 50));
-
-    expect(screen.getByText("No clip at playhead")).toBeTruthy();
+  it("leaves a real gap black rather than retaining an old source", () => {
+    const project = videoProject();
+    const clip = project.timeline.tracks[0].items[0];
+    if (!("VideoClip" in clip)) throw new Error("Invalid video fixture");
+    clip.VideoClip.timeline_start_us = 2000000;
+    render(<Preview {...idle} project={project} />);
+    expect(document.querySelector(".preview-viewport video")).toBeNull();
   });
-
-  it("renders an HTML video element", () => {
-    render(
-      <Preview
-        playheadUs={0}
-        playing={false}
-        onPlayingChange={() => {}}
-        onPlayheadChange={() => {}}
-      />,
-    );
-    expect(document.querySelector("video.preview-video")).toBeTruthy();
+  it("renders active text from the current project snapshot", () => {
+    const project = videoProject();
+    project.timeline.tracks = [
+      {
+        id: "titles",
+        kind: "OverlayText",
+        items: [
+          {
+            TextOverlay: {
+              id: "title",
+              track_id: "titles",
+              timeline_start_us: 0,
+              duration_us: 3000000,
+              text: "Current title",
+              font_size: 48,
+              color: "#ffffff",
+              x: 100,
+              y: 100,
+            },
+          },
+        ],
+      },
+    ];
+    render(<Preview {...idle} project={project} />);
+    expect(screen.getByText("Current title")).toBeTruthy();
   });
-
-  it("pauses on project edits while allowing playback position updates", () => {
-    const pause = vi
-      .spyOn(HTMLMediaElement.prototype, "pause")
-      .mockImplementation(() => {});
+  it("pauses on project edits while retaining normal clock position updates", () => {
     const props = {
-      playheadUs: 0,
+      ...idle,
+      project: videoProject(),
       playing: true,
-      onPlayingChange: vi.fn(),
-      onPlayheadChange: vi.fn(),
       projectVersion: 0,
+      onPlayingChange: vi.fn(),
     };
     const { rerender } = render(<Preview {...props} />);
+    const pause = vi.mocked(HTMLMediaElement.prototype.pause);
     pause.mockClear();
-    rerender(<Preview {...props} playheadUs={1_000_000} />);
+    rerender(<Preview {...props} playheadUs={1000000} />);
     expect(pause).not.toHaveBeenCalled();
-    rerender(<Preview {...props} playheadUs={1_000_000} projectVersion={1} />);
-    expect(pause).toHaveBeenCalledTimes(1);
+    rerender(<Preview {...props} playheadUs={1000000} projectVersion={1} />);
+    expect(pause).toHaveBeenCalled();
+    expect(props.onPlayingChange).toHaveBeenCalledWith(false);
   });
-
-  it("does not start an old clip if the project changed while resolving playback", async () => {
-    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
-    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
-    const play = vi
-      .spyOn(HTMLMediaElement.prototype, "play")
-      .mockResolvedValue();
+  it("does not start a stale source after delayed metadata arrives", () => {
+    vi.spyOn(HTMLMediaElement.prototype, "readyState", "get").mockReturnValue(
+      0,
+    );
     const props = {
-      playheadUs: 0,
-      playing: false,
-      onPlayingChange: vi.fn(),
-      onPlayheadChange: vi.fn(),
+      ...idle,
+      project: videoProject(),
+      playing: true,
       projectVersion: 0,
+      onPlayingChange: vi.fn(),
     };
     const { rerender } = render(<Preview {...props} />);
-    await screen.findByText("No clip at playhead");
-    let finish!: (value: unknown) => void;
-    mockInvoke.mockImplementationOnce(
+    const old = document.querySelector("video")!;
+    const next = videoProject();
+    next.assets[0].path = "/new.mp4";
+    rerender(<Preview {...props} project={next} projectVersion={1} />);
+    fireEvent.loadedMetadata(old);
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  });
+  it("does not report a play request interrupted by a normal pause", async () => {
+    let rejectPlay: (error: Error) => void = () => {};
+    vi.mocked(HTMLMediaElement.prototype.play).mockImplementation(
       () =>
-        new Promise((resolve) => {
-          finish = resolve;
+        new Promise<void>((_resolve, reject) => {
+          rejectPlay = reject;
         }),
     );
-    fireEvent.click(screen.getByRole("button"));
-    rerender(<Preview {...props} projectVersion={1} />);
+    const project = videoProject();
+    const { rerender } = render(
+      <Preview {...idle} project={project} playing />,
+    );
+    rerender(<Preview {...idle} project={project} playing={false} />);
     await act(async () => {
-      finish({
-        file_path: "/old.mp4",
-        seek_seconds: 0,
-        clip_start_us: 0,
-        clip_end_us: 3_000_000,
-        source_in_us: 0,
-      });
+      rejectPlay(new DOMException("Interrupted by pause", "AbortError"));
+      await Promise.resolve();
     });
-    expect(play).not.toHaveBeenCalled();
-    expect(props.onPlayingChange).not.toHaveBeenCalledWith(true);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+  it("clears a failed source warning when a new project snapshot replaces it", () => {
+    const project = videoProject();
+    const { rerender } = render(<Preview {...idle} project={project} />);
+    fireEvent.error(document.querySelector("video")!);
+    expect(screen.getByRole("alert").textContent).toContain("Unable to play");
+    const next = videoProject();
+    next.assets[0].path = "/working.mp4";
+    rerender(<Preview {...idle} project={next} projectVersion={1} />);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+  it("replaces a removed item immediately when the owner publishes another snapshot", () => {
+    const project = videoProject();
+    const { rerender } = render(<Preview {...idle} project={project} />);
+    expect(document.querySelector("video")).toBeTruthy();
+    const next = videoProject();
+    next.timeline.tracks[0].items = [];
+    rerender(<Preview {...idle} project={next} projectVersion={1} />);
+    expect(document.querySelector("video")).toBeNull();
   });
 });

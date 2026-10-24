@@ -8,7 +8,7 @@ import {
   itemData,
   timelineStartUs,
   timelineEndUs,
-} from "./timeline-ops.js";
+} from "./timeline-item.js";
 
 // Serialized frame boundaries can differ by half a microsecond after rounding.
 export function frameAtOrAfter(timeUs: number, fps: number): number {

@@ -4,7 +4,7 @@ import {
   frameAtOrAfter,
   itemFrameRange,
   sequenceDurationUs,
-} from "./sequence.js";
+} from "../domain/sequence.js";
 
 export type RenderInput = { path: string; index: number };
 export type RenderPlan = {

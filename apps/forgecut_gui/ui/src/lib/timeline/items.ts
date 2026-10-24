@@ -1,3 +1,8 @@
+import {
+  itemData,
+  itemVariant,
+  durationUs,
+} from "../../../electron/domain/timeline-item";
 import type {
   Timeline,
   TimelineItem,
@@ -24,18 +29,13 @@ export type ItemView = {
 };
 
 export function getItemData(item: TimelineItem): ItemView {
-  const variant = Object.keys(item)[0] as TimelineItemVariant;
-  let data;
-  if ("VideoClip" in item) data = item.VideoClip;
-  else if ("AudioClip" in item) data = item.AudioClip;
-  else if ("ImageOverlay" in item) data = item.ImageOverlay;
-  else data = item.TextOverlay;
-  const startUs = data.timeline_start_us;
-  const durationUs =
-    "source_out_us" in data
-      ? data.source_out_us - data.source_in_us
-      : data.duration_us;
-  return { variant, ...data, startUs, durationUs };
+  const data = itemData(item);
+  return {
+    variant: itemVariant(item),
+    ...data,
+    startUs: data.timeline_start_us,
+    durationUs: durationUs(item),
+  };
 }
 
 export function timelineMaxEndUs(timeline: Timeline, floorUs: number): number {

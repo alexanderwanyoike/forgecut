@@ -142,6 +142,16 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
     async (args) => call({ action: "timeline", ...args }),
   );
   server.registerTool(
+    "read_sequence_frame",
+    {
+      description:
+        "Read the current frame, duration and a bounded page of active layers using the same resolver as preview. Times are integer microseconds.",
+      inputSchema: z.strictObject({ ...pageFields, playheadUs: timeSchema }),
+      annotations: { readOnlyHint: true },
+    },
+    async (request) => call({ action: "sequence", ...request }),
+  );
+  server.registerTool(
     "read_item",
     {
       description:

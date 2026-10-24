@@ -186,6 +186,7 @@ export default function App() {
       />
 
       <Preview
+        project={snapshot?.project}
         playheadUs={playheadUs}
         playing={playing}
         onPlayingChange={setPlaying}

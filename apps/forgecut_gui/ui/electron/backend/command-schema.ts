@@ -151,8 +151,6 @@ export const commandSchemas = {
   redo: none,
   get_snap_points: z.strictObject({ excludeItemId: id.optional() }),
   get_sequence_frame: z.strictObject({ playheadUs: time }),
-  get_clip_at_playhead: z.strictObject({ playheadUs: time }),
-  get_overlays_at_time: z.strictObject({ playheadUs: time }),
   get_item_details: z.strictObject({ itemId: id }),
   import_assets: z.strictObject({
     paths: z.array(z.string().min(1)).min(1).max(100),

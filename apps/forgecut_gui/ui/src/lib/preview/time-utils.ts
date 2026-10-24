@@ -8,35 +8,6 @@ export function secondsToUs(s: number): number {
   return Math.round(s * 1_000_000);
 }
 
-/**
- * Given a timeline playhead position, compute the seek time within the source file.
- * playheadUs: current timeline position in microseconds
- * clipStartUs: when the clip starts on the timeline in microseconds
- * sourceInUs: the in-point within the source file in microseconds
- */
-export function computeSeekSeconds(
-  playheadUs: number,
-  clipStartUs: number,
-  sourceInUs: number,
-): number {
-  const offsetUs = playheadUs - clipStartUs;
-  return usToSeconds(sourceInUs + offsetUs);
-}
-
-/**
- * Inverse of computeSeekSeconds: given a video.currentTime (seconds),
- * compute the corresponding timeline playhead position in microseconds.
- */
-export function sourceTimeToPlayheadUs(
-  currentTimeSec: number,
-  clipStartUs: number,
-  sourceInUs: number,
-): number {
-  const sourceUs = secondsToUs(currentTimeSec);
-  const offsetUs = sourceUs - sourceInUs;
-  return clipStartUs + offsetUs;
-}
-
 /** Format microseconds as HH:MM:SS.mmm */
 export function formatTimeUs(us: number): string {
   const totalMs = Math.floor(Math.abs(us) / 1000);

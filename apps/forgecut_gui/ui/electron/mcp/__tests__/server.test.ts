@@ -79,6 +79,29 @@ it("requires explicit attachment and edits the live owner through the official M
       ok: true,
       value: { selectedItemIds: [], playheadUs: 0 },
     });
+    const frame = await client.callTool({
+      name: "read_sequence_frame",
+      arguments: { sessionId: state.sessionId, playheadUs: 0 },
+    });
+    expect(frame.structuredContent).toMatchObject({
+      ok: true,
+      value: {
+        sessionId: state.sessionId,
+        revision: state.revision,
+        frame: 0,
+        durationUs: 0,
+        layers: [],
+        total: 0,
+      },
+    });
+    const wrongFrame = await client.callTool({
+      name: "read_sequence_frame",
+      arguments: { sessionId: "wrong-project", playheadUs: 0 },
+    });
+    expect(wrongFrame.structuredContent).toMatchObject({
+      ok: false,
+      error: { code: "PROJECT_CHANGED" },
+    });
     const history = await client.callTool({
       name: "apply_history",
       arguments: {

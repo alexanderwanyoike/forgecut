@@ -5,8 +5,6 @@ vi.mock("../lib/bridge", () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
   invoke: vi.fn().mockImplementation(async (cmd: string) => {
     if (cmd === "init_default_tracks") return { tracks: [], markers: [] };
-    if (cmd === "get_clip_at_playhead") return null;
-    if (cmd === "get_overlays_at_time") return [];
     if (cmd === "get_item_details") return null;
     return null;
   }),
@@ -14,14 +12,6 @@ vi.mock("../lib/bridge", () => ({
   open: vi.fn(),
   mediaUrl: (path: string) => `forgecut-media://${path}`,
 }));
-
-// Mock ResizeObserver
-class MockResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-vi.stubGlobal("ResizeObserver", MockResizeObserver);
 
 import App from "../App";
 

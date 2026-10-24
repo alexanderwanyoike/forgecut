@@ -4,7 +4,7 @@ import type { Result } from "../shared/result.js";
 import { runMediaProcess } from "./media-process.js";
 import type { Project } from "./state.js";
 import { compileExportPlan, type RenderPlan } from "./export-plan.js";
-import { sequenceDurationUs } from "./sequence.js";
+import { sequenceDurationUs } from "../domain/sequence.js";
 
 export { compileExportPlan } from "./export-plan.js";
 export type { RenderPlan, RenderInput } from "./export-plan.js";
