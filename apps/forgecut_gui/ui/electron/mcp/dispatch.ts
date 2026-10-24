@@ -1,6 +1,6 @@
-import type { GraphicComponent } from "../shared/graphics.js";
 import { isAbsolute } from "node:path";
 import { z } from "zod";
+import type { GraphicComponent } from "../shared/graphics.js";
 import { resolveSequenceFrame } from "../domain/sequence.js";
 import { ensureForgeCutExtension } from "../backend/state.js";
 import type { EditingService } from "../backend/editing-service.js";
