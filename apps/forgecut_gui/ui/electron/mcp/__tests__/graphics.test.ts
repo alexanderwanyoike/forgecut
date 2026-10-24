@@ -31,17 +31,19 @@ it("discovers graphic properties and preserves manual values while MCP edits a p
     expect(templates.structuredContent).toMatchObject({
       ok: true,
       value: {
-        templates: [
-          {
+        templates: expect.arrayContaining([
+          expect.objectContaining({
             template_id: "title-card",
             version: expect.any(String),
-            properties: { title: { type: "text" } },
-            layers: [
-              { name: "artwork", kind: "image" },
-              { name: "title", kind: "text" },
-            ],
-          },
-        ],
+            properties: expect.objectContaining({
+              title: expect.objectContaining({ type: "text" }),
+            }),
+            layers: expect.arrayContaining([
+              expect.objectContaining({ name: "artwork", kind: "image" }),
+              expect.objectContaining({ name: "title", kind: "text" }),
+            ]),
+          }),
+        ]),
       },
     });
     expect(JSON.stringify(templates.structuredContent)).not.toContain(

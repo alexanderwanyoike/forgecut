@@ -240,3 +240,34 @@ it("rejects a component with known source but a different property contract", as
     ),
   );
 });
+
+it("keeps multiline text editable in Properties", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  await service.execute("add_graphic_item", {
+    templateId: "title-card",
+    trackId: "graphics",
+    timelineStartUs: 0,
+    durationUs: 2000000,
+  });
+  const item = state.project.timeline.tracks[0].items[0];
+  if (!("RemotionGraphic" in item)) throw new Error("Missing graphic");
+  render(
+    <Inspector
+      project={state.project}
+      selectedClipId={item.RemotionGraphic.id}
+    />,
+  );
+  const title = screen.getByLabelText("Title");
+  expect(title.tagName).toBe("TEXTAREA");
+  fireEvent.change(title, { target: { value: "After\ndark." } });
+  await waitFor(() =>
+    expect(update).toHaveBeenCalledWith(expect.any(String), "update_item", {
+      itemId: item.RemotionGraphic.id,
+      patch: {
+        kind: "RemotionGraphic",
+        changes: { props: { title: "After\ndark." } },
+      },
+    }),
+  );
+});

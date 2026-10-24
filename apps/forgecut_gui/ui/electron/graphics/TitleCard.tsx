@@ -63,12 +63,15 @@ export default function TitleCard({ values, resources = {} }: TitleCardProps) {
   if (fontError && fontError.hash === font?.sha256)
     throw new Error(fontError.message);
   const entrance =
-    numeric(values, "entrance_frames") <= 0
+    values.animation === "none" || numeric(values, "entrance_frames") <= 0
       ? 1
       : interpolate(frame, [0, numeric(values, "entrance_frames")], [0, 1], {
           extrapolateLeft: "clamp",
           extrapolateRight: "clamp",
         });
+  let alignment: "left" | "center" | "right" = "left";
+  if (values.alignment === "center" || values.alignment === "right")
+    alignment = values.alignment;
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       <div
@@ -113,6 +116,7 @@ export default function TitleCard({ values, resources = {} }: TitleCardProps) {
           fontWeight: 700,
           lineHeight: 1.05,
           color: text(values, "color"),
+          textAlign: alignment,
           whiteSpace: "pre-wrap",
           overflowWrap: "break-word",
         }}
@@ -120,7 +124,7 @@ export default function TitleCard({ values, resources = {} }: TitleCardProps) {
         <div
           style={{
             opacity: entrance,
-            transform: `translateY(${(1 - entrance) * 20}px)`,
+            transform: `translateY(${values.animation === "rise" ? (1 - entrance) * 20 : 0}px)`,
           }}
         >
           {text(values, "title")}
