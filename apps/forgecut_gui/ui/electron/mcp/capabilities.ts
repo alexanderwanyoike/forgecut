@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { sourceReadSchema, draftFileSchema } from "./draft-schema.js";
 import {
+  sourceReviewRequestSchema,
   commandSchemas,
   editSchemas,
   historyRequestSchema,
@@ -56,6 +57,11 @@ export const editingCapabilities = {
   },
   history: z.toJSONSchema(historyRequestSchema),
   jobs: {
+    sourceReview: z.toJSONSchema(sourceReviewRequestSchema),
+    sourceReviewMaxDurationUs: 30_000_000,
+    contactSheetCells: 12,
+    waveformMaxBins: 512,
+    sourceReviewCacheBytes: 8 * 1024 * 1024,
     resourceImport: z.toJSONSchema(resourceRequestSchema),
     export: z.toJSONSchema(exportRequestSchema),
     states: [

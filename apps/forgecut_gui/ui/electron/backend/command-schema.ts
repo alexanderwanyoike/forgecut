@@ -214,7 +214,24 @@ const graphicSourceTargetFields = {
     })
     .optional(),
 };
+export const sourceReviewRequestSchema = z
+  .strictObject({
+    sessionId: id,
+    expectedRevision: time,
+    requestId: id,
+    assetId: id,
+    startUs: time,
+    endUs: time,
+    kind: z.enum(["contact-sheet", "waveform"]),
+  })
+  .refine(
+    (request) =>
+      request.endUs - request.startUs >= 100000 &&
+      request.endUs - request.startUs <= 30000000,
+    "Review a source range between 100 milliseconds and 30 seconds",
+  );
 export const commandSchemas = {
+  start_source_review: sourceReviewRequestSchema,
   get_graphic_type_libraries: none,
   get_graphic_draft_preview: z.strictObject({
     ...graphicSourceTargetFields,

@@ -164,7 +164,10 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-async function mediaCacheId(path: string, assetId: string): Promise<string> {
+export async function mediaCacheId(
+  path: string,
+  assetId: string,
+): Promise<string> {
   const source = await stat(path);
   return createHash("sha256")
     .update(JSON.stringify([assetId, path, source.size, source.mtimeMs]))
