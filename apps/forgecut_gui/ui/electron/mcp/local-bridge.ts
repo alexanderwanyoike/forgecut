@@ -116,6 +116,8 @@ export async function startLocalBridge(
         cancel: "Cancel job",
         summary: "Read project",
         assets: "Read assets",
+        sequences: "Read sequences",
+        "select-sequence": "Select sequence",
         timeline: "Read timeline",
         sequence: "Read sequence frame",
         item: "Read item",
