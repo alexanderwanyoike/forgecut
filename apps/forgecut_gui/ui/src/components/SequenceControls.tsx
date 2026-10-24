@@ -1,33 +1,14 @@
 import { Copy, Layers3, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import ActionButton from "./ActionButton";
+import SequenceNameForm, {
+  variantSizes,
+  type NameEdit,
+} from "./SequenceNameForm";
 import { projectSequences } from "../../electron/domain/project-sequences";
-import type {
-  ProjectSnapshot,
-  ProjectSettings,
-} from "../../electron/shared/ipc-contract";
+import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
 import { invoke, invokeInContext } from "../lib/bridge";
 import "./sequence-controls.css";
-
-type NameEdit =
-  | { kind: "create"; name: string; settings: ProjectSettings }
-  | { kind: "rename"; name: string; sequenceId: string }
-  | {
-      kind: "variant";
-      name: string;
-      sourceSequenceId: string;
-      sourceName: string;
-      format: "source" | "portrait" | "landscape";
-    };
-const variantSizes = {
-  portrait: { width: 1080, height: 1920 },
-  landscape: { width: 1920, height: 1080 },
-};
-const submitLabels = {
-  create: "Create sequence",
-  rename: "Save sequence name",
-  variant: "Create variant",
-};
 
 type Props = {
   snapshot: ProjectSnapshot;
@@ -184,7 +165,7 @@ export default function SequenceControls({
             sequenceId: selected.id,
           })
         }
-      ></ActionButton>
+      />
       <ActionButton
         icon={Trash2}
         iconOnly
@@ -193,7 +174,7 @@ export default function SequenceControls({
         onClick={() => {
           void remove().catch(() => {});
         }}
-      ></ActionButton>
+      />
       {selected.variant_source && (
         <ActionButton
           icon={RefreshCw}
@@ -215,74 +196,15 @@ export default function SequenceControls({
         </ActionButton>
       )}
       {form && (
-        <form
-          className="sequence-name-form"
-          onSubmit={(event) => {
-            event.preventDefault();
+        <SequenceNameForm
+          form={form}
+          busy={busy}
+          onChange={setForm}
+          onSubmit={() => {
             void save().catch(() => {});
           }}
-        >
-          <label>
-            Sequence name
-            <input
-              aria-label="Sequence name"
-              maxLength={200}
-              autoFocus
-              disabled={busy}
-              value={form.name}
-              onChange={(event) => {
-                const name = event.currentTarget.value;
-                setForm((current) => (current ? { ...current, name } : null));
-              }}
-            />
-          </label>
-          {form.kind === "variant" && (
-            <>
-              <p>Source: {form.sourceName}</p>
-              <label>
-                Variant format
-                <select
-                  value={form.format}
-                  disabled={busy}
-                  onChange={(event) => {
-                    const format = event.currentTarget.value;
-                    if (
-                      format === "source" ||
-                      format === "portrait" ||
-                      format === "landscape"
-                    )
-                      setForm((current) =>
-                        current?.kind === "variant"
-                          ? { ...current, format }
-                          : current,
-                      );
-                  }}
-                >
-                  <option value="source">Same dimensions</option>
-                  <option value="portrait">Portrait / 1080 × 1920</option>
-                  <option value="landscape">Landscape / 1920 × 1080</option>
-                </select>
-              </label>
-            </>
-          )}
-          <div className="sequence-form-actions">
-            <ActionButton
-              type="submit"
-
-              disabled={busy || !form.name.trim()}
-            >
-              {submitLabels[form.kind]}
-            </ActionButton>
-            <ActionButton
-              type="button"
-
-              disabled={busy}
-              onClick={() => setForm(null)}
-            >
-              Cancel
-            </ActionButton>
-          </div>
-        </form>
+          onCancel={() => setForm(null)}
+        />
       )}
     </div>
   );
