@@ -134,12 +134,12 @@ export function useSourceReview(input: Input) {
       if (token === generation.current) setBusy(false);
     }
   }
-  function clear(status: "cancelled" | null) {
+  function clear(nextStatus: "cancelled" | null) {
     generation.current += 1;
     stop(job.current);
     job.current = null;
     setBusy(false);
-    setStatus(status);
+    setStatus(nextStatus);
     setResult(null);
   }
   return {
