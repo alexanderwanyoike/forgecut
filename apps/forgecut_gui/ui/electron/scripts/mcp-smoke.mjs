@@ -35,6 +35,20 @@ export async function verifyMcp(directory, send) {
     const snapshot = attached.structuredContent?.value;
     if (attached.isError || !snapshot?.sessionId)
       throw new Error("Could not attach to the running editor");
+    const styles = await client.callTool({
+      name: "read_style_presets",
+      arguments: { sessionId: snapshot.sessionId },
+    });
+    if (styles.isError || styles.structuredContent?.value?.total !== 0)
+      throw new Error("Packaged style discovery did not reach the editor");
+    const missingStyle = await client.callTool({
+      name: "read_style_preset",
+      arguments: { sessionId: snapshot.sessionId, presetId: "missing-style" },
+    });
+    if (missingStyle.structuredContent?.error?.code !== "NOT_FOUND")
+      throw new Error(
+        "Packaged style value reads did not preserve the typed missing-style failure",
+      );
     const graphics = await client.callTool({
       name: "list_graphic_templates",
       arguments: { sessionId: snapshot.sessionId },
