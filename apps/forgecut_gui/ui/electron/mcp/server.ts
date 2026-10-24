@@ -161,6 +161,30 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
     async (args) => call({ action: "item", ...args }),
   );
   server.registerTool(
+    "list_graphic_templates",
+    {
+      description:
+        "Read available packaged graphic templates, editable property schemas, defaults and stable layer IDs. Component source is separate from instance values.",
+      inputSchema: z.strictObject({ sessionId: idSchema }),
+      annotations: { readOnlyHint: true },
+    },
+    async (request) => call({ action: "templates", ...request }),
+  );
+  server.registerTool(
+    "read_graphic_component",
+    {
+      description:
+        "Read the property schema, dependencies and stable layer IDs of an exact component version in the current project. Use the instance's explicit component ID and version.",
+      inputSchema: z.strictObject({
+        sessionId: idSchema,
+        componentId: idSchema,
+        version: z.string().regex(/^[a-f0-9]{64}$/),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    async (request) => call({ action: "component", ...request }),
+  );
+  server.registerTool(
     "apply_edits",
     {
       description:

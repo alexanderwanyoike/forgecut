@@ -1,3 +1,4 @@
+import type { GraphicComponent } from "../shared/graphics.js";
 import { isAbsolute } from "node:path";
 import { z } from "zod";
 import { resolveSequenceFrame } from "../domain/sequence.js";
@@ -47,6 +48,13 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
   jobRequestSchema.extend({ action: z.literal("cancel") }),
   z.strictObject({ action: z.literal("summary") }),
   z.strictObject({ action: z.literal("context"), sessionId: idSchema }),
+  z.strictObject({ action: z.literal("templates"), sessionId: idSchema }),
+  z.strictObject({
+    action: z.literal("component"),
+    sessionId: idSchema,
+    componentId: idSchema,
+    version: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
   projectFileRequestSchema.extend({ action: z.literal("save") }),
   projectFileRequestSchema.extend({ action: z.literal("open") }),
   z.strictObject({
@@ -140,6 +148,42 @@ export async function dispatchLocal(
       };
     }
     state.assertSession(request.sessionId);
+    if (request.action === "templates") {
+      const result = await service.execute("get_graphic_components");
+      if (!result.ok) return result;
+      return {
+        ok: true,
+        value: {
+          sessionId: state.sessionId,
+          templates: (result.value as GraphicComponent[]).map(
+            componentMetadata,
+          ),
+        },
+      };
+    }
+    if (request.action === "component") {
+      const component = state.project.components?.find(
+        (candidate) =>
+          candidate.id === request.componentId &&
+          candidate.version === request.version,
+      );
+      if (!component)
+        return {
+          ok: false,
+          error: {
+            code: "NOT_FOUND",
+            message: "Graphic component version not found.",
+          },
+        };
+      return {
+        ok: true,
+        value: {
+          sessionId: state.sessionId,
+          revision: state.revision,
+          component: componentMetadata(component),
+        },
+      };
+    }
     if (request.action === "sequence") {
       const { layers, ...frame } = resolveSequenceFrame(
         state.project,
@@ -246,4 +290,17 @@ export async function dispatchLocal(
       },
     };
   }
+}
+
+function componentMetadata(component: GraphicComponent) {
+  return {
+    id: component.id,
+    template_id: component.template_id,
+    version: component.version,
+    name: component.name,
+    design_size: component.design_size,
+    properties: component.properties,
+    layers: component.layers,
+    dependencies: component.dependencies,
+  };
 }
