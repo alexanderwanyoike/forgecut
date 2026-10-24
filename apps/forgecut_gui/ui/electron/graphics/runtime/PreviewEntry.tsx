@@ -15,6 +15,21 @@ if (!container) throw new Error("Missing preview root");
 const root = createRoot(container);
 let player: PlayerRef | null = null;
 let waiting = false;
+let failure = "";
+const setPlayer = (value: PlayerRef | null) => {
+  player = value;
+  if (value) {
+    value.addEventListener("waiting", () => {
+      waiting = true;
+    });
+    value.addEventListener("resume", () => {
+      waiting = false;
+    });
+    value.addEventListener("error", ({ detail }) => {
+      failure = detail.error.message;
+    });
+  }
+};
 const assets = new Map<string, Promise<void>>();
 const components = new Map<string, ReturnType<typeof compiledComponent>>();
 async function preload(input: GraphicPreviewInput) {
@@ -50,26 +65,13 @@ window.graphicPreview = async (input) => {
   );
   const width = Math.max(1, Math.round(input.width * scale));
   const height = Math.max(1, Math.round(input.height * scale));
-  let failure = "";
+  failure = "";
   waiting = false;
   flushSync(() =>
     root.render(
       <Player
         key={input.key}
-        ref={(value) => {
-          player = value;
-          if (value) {
-            value.addEventListener("waiting", () => {
-              waiting = true;
-            });
-            value.addEventListener("resume", () => {
-              waiting = false;
-            });
-            value.addEventListener("error", ({ detail }) => {
-              failure = detail.error.message;
-            });
-          }
-        }}
+        ref={setPlayer}
         component={Component}
         inputProps={{
           values: input.values,
