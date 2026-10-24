@@ -57,3 +57,72 @@ it("creates a portrait copy from the visible sequence and selects its independen
   );
   expect(state.project.timeline).toEqual(before);
 });
+
+it("syncs selected variant timing without replacing manual wording and undoes only that sync", async () => {
+  const { state, root, service, App } = await sequenceWorkspaceFixture();
+  const copied = await service.execute("create_sequence_variant", {
+    sourceSequenceId: root,
+    name: "Portrait",
+    settings: { width: 360, height: 640 },
+  });
+  expect(copied).toMatchObject({ ok: true });
+  const variant = state.project.sequences!.find(
+    (sequence) => sequence.name === "Portrait",
+  )!;
+  const targetItem = itemData(variant.timeline.tracks[0].items[0]);
+  const sourceItem = itemData(state.project.timeline.tracks[0].items[0]);
+  expect(
+    await service.execute(
+      "update_item",
+      {
+        itemId: targetItem.id,
+        patch: { kind: "TextOverlay", changes: { text: "My manual title" } },
+      },
+      { sessionId: state.sessionId, sequenceId: variant.id },
+    ),
+  ).toMatchObject({ ok: true });
+  expect(
+    await service.execute(
+      "move_clip",
+      { itemId: sourceItem.id, newStartUs: 2000000 },
+      { sessionId: state.sessionId, sequenceId: root },
+    ),
+  ).toMatchObject({ ok: true });
+  state.selectSequence(state.sessionId, variant.id);
+  state.setEditingContext({
+    sessionId: state.sessionId,
+    sequenceId: variant.id,
+    selectedItemIds: [targetItem.id],
+    playheadUs: 0,
+  });
+  render(<App />);
+  await waitFor(() =>
+    expect((screen.getByLabelText("Text") as HTMLInputElement).value).toBe(
+      "My manual title",
+    ),
+  );
+  const source = structuredClone(state.project.timeline);
+  fireEvent.click(screen.getByRole("button", { name: "Sync timing" }));
+  await waitFor(() =>
+    expect(
+      itemData(
+        state.project.sequences!.find((sequence) => sequence.id === variant.id)!
+          .timeline.tracks[0].items[0],
+      ).timeline_start_us,
+    ).toBe(2000000),
+  );
+  expect((screen.getByLabelText("Text") as HTMLInputElement).value).toBe(
+    "My manual title",
+  );
+  expect(state.project.timeline).toEqual(source);
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  await waitFor(() =>
+    expect(
+      itemData(
+        state.project.sequences!.find((sequence) => sequence.id === variant.id)!
+          .timeline.tracks[0].items[0],
+      ).timeline_start_us,
+    ).toBe(0),
+  );
+  expect(state.project.timeline).toEqual(source);
+});
