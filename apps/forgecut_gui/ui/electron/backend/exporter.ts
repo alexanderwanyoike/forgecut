@@ -1,7 +1,7 @@
-import { spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { join, resolve as resolvePath } from "node:path";
-import { tmpdir } from "node:os";
+import { mkdtemp, rm, writeFile, open, rename } from "node:fs/promises";
+import { join, dirname, resolve as resolvePath } from "node:path";
+import type { Result } from "../shared/result.js";
+import { runMediaProcess } from "./media-process.js";
 import type { Project } from "./state.js";
 import { compileExportPlan, type RenderPlan } from "./export-plan.js";
 import { sequenceDurationUs } from "./sequence.js";
@@ -18,22 +18,105 @@ export type RenderProgress = {
 };
 
 type ExportOptions = {
+  signal?: AbortSignal;
   onProgress?: (progress: RenderProgress) => void;
 };
+
+type ExportOutcome = { outputPath: string; cleanupWarning?: string };
 
 export async function exportProject(
   project: Project,
   outputPath: string,
   options: ExportOptions = {},
-): Promise<void> {
-  const plan = compileExportPlan(project);
-  plan.outputPath = outputPath;
+): Promise<Result<ExportOutcome>> {
+  if (options.signal?.aborted)
+    return {
+      ok: false,
+      error: { code: "CANCELLED", message: "Export cancelled." },
+    };
+  let directory: string | undefined;
+  let result: Result<ExportOutcome>;
+  try {
+    const destination = resolvePath(outputPath);
+    const plan = compileExportPlan(project);
+    directory = await mkdtemp(join(dirname(destination), ".forgecut-export-"));
+    plan.outputPath = join(directory, "render.mp4");
+    result = await renderPrepared(
+      plan,
+      {
+        directory,
+        destination,
+        totalSeconds: totalTimelineDurationUs(project) / 1_000_000,
+      },
+      options,
+    );
+  } catch (error) {
+    result = {
+      ok: false,
+      error: {
+        code: "IO_ERROR",
+        message: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+  if (directory) {
+    try {
+      await rm(directory, { recursive: true, force: true });
+    } catch (error) {
+      const warning = `Staging cleanup failed at ${directory}: ${error instanceof Error ? error.message : String(error)}`;
+      if (result.ok)
+        result = {
+          ok: true,
+          value: { ...result.value, cleanupWarning: warning },
+        };
+      else
+        result = {
+          ok: false,
+          error: {
+            ...result.error,
+            message: `${result.error.message} ${warning}`,
+          },
+        };
+    }
+  }
+  return result;
+}
 
-  await executeRenderPlan(
+async function renderPrepared(
+  plan: RenderPlan,
+  target: { directory: string; destination: string; totalSeconds: number },
+  options: ExportOptions,
+): Promise<Result<ExportOutcome>> {
+  for (const file of plan.textFiles)
+    await writeFile(join(target.directory, file.name), file.content);
+  const rendered = await executeRenderPlan(
     plan,
-    totalTimelineDurationUs(project) / 1_000_000,
-    options.onProgress,
+    target.totalSeconds,
+    target.directory,
+    options,
   );
+  if (!rendered.ok) return rendered;
+  const file = await open(plan.outputPath, "r");
+  try {
+    await file.sync();
+  } finally {
+    await file.close();
+  }
+  if (options.signal?.aborted)
+    return {
+      ok: false,
+      error: { code: "CANCELLED", message: "Export cancelled." },
+    };
+  await rename(plan.outputPath, target.destination);
+  if (process.platform === "linux") {
+    const parent = await open(dirname(target.destination), "r");
+    try {
+      await parent.sync();
+    } finally {
+      await parent.close();
+    }
+  }
+  return { ok: true, value: { outputPath: target.destination } };
 }
 
 export function buildFfmpegArgs(plan: RenderPlan): string[] {
@@ -99,62 +182,27 @@ export function totalTimelineDurationUs(project: Project): number {
   return sequenceDurationUs(project);
 }
 
-async function executeRenderPlan(
+function executeRenderPlan(
   plan: RenderPlan,
   totalSeconds: number,
-  onProgress: ExportOptions["onProgress"],
-): Promise<void> {
-  const directory = await mkdtemp(join(tmpdir(), "forgecut-render-"));
-  for (const file of plan.textFiles)
-    await writeFile(join(directory, file.name), file.content);
-  plan.outputPath = resolvePath(plan.outputPath);
-  return new Promise<void>((resolve, reject) => {
-    const child = spawn("ffmpeg", buildFfmpegArgs(plan), {
-      stdio: ["ignore", "ignore", "pipe"],
-      cwd: directory,
-    });
-    const stderrTail: string[] = [];
-    let progressBuffer = "";
-
-    child.on("error", (error: NodeJS.ErrnoException) => {
-      if (error.code === "ENOENT") {
-        reject(new Error("ffmpeg not found"));
-        return;
-      }
-      reject(error);
-    });
-
-    child.stderr?.setEncoding("utf8");
-    child.stderr?.on("data", (chunk: string) => {
-      stderrTail.push(chunk);
-      if (stderrTail.length > 20) stderrTail.shift();
-
-      progressBuffer += chunk;
+  cwd: string,
+  options: ExportOptions,
+): Promise<Result<Buffer>> {
+  let progressBuffer = "";
+  return runMediaProcess("ffmpeg", buildFfmpegArgs(plan), {
+    budget: true,
+    signal: options.signal,
+    cwd,
+    onStderr: (chunk) => {
+      progressBuffer = (progressBuffer + chunk).slice(-8192);
       const segments = progressBuffer.split(/[\r\n]/);
       progressBuffer = segments.pop() ?? "";
       for (const segment of segments) {
         const progress = parseProgress(segment.trim(), totalSeconds);
-        if (progress) onProgress?.(progress);
+        if (progress) options.onProgress?.(progress);
       }
-    });
-
-    child.on("close", (code, signal) => {
-      const progress = parseProgress(progressBuffer.trim(), totalSeconds);
-      if (progress) onProgress?.(progress);
-
-      if (code === 0) {
-        resolve();
-        return;
-      }
-
-      const status = signal ? `signal ${signal}` : `exit code ${code}`;
-      reject(
-        new Error(
-          `ffmpeg failed with ${status}: ${stderrTail.join("").trim()}`,
-        ),
-      );
-    });
-  }).finally(() => rm(directory, { recursive: true, force: true }));
+    },
+  });
 }
 
 function extractValue(line: string, key: string): string | null {

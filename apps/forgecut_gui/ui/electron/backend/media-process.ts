@@ -1,11 +1,21 @@
 import { spawn } from "node:child_process";
+import { budgetedMediaCommand } from "./process-budget.js";
 import type { Result } from "../shared/result.js";
 
-export function runMediaProcess(
+export async function runMediaProcess(
   executable: "ffmpeg" | "ffprobe",
   args: string[],
-  options: { signal?: AbortSignal; maxOutputBytes?: number } = {},
+  options: {
+    signal?: AbortSignal;
+    budget?: boolean;
+    maxOutputBytes?: number;
+    cwd?: string;
+    onStderr?: (chunk: string) => void;
+  } = {},
 ): Promise<Result<Buffer>> {
+  const invocation = options.budget
+    ? await budgetedMediaCommand(executable, args)
+    : { command: executable, args };
   return new Promise((resolve) => {
     const cancelled = (): Result<Buffer> => ({
       ok: false,
@@ -15,9 +25,10 @@ export function runMediaProcess(
       resolve(cancelled());
       return;
     }
-    const child = spawn(executable, args, {
+    const child = spawn(invocation.command, invocation.args, {
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
+      cwd: options.cwd,
       signal: options.signal,
       killSignal: "SIGKILL",
     });
@@ -35,6 +46,11 @@ export function runMediaProcess(
     });
     child.stderr.on("data", (chunk: Buffer) => {
       stderr = (stderr + chunk.toString()).slice(-8192);
+      try {
+        options.onStderr?.(chunk.toString());
+      } catch {
+        console.warn("Media progress observer failed.");
+      }
     });
     child.on("error", (error) => {
       failure = error;
