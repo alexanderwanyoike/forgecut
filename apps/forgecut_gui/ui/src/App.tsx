@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import McpStatus from "./components/McpStatus";
-import { useEditingContext } from "./hooks/useEditingContext";
-import { getItemData } from "./lib/timeline/items";
+import { useSequenceEditor } from "./hooks/useSequenceEditor";
+import SequenceControls from "./components/SequenceControls";
 import { invoke, open, save } from "./lib/bridge";
 import AssetBin from "./components/AssetBin";
 import ExportDialog from "./components/ExportDialog";
@@ -14,18 +14,21 @@ const CodeWorkspace = lazy(() => import("./components/CodeWorkspace"));
 
 export default function App() {
   const [showExport, setShowExport] = useState(false);
-  const [playheadUs, setPlayheadUs] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
-  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [sourceItemId, setSourceItemId] = useState<string | null>(null);
   const sourceClose = useRef<(() => Promise<boolean>) | null>(null);
-  const selectClip = (id: string | null) => {
-    setSelectedClipId(id);
-    setSelectedLayerId(null);
-  };
   const { snapshot, error, setError } = useProject();
-  useEditingContext(snapshot, selectedClipId, playheadUs, selectedLayerId);
+  const editor = useSequenceEditor(snapshot);
+  const {
+    playheadUs,
+    setPlayheadUs,
+    playing,
+    setPlaying,
+    selectedClipId,
+    selectedLayerId,
+    selectClip,
+    setSelectedLayerId,
+    project,
+  } = editor;
   const [recoveryPath, setRecoveryPath] = useState<string | null>(null);
   const [showFileMenu, setShowFileMenu] = useState(false);
   const projectVersion = snapshot?.revision ?? 0;
@@ -41,26 +44,10 @@ export default function App() {
 
   useEffect(() => {
     setSourceItemId(null);
-    setPlayheadUs(0);
-    setPlaying(false);
-    selectClip(null);
     if (snapshot && snapshot.project.timeline.tracks.length === 0) {
       invoke("init_default_tracks").catch(() => {});
     }
   }, [snapshot?.sessionId]);
-
-  useEffect(() => {
-    setPlaying(false);
-    if (snapshot)
-      setSelectedClipId((id) =>
-        id &&
-        snapshot.project.timeline.tracks.some((track) =>
-          track.items.some((item) => getItemData(item).id === id),
-        )
-          ? id
-          : null,
-      );
-  }, [projectVersion]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -164,6 +151,17 @@ export default function App() {
             Export
           </span>
         </div>
+        {snapshot && (
+          <SequenceControls
+            snapshot={snapshot}
+            beforeChange={async () => {
+              if (sourceClose.current && !(await sourceClose.current()))
+                return false;
+              setSourceItemId(null);
+              return true;
+            }}
+          />
+        )}
         <button
           className="theme-toggle"
           onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
@@ -198,7 +196,7 @@ export default function App() {
         missingMedia={snapshot?.missingMedia}
       />
 
-      {sourceItemId && snapshot ? (
+      {sourceItemId && snapshot && (
         <Suspense
           fallback={
             <section className="panel preview">Loading code editor…</section>
@@ -214,16 +212,19 @@ export default function App() {
             }}
           />
         </Suspense>
-      ) : (
+      )}
+
+      {!sourceItemId && editor.ready && (
         <Preview
+          key={`preview:${editor.key}`}
           sessionId={snapshot?.sessionId}
           selectedClipId={selectedClipId}
           selectedLayerId={selectedLayerId}
           onGraphicSelection={(itemId, layerId) => {
-            setSelectedClipId(itemId);
+            selectClip(itemId);
             setSelectedLayerId(layerId);
           }}
-          project={snapshot?.project}
+          project={project ?? undefined}
           playheadUs={playheadUs}
           playing={playing}
           onPlayingChange={setPlaying}
@@ -232,40 +233,58 @@ export default function App() {
         />
       )}
 
-      <Inspector
-        onEditCode={async (itemId) => {
-          if (
-            sourceItemId &&
-            sourceItemId !== itemId &&
-            sourceClose.current &&
-            !(await sourceClose.current())
-          )
-            return;
-          setPlaying(false);
-          setSourceItemId(itemId);
-        }}
-        selectedLayerId={selectedLayerId}
-        onSelectedLayerChange={setSelectedLayerId}
-        sessionId={snapshot?.sessionId}
-        selectedClipId={selectedClipId}
-        project={snapshot?.project}
-        projectVersion={projectVersion}
-      />
+      {!sourceItemId && !editor.ready && (
+        <section className="panel preview sequence-loading" aria-busy="true">
+          {editor.error ? (
+            <div role="alert">
+              {editor.error}
+              <button onClick={editor.retry}>Retry sequence</button>
+            </div>
+          ) : (
+            "Loading sequence…"
+          )}
+        </section>
+      )}
 
-      <Timeline
-        playheadUs={playheadUs}
-        playing={playing}
-        onPlayheadChange={setPlayheadUs}
-        onPlayingChange={setPlaying}
-        selectedClipId={selectedClipId}
-        onSelectedClipChange={selectClip}
-        projectVersion={projectVersion}
-        projectTimeline={snapshot?.project.timeline}
-        projectMediaVersion={JSON.stringify([
-          snapshot?.sessionId,
-          snapshot?.project.assets,
-        ])}
-      />
+      {editor.ready && (
+        <Inspector
+          onEditCode={async (itemId) => {
+            if (
+              sourceItemId &&
+              sourceItemId !== itemId &&
+              sourceClose.current &&
+              !(await sourceClose.current())
+            )
+              return;
+            setPlaying(false);
+            setSourceItemId(itemId);
+          }}
+          selectedLayerId={selectedLayerId}
+          onSelectedLayerChange={setSelectedLayerId}
+          sessionId={snapshot?.sessionId}
+          selectedClipId={selectedClipId}
+          project={project ?? undefined}
+          projectVersion={projectVersion}
+        />
+      )}
+
+      {editor.ready && (
+        <Timeline
+          key={`timeline:${editor.key}`}
+          playheadUs={playheadUs}
+          playing={playing}
+          onPlayheadChange={setPlayheadUs}
+          onPlayingChange={setPlaying}
+          selectedClipId={selectedClipId}
+          onSelectedClipChange={selectClip}
+          projectVersion={projectVersion}
+          projectTimeline={project?.timeline}
+          projectMediaVersion={JSON.stringify([
+            snapshot?.sessionId,
+            snapshot?.project.assets,
+          ])}
+        />
+      )}
 
       <ExportDialog open={showExport} onClose={() => setShowExport(false)} />
     </div>

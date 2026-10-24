@@ -1,0 +1,28 @@
+.sequence-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  -webkit-app-region: no-drag;
+}
+
+.sequence-controls select,
+.sequence-controls input {
+  max-width: 200px;
+  height: 26px;
+  padding: 2px 7px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.preview.sequence-loading {
+  display: grid;
+  place-content: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
