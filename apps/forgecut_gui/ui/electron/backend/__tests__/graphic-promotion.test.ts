@@ -238,3 +238,50 @@ it("rejects missing declared resources before source validation", async () => {
   });
   expect(state.snapshot()).toEqual(before);
 });
+
+it("rejects a newer draft saved during validation without changing active source", async () => {
+  const { state, service, items, draft, request } = await fixture();
+  const before = state.snapshot();
+  vi.mocked(GraphicPreviewService.prototype.render).mockImplementationOnce(
+    async () => {
+      draft.component.source.files[draft.component.source.entry] +=
+        "\n// newer manual draft";
+      expect(
+        await service.execute("save_graphic_draft", {
+          itemId: items[0].id,
+          sessionId: state.sessionId,
+          expectedDraftRevision: 1,
+          baseVersion: draft.baseVersion,
+          component: draft.component,
+        }),
+      ).toMatchObject({ ok: true });
+      return frame;
+    },
+  );
+  expect((await finish(service, request)).result).toMatchObject({
+    ok: false,
+    error: { code: "CONFLICT" },
+  });
+  expect(state.snapshot()).toEqual(before);
+});
+it("cancels promotion before the project commit and retains the active version", async () => {
+  const { state, service, request } = await fixture();
+  const before = state.snapshot();
+  let release!: () => void;
+  vi.mocked(GraphicPreviewService.prototype.render).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = () => resolve(frame);
+      }),
+  );
+  const started = await service.execute("start_graphic_promotion", request);
+  if (!started.ok) throw new Error(started.error.message);
+  const job = started.value as JobSnapshot;
+  await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+  expect(service.jobs.cancel(job.id, job.sessionId)).toMatchObject({
+    ok: true,
+  });
+  release();
+  expect((await finish(service, request)).status).toBe("cancelled");
+  expect(state.snapshot()).toEqual(before);
+});
