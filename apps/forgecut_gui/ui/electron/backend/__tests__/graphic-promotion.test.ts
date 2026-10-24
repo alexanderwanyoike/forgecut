@@ -218,3 +218,23 @@ it("keeps active source on runtime failure and rejects edits made while validati
   ).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
   expect(state.project.components).toEqual(before.project.components);
 });
+
+it("rejects missing declared resources before source validation", async () => {
+  const { state, service, items, draft, request } = await fixture();
+  draft.component.dependencies.assets = [randomUUID()];
+  await service.execute("save_graphic_draft", {
+    itemId: items[0].id,
+    sessionId: state.sessionId,
+    expectedDraftRevision: 1,
+    baseVersion: draft.baseVersion,
+    component: draft.component,
+  });
+  const before = state.snapshot();
+  expect(
+    (await finish(service, { ...request, expectedDraftRevision: 2 })).result,
+  ).toMatchObject({
+    ok: false,
+    error: { message: expect.stringContaining("Missing image resource") },
+  });
+  expect(state.snapshot()).toEqual(before);
+});
