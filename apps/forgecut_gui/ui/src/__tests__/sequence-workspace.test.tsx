@@ -388,3 +388,67 @@ it("keeps an outgoing view's track command bound to that view during a native sw
   expect(state.project.sequences![0].timeline.tracks).toHaveLength(1);
   expect(state.getEditingContext().activeSequenceId).toBe(clip);
 });
+
+it("keeps the export target captured before the destination dialog opens", async () => {
+  const { state, root, clip, App } = await fixture();
+  const requests = vi.spyOn(window.forgecut!, "invoke");
+  let choose!: (path: string) => void;
+  let opened!: () => void;
+  const destination = new Promise<string>((resolve) => {
+    choose = resolve;
+  });
+  const dialogOpened = new Promise<void>((resolve) => {
+    opened = resolve;
+  });
+  window.forgecut!.dialog.save = vi.fn().mockImplementation(() => {
+    opened();
+    return destination;
+  });
+  service!.jobs.start(
+    {
+      sessionId: state.sessionId,
+      projectRevision: state.revision,
+      requestId: "hold-ui-export",
+      kind: "frame",
+      label: "Held",
+      input: null,
+    },
+    async (signal) => {
+      await new Promise<void>((resolve) =>
+        signal.addEventListener("abort", () => resolve(), { once: true }),
+      );
+      return { ok: true, value: null };
+    },
+  );
+  try {
+    render(<App />);
+    await screen.findByLabelText("Text");
+    fireEvent.click(screen.getByText("Export"));
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    await dialogOpened;
+    await act(async () => {
+      state.selectSequence(state.sessionId, clip);
+    });
+    await waitFor(() =>
+      expect(
+        (screen.getByLabelText("Active sequence") as HTMLSelectElement).value,
+      ).toBe(clip),
+    );
+    await act(async () => {
+      choose("/tmp/forgecut-ui-export.mp4");
+    });
+    await waitFor(() =>
+      expect(requests).toHaveBeenCalledWith(
+        "export_project",
+        expect.objectContaining({ sequenceId: root }),
+        expect.objectContaining({
+          sessionId: state.sessionId,
+          sequenceId: root,
+        }),
+      ),
+    );
+    expect(state.getEditingContext().activeSequenceId).toBe(clip);
+  } finally {
+    choose("/tmp/forgecut-ui-export.mp4");
+  }
+});
