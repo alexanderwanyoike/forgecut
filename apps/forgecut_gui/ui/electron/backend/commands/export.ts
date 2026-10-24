@@ -6,6 +6,11 @@ import { requiredString, type CommandRegistry } from "./types.js";
 
 export function exportCommands(jobs: JobQueue) {
   return {
+    get_media_job: (args) => {
+      const result = jobs.read(requiredString(args, "jobId"), requiredString(args, "sessionId"));
+      if (!result.ok) throw new EditingError(result.error.code === "PROJECT_CHANGED" ? "PROJECT_CHANGED" : "NOT_FOUND", result.error.message);
+      return result.value;
+    },
     export_project: (args, {state, emit}) => {
       const result = startExportJob(state, jobs, {sessionId: state.sessionId, expectedRevision: state.revision, requestId: randomUUID(), outputPath: requiredString(args, "outputPath")}, progress => emit("export-progress", progress));
       if (!result.ok) throw new EditingError("IO_ERROR", result.error.message);

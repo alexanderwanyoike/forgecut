@@ -32,7 +32,7 @@ import type {
 const handlers: Record<
   Exclude<
     CommandName,
-    "get_project_snapshot" | "apply_edits" | "apply_history" | "export_project"
+    "get_project_snapshot" | "apply_edits" | "apply_history" | "export_project" | "get_media_job"
   >,
   CommandHandler
 > = {
@@ -110,7 +110,7 @@ export class EditingService {
               ),
             )
           : undefined;
-        value = await this.handlers[command as keyof typeof handlers | "export_project"](args, {
+        value = await this.handlers[command as keyof typeof handlers | "export_project" | "get_media_job" | "get_media_job"](args, {
           state: this.state,
           emit,
           ...options,

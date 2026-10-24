@@ -345,6 +345,7 @@ export type CommandMap = {
   get_waveform: { args: { assetId: string }; result: WaveformData };
 
   // Export (progress arrives via forgecut:event:export-progress events)
+  get_media_job: {args: {sessionId: string; jobId: string}; result: JobSnapshot};
   export_project: { args: { outputPath: string }; result: JobSnapshot };
 };
 
