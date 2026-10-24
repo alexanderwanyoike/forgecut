@@ -12,7 +12,7 @@ import { validateProject } from "./project-schema.js";
 export function prepareGraphicPromotion(
   project: Project,
   draft: GraphicDraft,
-  request: GraphicPromotionRequest,
+  request: Pick<GraphicPromotionRequest, "itemId" | "scope" | "mappings">,
 ): Result<{
   project: Project;
   itemIds: string[];

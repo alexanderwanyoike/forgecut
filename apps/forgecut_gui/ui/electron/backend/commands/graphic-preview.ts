@@ -1,4 +1,5 @@
-import type { CommandMap, EditErrorCode } from "../../shared/ipc-contract.js";
+import type { CommandMap } from "../../shared/ipc-contract.js";
+import { graphicPreviewError } from "../graphic-preview-error.js";
 import { EditingError } from "../editing-error.js";
 import type { CommandRegistry } from "./types.js";
 
@@ -15,21 +16,7 @@ export const graphicPreviewCommands = {
       input.frame,
       signal,
     );
-    if (!result.ok) {
-      const codes: EditErrorCode[] = [
-        "NOT_FOUND",
-        "INVALID_INPUT",
-        "CANCELLED",
-        "PROJECT_CHANGED",
-        "UNAVAILABLE",
-        "RENDER_FAILED",
-        "TIMEOUT",
-      ];
-      const code =
-        codes.find((candidate) => candidate === result.error.code) ??
-        "IO_ERROR";
-      throw new EditingError(code, result.error.message);
-    }
+    if (!result.ok) throw graphicPreviewError(result.error);
     return result.value;
   },
 } satisfies CommandRegistry;

@@ -77,3 +77,9 @@ Long recordings keep their separate streaming `forgecut-media` handler and Range
 Custom source can annotate its input with the ambient `ForgeCut.Props` interface. Its `values` fields follow the component property schema, including literal unions for select options, with resource and layer-state contracts alongside them. Generate declarations from validated metadata and supply them as a virtual compiler library. Do not add generated files to the project's source or change its content hash merely to check types.
 
 Preview, export and promotion all pass the component schema into the same compiler. Standalone native/MCP source checks accept optional `properties` for the same API. The pure declaration generator is also available to the forthcoming Monaco integration. Existing source with its own props declarations remains supported. Runtime execution still receives ordinary values and the same restricted resource map; ambient types grant no runtime capabilities.
+
+## Native code editor support
+
+The native editor can read approved package declarations from the prepared code runtime. Bound that fixed file to 8 MiB and return only its virtual package paths, leaving standard libraries to Monaco and excluding host Node declarations. This read does not expose arbitrary filesystem paths and requires no network request or package download.
+
+Draft preview builds the same candidate and migrations as Apply, then renders one requested frame in the isolated preview worker. It does not publish the candidate. Check the project/session and draft revisions before and after rendering so a late image cannot replace the user's newer work. Package-type and draft-preview commands remain native editor APIs; the MCP transport keeps its smaller bounded source reads and existing jobs.

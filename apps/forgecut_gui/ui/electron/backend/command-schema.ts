@@ -169,26 +169,31 @@ export const historyRequestSchema = z.strictObject({
 export const metadataSchema = z
   .strictObject({ sessionId: id.optional(), editGroup: id.optional() })
   .optional();
+const stableMappings = z
+  .record(z.uuid(), z.uuid().nullable())
+  .refine((value) => Object.keys(value).length <= 100);
+const graphicSourceTargetFields = {
+  itemId: id,
+  sessionId: z.uuid(),
+  expectedRevision: time,
+  expectedDraftRevision: time,
+  mappings: z
+    .strictObject({
+      properties: stableMappings.optional(),
+      layers: stableMappings.optional(),
+    })
+    .optional(),
+};
 export const commandSchemas = {
+  get_graphic_type_libraries: none,
+  get_graphic_draft_preview: z.strictObject({
+    ...graphicSourceTargetFields,
+    frame: time,
+  }),
   start_graphic_promotion: z.strictObject({
-    itemId: id,
-    sessionId: z.uuid(),
-    expectedRevision: time,
-    expectedDraftRevision: time,
+    ...graphicSourceTargetFields,
     requestId: z.uuid(),
     scope: z.enum(["instance", "shared"]).optional(),
-    mappings: z
-      .strictObject({
-        properties: z
-          .record(z.uuid(), z.uuid().nullable())
-          .refine((value) => Object.keys(value).length <= 100)
-          .optional(),
-        layers: z
-          .record(z.uuid(), z.uuid().nullable())
-          .refine((value) => Object.keys(value).length <= 100)
-          .optional(),
-      })
-      .optional(),
   }),
   get_graphic_draft: z.strictObject({ itemId: id }),
   save_graphic_draft: z.strictObject({
