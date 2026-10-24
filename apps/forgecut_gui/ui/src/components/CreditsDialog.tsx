@@ -42,6 +42,7 @@ export default function CreditsDialog({
       className="credits-dialog"
       aria-labelledby="credits-heading"
       onCancel={onClose}
+      onKeyDown={(event) => event.stopPropagation()}
     >
       <header className="credits-header">
         <div>
