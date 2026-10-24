@@ -1,5 +1,5 @@
 import { spawn, execFile } from "node:child_process";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { Result } from "../shared/result.js";
 import { budgetedMediaCommand } from "./process-budget.js";
 
@@ -8,7 +8,39 @@ export async function runGraphicWorker(
   jobPath: string,
   signal?: AbortSignal,
 ): Promise<Result<null>> {
-  const invocation = await budgetedMediaCommand(process.execPath, [
+  if (process.platform !== "linux")
+    return {
+      ok: false,
+      error: {
+        code: "UNAVAILABLE",
+        message:
+          "Graphics export requires the supported Linux process boundary. Native rendering on this platform is not available yet.",
+      },
+    };
+  const directory = dirname(jobPath);
+  const invocation = await budgetedMediaCommand("bwrap", [
+    "--ro-bind",
+    "/",
+    "/",
+    "--tmpfs",
+    "/tmp",
+    "--dev",
+    "/dev",
+    "--proc",
+    "/proc",
+    "--ro-bind",
+    runtime,
+    runtime,
+    "--bind",
+    directory,
+    directory,
+    "--chdir",
+    directory,
+    "--unshare-pid",
+    "--die-with-parent",
+    "--new-session",
+    "--",
+    process.execPath,
     join(runtime, "worker.cjs"),
     jobPath,
   ]);
@@ -24,8 +56,7 @@ export async function runGraphicWorker(
     const child = spawn(invocation.command, invocation.args, {
       env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
       stdio: ["ignore", "ignore", "pipe"],
-      detached: process.platform !== "win32",
-      windowsHide: true,
+      detached: true,
     });
     let stderr = "";
     let failure: Error | undefined;
@@ -33,19 +64,11 @@ export async function runGraphicWorker(
     let cleanup: Promise<void> | undefined;
     const killTree = (): Promise<void> => {
       cleanup ??= new Promise<void>((done) => {
-        if (child.pid && process.platform !== "win32") {
+        if (child.pid) {
           try {
             process.kill(-child.pid, "SIGKILL");
           } catch {}
-        } else if (child.pid) {
-          execFile(
-            "taskkill",
-            ["/pid", String(child.pid), "/T", "/F"],
-            { timeout: 3000 },
-            () => done(),
-          );
-          return;
-        } else child.kill("SIGKILL");
+        }
         if (invocation.unit)
           execFile(
             "systemctl",
@@ -88,7 +111,10 @@ export async function runGraphicWorker(
           resolve({
             ok: false,
             error: {
-              code: "RENDER_FAILED",
+              code:
+                failure && "code" in failure && failure.code === "ENOENT"
+                  ? "UNAVAILABLE"
+                  : "RENDER_FAILED",
               message:
                 failure?.message ??
                 (stderr || `Graphics worker exited with ${String(code)}.`),
