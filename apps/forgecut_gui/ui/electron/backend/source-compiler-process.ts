@@ -1,6 +1,7 @@
 import { spawn, execFile } from "node:child_process";
 import { join } from "node:path";
 import { z } from "zod";
+import { graphicDiagnosticsSchema } from "../shared/graphic-diagnostic-schema.js";
 import type { GraphicCompilation } from "../shared/graphic-source.js";
 import type { Result } from "../shared/result.js";
 import { budgetedMediaCommand } from "./process-budget.js";
@@ -15,16 +16,7 @@ const compilationSchema = z.discriminatedUnion("ok", [
     error: z.strictObject({
       code: z.literal("INVALID_SOURCE"),
       message: z.string().max(8192),
-      diagnostics: z
-        .array(
-          z.strictObject({
-            file: z.string().max(512),
-            line: z.number().int().positive(),
-            column: z.number().int().positive(),
-            message: z.string().max(8192),
-          }),
-        )
-        .max(100),
+      diagnostics: graphicDiagnosticsSchema,
     }),
   }),
 ]);
