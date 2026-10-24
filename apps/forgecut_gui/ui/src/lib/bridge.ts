@@ -50,6 +50,18 @@ let activeSession: string | undefined;
 let activeRevision = -1;
 let activeSequenceId: string | undefined;
 let activeSequenceRevision = -1;
+let displayedContext: { sessionId: string; sequenceId: string } | undefined;
+
+export function bindEditorContext(
+  sessionId: string,
+  sequenceId: string,
+): () => void {
+  const context = { sessionId, sequenceId };
+  displayedContext = context;
+  return () => {
+    if (displayedContext === context) displayedContext = undefined;
+  };
+}
 
 function acceptVersion(sessionId: string, revision: number): void {
   if (revision >= activeRevision) {
@@ -109,9 +121,11 @@ function request<K extends CommandName>(
       sessionId:
         command === "get_project_snapshot" || jobControl
           ? undefined
-          : activeSession,
+          : (displayedContext?.sessionId ?? activeSession),
       editGroup,
-      sequenceId: jobControl ? undefined : activeSequenceId,
+      sequenceId: jobControl
+        ? undefined
+        : (displayedContext?.sequenceId ?? activeSequenceId),
     })
     .then((response) => {
       if (!response.ok)

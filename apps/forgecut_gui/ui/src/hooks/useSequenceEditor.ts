@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
 import { projectForSequence } from "../../electron/domain/project-sequences";
 import { resolveGraphicInstance } from "../../electron/domain/graphic-instance";
 import { itemData } from "../../electron/domain/timeline-item";
 import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
-import { invoke } from "../lib/bridge";
+import { bindEditorContext, invoke } from "../lib/bridge";
 import { useEditingContext } from "./useEditingContext";
 
 type Controls = {
@@ -35,6 +41,10 @@ export function useSequenceEditor(snapshot: ProjectSnapshot | null) {
   }, [snapshot, sequenceId]);
   const ready = context.key === key && context.ready;
   const controls = ready ? context : empty;
+  useLayoutEffect(() => {
+    if (!ready || !snapshot || !sequenceId) return undefined;
+    return bindEditorContext(snapshot.sessionId, sequenceId);
+  }, [ready, key]);
   const displayedSnapshot = useMemo(
     () => (snapshot && project && ready ? { ...snapshot, project } : null),
     [snapshot, project, ready],
