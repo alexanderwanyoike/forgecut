@@ -50,7 +50,7 @@ export class GraphicPreviewService {
       : this.controller.signal;
     const resolved = resolveGraphicInstance(project, itemId);
     if (!resolved.ok) return resolved;
-    const { item, component } = resolved.value;
+    const { item, component, sequence } = resolved.value;
     const properties = validateGraphicProperties(
       component,
       values ?? item.props,
@@ -62,8 +62,8 @@ export class GraphicPreviewService {
       1,
       frameAtOrAfter(
         item.timeline_start_us + item.duration_us,
-        project.settings.fps,
-      ) - frameAtOrAfter(item.timeline_start_us, project.settings.fps),
+        sequence.settings.fps,
+      ) - frameAtOrAfter(item.timeline_start_us, sequence.settings.fps),
     );
     if (!Number.isSafeInteger(frame) || frame < 0 || frame >= duration)
       return {
@@ -84,7 +84,7 @@ export class GraphicPreviewService {
           sessionId,
           itemId,
           component.version,
-          project.settings,
+          sequence.settings,
           duration,
           references,
           project.resources?.map((resource) => [resource.id, resource.sha256]),
@@ -134,9 +134,9 @@ export class GraphicPreviewService {
             key,
             code: compiled.value.value.code,
             resources: resources.value,
-            width: project.settings.width,
-            height: project.settings.height,
-            fps: project.settings.fps,
+            width: sequence.settings.width,
+            height: sequence.settings.height,
+            fps: sequence.settings.fps,
             duration,
           },
         };
