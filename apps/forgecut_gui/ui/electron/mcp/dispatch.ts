@@ -77,6 +77,7 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
     request: historyRequestSchema,
   }),
   z.strictObject({ action: z.literal("assets"), ...pageFields }),
+  z.strictObject({ action: z.literal("style-presets"), ...resourcePageFields }),
   z.strictObject({
     action: z.literal("source-selections"),
     ...resourcePageFields,
@@ -109,6 +110,7 @@ function summary(
     sequenceRevision: context.sequenceRevision,
     assetCount: source.project.assets.length,
     resourceCount: source.project.resources?.length ?? 0,
+    stylePresetCount: source.project.style_presets?.length ?? 0,
     trackCount: source.project.timeline.tracks.length,
     tracks: source.project.timeline.tracks.slice(0, 100).map((track) => ({
       id: track.id,
@@ -188,6 +190,36 @@ export async function dispatchLocal(
       request.action === "item"
     )
       return dispatchSequenceAction(state, request);
+    if (request.action === "style-presets") {
+      const presets = state.project.style_presets ?? [];
+      return {
+        ok: true,
+        value: {
+          sessionId: state.sessionId,
+          revision: state.revision,
+          total: presets.length,
+          presets: presets
+            .slice(request.offset, request.offset + request.limit)
+            .map(
+              ({
+                id,
+                name,
+                purpose,
+                canvas_size,
+                component_id,
+                component_version,
+              }) => ({
+                id,
+                name,
+                purpose,
+                canvas_size,
+                component_id,
+                component_version,
+              }),
+            ),
+        },
+      };
+    }
     if (request.action === "source-selections") {
       if (
         request.assetId &&

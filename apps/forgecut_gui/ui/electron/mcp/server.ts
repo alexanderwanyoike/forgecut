@@ -162,6 +162,16 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
     async (args) => call({ action: "select-sequence", ...args }),
   );
   server.registerTool(
+    "read_style_presets",
+    {
+      description:
+        "Read up to 20 project card/ending style identities with names, canvas sizes and exact component versions. Use add_graphic_from_preset in apply_edits to create an independently editable instance with optional property overrides. This bounded metadata page excludes property payloads; read the created instance to inspect its current values.",
+      inputSchema: z.strictObject(resourcePageFields),
+      annotations: { readOnlyHint: true },
+    },
+    async (args) => call({ action: "style-presets", ...args }),
+  );
+  server.registerTool(
     "read_source_selections",
     {
       description:
