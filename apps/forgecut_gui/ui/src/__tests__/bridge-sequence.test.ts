@@ -80,3 +80,55 @@ it("binds UI edits to the accepted active sequence snapshot", async () => {
     unlisten();
   }
 });
+it("keeps the newer sequence target when an older snapshot read arrives late", async () => {
+  const { state, bridge, unlisten } = await fixture();
+  let release: (() => void) | undefined;
+  let began: (() => void) | undefined;
+  const paused = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    began = resolve;
+  });
+  const native = window.forgecut!.invoke;
+  window.forgecut!.invoke = async <T>(
+    command: string,
+    args?: Record<string, unknown>,
+    metadata?: CommandMetadata,
+  ): Promise<CommandResponse<T>> => {
+    const response = await native<T>(command, args, metadata);
+    if (command === "get_project_snapshot") {
+      began!();
+      await paused;
+    }
+    return response;
+  };
+  try {
+    const old = bridge.invoke("get_project_snapshot");
+    await started;
+    const clip = state.project.sequences![0].id;
+    await service!.execute("select_sequence", {
+      sessionId: state.sessionId,
+      sequenceId: clip,
+    });
+    release!();
+    await old;
+    await bridge.invoke("add_text_overlay", {
+      trackId: "clip-titles",
+      timelineStartUs: 0,
+      durationUs: 1000000,
+      text: "Latest sequence",
+      fontSize: 48,
+      color: "#ffffff",
+      x: 10,
+      y: 20,
+    });
+    expect(state.project.timeline.tracks).toEqual([]);
+    expect(
+      state.project.sequences![0].timeline.tracks[0].items[0],
+    ).toMatchObject({ TextOverlay: { text: "Latest sequence" } });
+  } finally {
+    release!();
+    unlisten();
+  }
+});
