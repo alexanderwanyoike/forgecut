@@ -210,3 +210,33 @@ it("creates and selects a named sequence while retaining shared project content"
   ).toEqual(before.sequences);
   expect(state.revision).toBe(revision + 1);
 });
+
+it("renames the sequence chosen when the form opened even after active context changes", async () => {
+  const { state, clip, App } = await fixture();
+  render(<App />);
+  await screen.findByLabelText("Text");
+  fireEvent.click(screen.getByRole("button", { name: "Rename sequence" }));
+  fireEvent.change(screen.getByLabelText("Sequence name"), {
+    target: { value: "Main cut" },
+  });
+  await act(async () => {
+    state.selectSequence(state.sessionId, clip);
+  });
+  await waitFor(() =>
+    expect((screen.getByLabelText("Text") as HTMLInputElement).value).toBe(
+      "Clip wording",
+    ),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save sequence name" }));
+  await waitFor(() =>
+    expect(state.project.default_sequence?.name).toBe("Main cut"),
+  );
+  expect(state.project.sequences![0].name).toBe("Portrait clip");
+  expect(state.getEditingContext().activeSequenceId).toBe(clip);
+  expect(state.snapshot().undoSequenceId).toBeUndefined();
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  await waitFor(() =>
+    expect(state.project.default_sequence?.name).toBe("Main"),
+  );
+  expect(state.getEditingContext().activeSequenceId).toBe(clip);
+});
