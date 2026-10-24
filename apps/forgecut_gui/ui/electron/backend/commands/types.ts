@@ -6,7 +6,12 @@ export type EventSink = <E extends keyof EventPayloads>(
   event: E,
   payload: EventPayloads[E],
 ) => void;
-export type CommandContext = { state: AppState; emit: EventSink };
+export type CommandContext = {
+  state: AppState;
+  emit: EventSink;
+  signal?: AbortSignal;
+  onProgress?: (progress: number) => void;
+};
 export type CommandHandler = (
   args: CommandArgs,
   context: CommandContext,

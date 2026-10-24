@@ -1,4 +1,4 @@
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Client } from "@modelcontextprotocol/client";
@@ -61,6 +61,60 @@ export async function verifyMcp(directory, send) {
     });
     if (visible.result?.result?.value !== true)
       throw new Error("MCP edit did not reach the Electron renderer");
+    const path = join(isolated, "mcp-source.png");
+    await writeFile(
+      path,
+      Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    );
+    const current = await client.callTool({
+      name: "read_project",
+      arguments: {},
+    });
+    const started = await client.callTool({
+      name: "start_import",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        expectedRevision: current.structuredContent.value.revision,
+        requestId: "smoke-import",
+        paths: [path],
+      },
+    });
+    if (started.isError) throw new Error(JSON.stringify(started));
+    const jobId = started.structuredContent.value.id;
+    let job;
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const result = await client.callTool({
+        name: "get_job",
+        arguments: { sessionId: snapshot.sessionId, jobId },
+      });
+      if (result.isError) throw new Error(JSON.stringify(result));
+      job = result.structuredContent.value;
+      if (!["queued", "running"].includes(job.status)) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    if (
+      job?.status !== "completed" ||
+      job.result?.value?.assetIds?.length !== 1
+    )
+      throw new Error(
+        `Media import job did not complete: ${JSON.stringify(job)}`,
+      );
+    const assetVisible = await send("Runtime.evaluate", {
+      expression: `(async () => {
+        for (let attempt = 0; attempt < 100; attempt++) {
+          if ([...document.querySelectorAll('.asset-name')].some(el => el.textContent === 'mcp-source.png')) return true;
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        return false;
+      })()`,
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    if (assetVisible.result?.result?.value !== true)
+      throw new Error("Completed MCP import did not reach the asset bin");
   } finally {
     await client.close();
     await transport.close();

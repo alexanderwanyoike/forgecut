@@ -8,6 +8,7 @@ import type {
   EditRequest,
   ProjectSnapshot,
 } from "../shared/ipc-contract.js";
+import { JobQueue } from "./job-queue.js";
 import { AppState } from "./state.js";
 import { EditingError } from "./editing-error.js";
 import {
@@ -48,6 +49,8 @@ type CachedEdit = {
 };
 
 export class EditingService {
+  readonly jobs = new JobQueue();
+
   private requests = new Map<string, CachedEdit>();
 
   constructor(readonly state: AppState) {}
@@ -57,6 +60,10 @@ export class EditingService {
     input?: unknown,
     metadata?: unknown,
     emit: EventSink = () => {},
+    options: {
+      signal?: AbortSignal;
+      onProgress?: (progress: number) => void;
+    } = {},
   ): Promise<CommandResponse> {
     try {
       if (typeof command !== "string")
@@ -105,6 +112,7 @@ export class EditingService {
         value = await handlers[command as keyof typeof handlers](args, {
           state: this.state,
           emit,
+          ...options,
         });
         if (
           !["create_project", "load_project", "recover_project"].includes(

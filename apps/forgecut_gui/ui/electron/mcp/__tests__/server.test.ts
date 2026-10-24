@@ -20,6 +20,10 @@ it("requires explicit attachment and edits the live owner through the official M
   try {
     await server.connect(serverTransport);
     await client.connect(clientTransport);
+    const tools = await client.listTools();
+    expect(tools.tools.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining(["start_import", "get_job", "cancel_job"]),
+    );
     const capabilities = await client.callTool({
       name: "get_capabilities",
       arguments: {},

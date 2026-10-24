@@ -37,6 +37,10 @@ jobs:
       - name: Lint TypeScript
         run: yarn --cwd apps/forgecut_gui/ui lint
 
+      - name: Install media integration tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Run tests
         run: yarn --cwd apps/forgecut_gui/ui test
 
@@ -56,7 +60,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb
+          sudo apt-get install -y xvfb ffmpeg
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

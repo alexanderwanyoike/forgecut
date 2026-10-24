@@ -19,13 +19,17 @@ const editing = new EditingService(state);
 let localBridge: Awaited<ReturnType<typeof startLocalBridge>> | undefined;
 let quitting = false;
 app.on("before-quit", (event) => {
-  if (!localBridge || quitting) return;
+  if (quitting) return;
   event.preventDefault();
   quitting = true;
-  void localBridge
-    .close()
-    .catch((error: unknown) => console.error(error))
-    .finally(() => app.quit());
+  void Promise.allSettled([editing.jobs.close(), localBridge?.close()]).then(
+    (results) => {
+      for (const result of results) {
+        if (result.status === "rejected") console.error(result.reason);
+      }
+      app.quit();
+    },
+  );
 });
 const broadcast: EventSink = (event, payload) => {
   for (const win of BrowserWindow.getAllWindows()) {

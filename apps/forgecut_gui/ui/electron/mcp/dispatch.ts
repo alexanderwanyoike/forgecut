@@ -15,6 +15,12 @@ import {
 } from "../backend/timeline-ops.js";
 import { EditingError } from "../backend/editing-error.js";
 import type { BridgeResult } from "./contract.js";
+import {
+  importRequestSchema,
+  jobRequestSchema,
+  frameRequestSchema,
+} from "./job-schema.js";
+import { startMediaJob } from "../backend/media-jobs.js";
 
 export const pageFields = {
   sessionId: idSchema,
@@ -31,6 +37,10 @@ export const projectFileRequestSchema = z.strictObject({
     .refine(isAbsolute, "Use an absolute project path"),
 });
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
+  frameRequestSchema.extend({ action: z.literal("frame") }),
+  importRequestSchema.extend({ action: z.literal("import") }),
+  jobRequestSchema.extend({ action: z.literal("job") }),
+  jobRequestSchema.extend({ action: z.literal("cancel") }),
   z.strictObject({ action: z.literal("summary") }),
   z.strictObject({ action: z.literal("context"), sessionId: idSchema }),
   projectFileRequestSchema.extend({ action: z.literal("save") }),
@@ -94,6 +104,13 @@ export async function dispatchLocal(
   const request = parsed.data;
   const { state } = service;
   try {
+    if (request.action === "job")
+      return service.jobs.read(request.jobId, request.sessionId);
+    if (request.action === "cancel")
+      return service.jobs.cancel(request.jobId, request.sessionId);
+    if (request.action === "import" || request.action === "frame") {
+      return startMediaJob(service, request);
+    }
     if (request.action === "summary")
       return { ok: true, value: summary(state) };
     if (request.action === "apply" || request.action === "history") {

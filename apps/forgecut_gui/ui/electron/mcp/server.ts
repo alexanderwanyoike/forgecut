@@ -9,8 +9,36 @@ import { idSchema, timeSchema } from "../backend/project-schema.js";
 import { pageFields, projectFileRequestSchema } from "./dispatch.js";
 import { callBridge, listSessions, sessionDirectory } from "./sessions.js";
 import type { BridgeResult, LocalSession } from "./contract.js";
+import {
+  importRequestSchema,
+  jobRequestSchema,
+  frameRequestSchema,
+  frameJobSchema,
+} from "./job-schema.js";
 
 function toolResult(result: BridgeResult) {
+  const frame = result.ok ? frameJobSchema.safeParse(result.value) : undefined;
+  if (frame?.success) {
+    const { mimeType, data } = frame.data.result.value;
+    const metadata = {
+      ok: true,
+      value: {
+        ...frame.data,
+        result: {
+          ok: true,
+          value: { mimeType, bytes: Buffer.byteLength(data, "base64") },
+        },
+      },
+    };
+    return {
+      content: [
+        { type: "text" as const, text: JSON.stringify(metadata) },
+        { type: "image" as const, mimeType, data },
+      ],
+      structuredContent: metadata,
+      isError: false,
+    };
+  }
   return {
     content: [{ type: "text" as const, text: JSON.stringify(result) }],
     structuredContent: result,
@@ -168,6 +196,43 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
       annotations: { readOnlyHint: true },
     },
     async (request) => call({ action: "context", ...request }),
+  );
+  server.registerTool(
+    "start_import",
+    {
+      description:
+        "Queue a media import at an explicit project revision. Returns a job immediately. Retry with identical input and request ID; poll get_job for completion and created asset IDs. A successful import is one undo action.",
+      inputSchema: importRequestSchema,
+    },
+    async (request) => call({ action: "import", ...request }),
+  );
+  server.registerTool(
+    "get_job",
+    {
+      description:
+        "Read a retained media job by job ID and its original project session. Progress, status and typed results are bounded; terminal jobs may be evicted.",
+      inputSchema: jobRequestSchema,
+      annotations: { readOnlyHint: true },
+    },
+    async (request) => call({ action: "job", ...request }),
+  );
+  server.registerTool(
+    "cancel_job",
+    {
+      description:
+        "Cancel a queued or running media job in its original project session. Poll until cancellation completes; a running process keeps its queue slot until it exits.",
+      inputSchema: jobRequestSchema,
+    },
+    async (request) => call({ action: "cancel", ...request }),
+  );
+  server.registerTool(
+    "start_source_frame",
+    {
+      description:
+        "Queue a bounded source JPEG at integer microseconds from an imported visual asset. Returns a job immediately. get_job returns native image content when complete. Maximum dimensions 640 by 360; maximum JPEG size 512 KiB.",
+      inputSchema: frameRequestSchema,
+    },
+    async (request) => call({ action: "frame", ...request }),
   );
   return server;
 }

@@ -1,6 +1,6 @@
 # ForgeCut MCP and graphics editing implementation plan
 
-Status: Phase 0 feasibility and Phase 1 shared editing state are implemented and verified on Linux x64. Phase 1 changes the production editor, 23 October 2026. Phase 2 is next.
+Status: Phase 0 feasibility and Phase 1 shared editing state are implemented and verified on Linux x64. Phase 1 changes the production editor, 23 October 2026. Phase 2 is in progress: the live MCP bridge, guarded edits/history/files, shared editing context, status and cancellable import/frame jobs are implemented. The three-range acceptance workflow remains.
 
 ForgeCut will become the shared editing workspace for videos assembled with Codex. Codex stays in its existing chat and operates the running editor through MCP. The user can change footage, text, images, fonts, colours, positioning and timing directly, then ask Codex to continue from the current project.
 

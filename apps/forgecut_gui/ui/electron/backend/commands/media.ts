@@ -9,18 +9,26 @@ import {
 } from "./types.js";
 
 export const mediaCommands = {
-  import_assets: async (args, { state }) => {
+  import_assets: async (args, { state, signal, onProgress }) => {
     const { sessionId } = state;
+    const { revision } = state;
     const imported: Asset[] = [];
-    for (const path of requiredStringArray(args, "paths")) {
-      try {
-        const asset = await importAsset(path);
-        imported.push(asset);
-      } catch (error) {
-        throw new Error(`Failed to import ${path}: ${String(error)}`);
-      }
+    const paths = requiredStringArray(args, "paths");
+    for (const path of paths) {
+      if (signal?.aborted)
+        throw new EditingError("CANCELLED", "Import cancelled.");
+      const asset = await importAsset(path, signal);
+      imported.push(asset);
+      onProgress?.((imported.length / paths.length) * 0.9);
     }
+    if (signal?.aborted)
+      throw new EditingError("CANCELLED", "Import cancelled.");
     state.assertSession(sessionId);
+    if (state.revision !== revision)
+      throw new EditingError(
+        "CONFLICT",
+        "The project changed while importing media. Read it again and retry.",
+      );
     state.executeProjectChange(
       (project) => {
         project.assets.push(...imported);
