@@ -1,26 +1,15 @@
+import { randomUUID } from "node:crypto";
+import { startExportJob } from "../export-jobs.js";
+import type { JobQueue } from "../job-queue.js";
 import { EditingError } from "../editing-error.js";
-import { exportProject } from "../exporter.js";
 import { requiredString, type CommandRegistry } from "./types.js";
 
-export const exportCommands = {
-  export_project: async (args, { state, emit }) => {
-    const outputPath = requiredString(args, "outputPath");
-
-    const result = await exportProject(
-      structuredClone(state.project),
-      outputPath,
-      {
-        onProgress: (progress) => {
-          emit("export-progress", progress);
-        },
-      },
-    );
-
-    if (!result.ok)
-      throw new EditingError(
-        result.error.code === "CANCELLED" ? "CANCELLED" : "IO_ERROR",
-        result.error.message,
-      );
-    emit("export-complete", { output_path: outputPath });
-  },
-} satisfies CommandRegistry;
+export function exportCommands(jobs: JobQueue) {
+  return {
+    export_project: (args, {state, emit}) => {
+      const result = startExportJob(state, jobs, {sessionId: state.sessionId, expectedRevision: state.revision, requestId: randomUUID(), outputPath: requiredString(args, "outputPath")}, progress => emit("export-progress", progress));
+      if (!result.ok) throw new EditingError("IO_ERROR", result.error.message);
+      return result.value;
+    },
+  } satisfies CommandRegistry;
+}

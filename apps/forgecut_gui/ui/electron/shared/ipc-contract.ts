@@ -1,3 +1,4 @@
+import type { JobSnapshot } from "./jobs.js";
 /**
  * Single source of truth for the renderer <-> main IPC surface.
  *
@@ -344,7 +345,7 @@ export type CommandMap = {
   get_waveform: { args: { assetId: string }; result: WaveformData };
 
   // Export (progress arrives via forgecut:event:export-progress events)
-  export_project: { args: { outputPath: string }; result: void };
+  export_project: { args: { outputPath: string }; result: JobSnapshot };
 };
 
 export type CommandName = keyof CommandMap;

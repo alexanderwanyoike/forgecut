@@ -32,7 +32,7 @@ import type {
 const handlers: Record<
   Exclude<
     CommandName,
-    "get_project_snapshot" | "apply_edits" | "apply_history"
+    "get_project_snapshot" | "apply_edits" | "apply_history" | "export_project"
   >,
   CommandHandler
 > = {
@@ -40,7 +40,6 @@ const handlers: Record<
   ...timelineCommands,
   ...mediaCommands,
   ...autosaveCommands,
-  ...exportCommands,
 };
 type CachedEdit = {
   fingerprint: string;
@@ -50,6 +49,8 @@ type CachedEdit = {
 
 export class EditingService {
   readonly jobs = new JobQueue();
+
+  private readonly handlers = {...handlers, ...exportCommands(this.jobs)};
 
   private requests = new Map<string, CachedEdit>();
 
@@ -109,7 +110,7 @@ export class EditingService {
               ),
             )
           : undefined;
-        value = await handlers[command as keyof typeof handlers](args, {
+        value = await this.handlers[command as keyof typeof handlers | "export_project"](args, {
           state: this.state,
           emit,
           ...options,
@@ -244,7 +245,7 @@ export class EditingService {
       const args = editSchemas[operation.command].parse(
         operation.args,
       ) as CommandArgs;
-      const result = handlers[operation.command](args, {
+      const result = this.handlers[operation.command](args, {
         state: draft,
         emit: () => {},
       });
