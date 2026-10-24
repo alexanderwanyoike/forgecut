@@ -33,6 +33,14 @@ export function getItemData(item: TimelineItem): ItemView {
   return {
     variant: itemVariant(item),
     ...data,
+    ...("RemotionGraphic" in item
+      ? {
+          text:
+            typeof item.RemotionGraphic.props.title === "string"
+              ? item.RemotionGraphic.props.title
+              : "Graphic",
+        }
+      : {}),
     startUs: data.timeline_start_us,
     durationUs: durationUs(item),
   };

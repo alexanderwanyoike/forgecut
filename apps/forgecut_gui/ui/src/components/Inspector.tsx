@@ -99,6 +99,15 @@ export default function Inspector({
     (candidate) => candidate.id === data?.asset_id,
   );
 
+  const graphic =
+    item && "RemotionGraphic" in item ? item.RemotionGraphic : null;
+  const itemLabel = graphic
+    ? (project?.components?.find(
+        (component) =>
+          component.id === graphic.component_id &&
+          component.version === graphic.component_version,
+      )?.name ?? "Graphic")
+    : Object.keys(item ?? {})[0];
   const settingsView = projectSettings ? (
     <div className="inspector-section">
       <div className="inspector-section-title">Project Settings</div>
@@ -184,9 +193,7 @@ export default function Inspector({
       >
         {item && data ? (
           <div className="inspector-section">
-            <div className="inspector-section-title">
-              {Object.keys(item)[0]}
-            </div>
+            <div className="inspector-section-title">{itemLabel}</div>
             {asset && (
               <div className="inspector-row">
                 <span className="inspector-label">Asset</span>
