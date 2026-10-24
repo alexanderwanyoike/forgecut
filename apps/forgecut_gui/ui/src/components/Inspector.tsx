@@ -11,6 +11,7 @@ import type {
 import PropertyInput from "./PropertyInput";
 import NumberProperty from "./NumberProperty";
 import ClipAudioProperties from "./ClipAudioProperties";
+import GraphicProperties from "./GraphicProperties";
 import VisualProperties from "./VisualProperties";
 
 interface InspectorProps {
@@ -101,12 +102,13 @@ export default function Inspector({
 
   const graphic =
     item && "RemotionGraphic" in item ? item.RemotionGraphic : null;
+  const component = project?.components?.find(
+    (candidate) =>
+      candidate.id === graphic?.component_id &&
+      candidate.version === graphic.component_version,
+  );
   const itemLabel = graphic
-    ? (project?.components?.find(
-        (component) =>
-          component.id === graphic.component_id &&
-          component.version === graphic.component_version,
-      )?.name ?? "Graphic")
+    ? (component?.name ?? "Graphic")
     : Object.keys(item ?? {})[0];
   const settingsView = projectSettings ? (
     <div className="inspector-section">
@@ -216,6 +218,13 @@ export default function Inspector({
                 s
               </span>
             </div>
+            {graphic && component && (
+              <GraphicProperties
+                component={component}
+                item={graphic}
+                update={update}
+              />
+            )}
             {text && (
               <>
                 <label className="inspector-row">
