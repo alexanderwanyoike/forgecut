@@ -66,3 +66,94 @@ it("switches sequence context without creative edits and restores each playhead"
   await service.jobs.close();
   await service.closeGraphicsPreview();
 });
+it("edits an explicit sequence without changing the human active sequence", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  expect(
+    await service.execute("create_sequence", {
+      name: "Portrait clip",
+      settings: { width: 1080, height: 1920 },
+    }),
+  ).toMatchObject({ ok: true });
+  const root = state.project.default_sequence!.id;
+  const clip = state.project.sequences![0].id;
+  await service.execute("select_sequence", {
+    sessionId: state.sessionId,
+    sequenceId: clip,
+  });
+  await service.execute("select_sequence", {
+    sessionId: state.sessionId,
+    sequenceId: root,
+  });
+  const revision = state.revision;
+  const operation = {
+    command: "add_text_overlay",
+    args: {
+      trackId: "titles",
+      timelineStartUs: 0,
+      durationUs: 1000000,
+      text: "Keep my wording",
+      fontSize: 48,
+      color: "#ffffff",
+      x: 20,
+      y: 50,
+    },
+  };
+  const result = await service.execute("apply_edits", {
+    sessionId: state.sessionId,
+    expectedRevision: revision,
+    requestId: crypto.randomUUID(),
+    sequenceId: clip,
+    operations: [operation],
+  });
+  expect(result).toMatchObject({ ok: true });
+  expect(state.project.timeline.tracks).toEqual([]);
+  expect(state.project.sequences![0].timeline.tracks[0].items[0]).toMatchObject(
+    { TextOverlay: { text: "Keep my wording", x: 20, y: 50 } },
+  );
+  expect(state.snapshot().activeSequenceId).toBe(root);
+  expect(state.revision).toBe(revision + 1);
+  expect(
+    await service.execute("get_sequence_timeline", { sequenceId: clip }),
+  ).toMatchObject({ ok: true, value: state.project.sequences![0].timeline });
+  const before = state.snapshot();
+  expect(
+    await service.execute("apply_edits", {
+      sessionId: state.sessionId,
+      expectedRevision: state.revision,
+      requestId: crypto.randomUUID(),
+      operations: [operation],
+    }),
+  ).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
+  expect(state.snapshot()).toEqual(before);
+  const item = state.project.sequences![0].timeline.tracks[0].items[0];
+  if (!("TextOverlay" in item)) throw new Error("Missing title");
+  await service.execute("select_sequence", {
+    sessionId: state.sessionId,
+    sequenceId: clip,
+  });
+  await service.execute("set_editing_context", {
+    sessionId: state.sessionId,
+    selectedItemIds: [item.TextOverlay.id],
+    playheadUs: 250000,
+  });
+  await service.execute("select_sequence", {
+    sessionId: state.sessionId,
+    sequenceId: root,
+  });
+  expect(await service.execute("get_editing_context")).toMatchObject({
+    ok: true,
+    value: { selectedItemIds: [] },
+  });
+  expect(
+    await service.execute("select_sequence", {
+      sessionId: state.sessionId,
+      sequenceId: clip,
+    }),
+  ).toMatchObject({
+    ok: true,
+    value: { selectedItemIds: [item.TextOverlay.id], playheadUs: 250000 },
+  });
+  await service.jobs.close();
+  await service.closeGraphicsPreview();
+});
