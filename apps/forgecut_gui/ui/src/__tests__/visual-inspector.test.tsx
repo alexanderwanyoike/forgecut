@@ -39,7 +39,9 @@ it("edits the resolved video frame, fit, opacity and layer order through shared 
       ],
     },
   };
-  render(<Inspector project={project} selectedClipId="clip" />);
+  const { rerender } = render(
+    <Inspector project={project} selectedClipId="clip" />,
+  );
   fireEvent.change(screen.getByLabelText("X"), { target: { value: "100" } });
   expect(invokeGrouped).toHaveBeenLastCalledWith(
     expect.any(String),
@@ -98,6 +100,34 @@ it("edits the resolved video frame, fit, opacity and layer order through shared 
     {
       itemId: "clip",
       patch: { kind: "VideoClip", changes: { layer_order: 2 } },
+    },
+  );
+  const next = structuredClone(project);
+  const item = next.timeline.tracks[0].items[0];
+  if (!("VideoClip" in item)) throw new Error("Invalid picture fixture");
+  item.VideoClip.transform = {
+    x: 10.4,
+    y: 20.6,
+    width: 100.4,
+    height: 50.4,
+    fit: "cover",
+    opacity: 1,
+  };
+  rerender(
+    <Inspector project={next} selectedClipId="clip" projectVersion={1} />,
+  );
+  fireEvent.change(screen.getByLabelText("Opacity"), {
+    target: { value: "0.5" },
+  });
+  expect(invokeGrouped).toHaveBeenLastCalledWith(
+    expect.any(String),
+    "update_item",
+    {
+      itemId: "clip",
+      patch: {
+        kind: "VideoClip",
+        changes: { transform: { ...item.VideoClip.transform, opacity: 0.5 } },
+      },
     },
   );
 });
