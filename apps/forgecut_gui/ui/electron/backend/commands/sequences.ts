@@ -8,6 +8,21 @@ import type { CommandMap, ProjectSequence } from "../../shared/ipc-contract.js";
 import type { CommandRegistry } from "./types.js";
 
 export const sequenceCommands = {
+  delete_sequence: (args, { state }) => {
+    const input = args as CommandMap["delete_sequence"]["args"];
+    state.executeProjectChange((project) => {
+      if (project.default_sequence?.id === input.sequenceId)
+        throw new EditingError(
+          "INVALID_INPUT",
+          "The default sequence cannot be deleted",
+        );
+      const found = findProjectSequence(project, input.sequenceId);
+      if (!found.ok) throw new EditingError("NOT_FOUND", found.error.message);
+      project.sequences = project.sequences!.filter(
+        (sequence) => sequence.id !== input.sequenceId,
+      );
+    });
+  },
   get_sequences: (_args, { state }) =>
     projectSequences(state.project).map(({ id, name, settings }) => ({
       id,

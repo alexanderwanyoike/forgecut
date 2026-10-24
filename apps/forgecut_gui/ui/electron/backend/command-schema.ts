@@ -79,6 +79,7 @@ const patch = z.discriminatedUnion("kind", [
 ]);
 const none = z.strictObject({}).optional();
 export const editSchemas = {
+  delete_sequence: z.strictObject({ sequenceId: id }),
   rename_sequence: z.strictObject({
     sequenceId: id,
     name: z.string().trim().min(1).max(200),
