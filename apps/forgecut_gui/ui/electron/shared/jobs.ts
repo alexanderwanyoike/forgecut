@@ -2,7 +2,7 @@ import type { Result } from "./result.js";
 
 export type JobKind = "import" | "frame" | "export";
 export type JobStatus =
-  "queued" | "running" | "cancelling" | "completed" | "failed" | "cancelled";
+  "queued" | "running" | "cancelling" | "committing" | "completed" | "failed" | "cancelled";
 export type JobRequest = {
   sessionId: string;
   projectRevision: number;

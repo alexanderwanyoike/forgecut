@@ -3,7 +3,7 @@ import type { JobSnapshot } from "../../electron/shared/jobs";
 import { invoke, save } from "../lib/bridge";
 
 const active = (job: JobSnapshot | null) =>
-  !!job && ["queued", "running", "cancelling"].includes(job.status);
+  !!job && ["queued", "running", "cancelling", "committing"].includes(job.status);
 
 function acceptJob(
   current: JobSnapshot | null,
@@ -12,6 +12,7 @@ function acceptJob(
   if (current?.id !== next.id) return next;
   if (
     !active(current) ||
+    (current.status === "committing" && active(next)) ||
     (current.status === "cancelling" &&
       ["queued", "running"].includes(next.status))
   )
@@ -92,6 +93,7 @@ export default function ExportDialog(props: {
   let statusLabel = "Rendering";
   if (job?.status === "queued") statusLabel = "Queued";
   if (job?.status === "cancelling") statusLabel = "Cancelling";
+  if (job?.status === "committing") statusLabel = "Finishing";
   return (
     <div
       className="export-dialog-overlay"
@@ -172,7 +174,7 @@ export default function ExportDialog(props: {
           {exporting && (
             <button
               className="preview-btn"
-              disabled={job?.status === "cancelling"}
+              disabled={job?.status === "cancelling" || job?.status === "committing"}
               onClick={cancel}
             >
               Cancel export

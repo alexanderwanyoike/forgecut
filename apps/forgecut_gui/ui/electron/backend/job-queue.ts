@@ -12,7 +12,6 @@ type Entry = {
   fingerprint: string;
   controller: AbortController;
   timedOut?: boolean;
-  committing?: boolean;
 };
 
 export class JobQueue {
@@ -107,6 +106,7 @@ export class JobQueue {
     const found = this.read(id, sessionId);
     if (!found.ok) return found;
     const entry = this.entries.get(id)!;
+    if (entry.snapshot.status === "committing") return {ok: false, error: {code: "COMMITTING", message: "The completed output is being published. Poll for completion."}};
     if (entry.snapshot.status === "queued") {
       this.pending = this.pending.filter((work) => work.entry !== entry);
       entry.snapshot.status = "cancelled";
@@ -118,7 +118,6 @@ export class JobQueue {
         },
       };
     } else if (entry.snapshot.status === "running") {
-      if (entry.committing) return {ok: false, error: {code: "COMMITTING", message: "The completed output is being published. Poll for completion."}};
       entry.snapshot.status = "cancelling";
       entry.controller.abort();
     }
@@ -142,7 +141,7 @@ export class JobQueue {
       const work = this.pending.shift()!;
       work.entry.snapshot.status = "running";
       const timeout = setTimeout(() => {
-        if (work.entry.committing) return;
+        if (work.entry.snapshot.status === "committing") return;
         work.entry.timedOut = true;
         work.entry.controller.abort();
       }, this.options.timeoutMs ?? 120000);
@@ -162,7 +161,7 @@ export class JobQueue {
           },
           () => {
             if (work.entry.controller.signal.aborted) return false;
-            work.entry.committing = true;
+            work.entry.snapshot.status = "committing";
             return true;
           },
         );
