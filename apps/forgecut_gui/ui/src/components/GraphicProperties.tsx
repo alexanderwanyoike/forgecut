@@ -10,7 +10,7 @@ import type {
   ItemPatch,
 } from "../../electron/shared/ipc-contract";
 import ColorProperty from "./ColorProperty";
-import PropertyInput from "./PropertyInput";
+import PropertyTextarea from "./PropertyTextarea";
 import NumberProperty from "./NumberProperty";
 
 type Props = {
@@ -108,9 +108,8 @@ export default function GraphicProperties({
                 }}
               />
             ) : (
-              <PropertyInput
+              <PropertyTextarea
                 className="inspector-input"
-                type="text"
                 value={String(value)}
                 onValueChange={(next) => {
                   void change(key, next);

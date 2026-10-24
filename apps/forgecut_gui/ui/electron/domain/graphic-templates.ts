@@ -1,3 +1,4 @@
+import { graphicPresets } from "./graphic-presets.js";
 import type { GraphicComponent } from "../shared/graphics.js";
 
 export function graphicTemplateDefinitions(
@@ -150,6 +151,28 @@ export function graphicTemplateDefinitions(
         min: 0,
         max: 1,
       },
+      alignment: {
+        id: "d3213553-2874-43b4-8122-43a8926300e0",
+        label: "Alignment",
+        type: "select",
+        default: "left",
+        options: [
+          { value: "left", label: "Left" },
+          { value: "center", label: "Center" },
+          { value: "right", label: "Right" },
+        ],
+      },
+      animation: {
+        id: "4f97fae2-89f3-4452-8376-b21d0ad55bf1",
+        label: "Animation",
+        type: "select",
+        default: "rise",
+        options: [
+          { value: "rise", label: "Rise" },
+          { value: "fade", label: "Fade" },
+          { value: "none", label: "None" },
+        ],
+      },
       entrance_frames: {
         id: "b39c30e7-225d-5882-8fe8-38380fd123c4",
         label: "Entrance (frames)",
@@ -194,5 +217,58 @@ export function graphicTemplateDefinitions(
       },
     ],
   };
-  return [title];
+  return graphicPresets.map((preset, index) => {
+    const component = structuredClone(title);
+    component.id = `e105b917-0f43-4139-9199-e5a2c7dca9${(8 + index).toString(16).padStart(2, "0")}`;
+    component.template_id = preset.id;
+    component.name = preset.label;
+    const defaults: Record<string, string | number> = {};
+    if (preset.id === "lower-third")
+      Object.assign(defaults, {
+        title: "Name\nRole",
+        title_y: 820,
+        title_height: 220,
+        font_size: 72,
+        background_opacity: 0,
+        image_x: 80,
+        image_y: 840,
+        image_width: 140,
+        image_height: 140,
+        title_x: 250,
+        title_width: 1500,
+        image_fit: "contain",
+      });
+    if (preset.id === "brand-overlay")
+      Object.assign(defaults, {
+        title: "",
+        background_opacity: 0,
+        image_x: 1620,
+        image_y: 80,
+        image_width: 220,
+        image_height: 220,
+        image_fit: "contain",
+        animation: "none",
+      });
+    if (preset.id === "ending-card")
+      Object.assign(defaults, {
+        title: "Thanks for watching",
+        title_y: 760,
+        title_height: 260,
+        font_size: 96,
+        alignment: "center",
+        animation: "fade",
+      });
+    for (const [key, value] of Object.entries(defaults)) {
+      const property = component.properties[key];
+      if (property.type === "number" && typeof value === "number")
+        property.default = value;
+      else if (
+        property.type !== "number" &&
+        property.type !== "boolean" &&
+        typeof value === "string"
+      )
+        property.default = value;
+    }
+    return component;
+  });
 }

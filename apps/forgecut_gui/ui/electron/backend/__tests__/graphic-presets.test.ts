@@ -15,19 +15,18 @@ it("creates four editable presets and retains multiline wording and explicit ani
   const state = new AppState();
   const service = new EditingService(state);
   for (const template of templates) {
-    expect(
-      await service.execute("add_graphic_item", {
-        templateId: template.template_id,
-        trackId: "graphics",
-        timelineStartUs: 0,
-        durationUs: 2000000,
-        props: {
-          title: "After\ndark.",
-          alignment: "center",
-          animation: "fade",
-        },
-      }),
-    ).toMatchObject({ ok: true });
+    const result = await service.execute("add_graphic_item", {
+      templateId: template.template_id,
+      trackId: "graphics",
+      timelineStartUs: templates.indexOf(template) * 2000000,
+      durationUs: 2000000,
+      props: {
+        title: "After\ndark.",
+        alignment: "center",
+        animation: "fade",
+      },
+    });
+    expect(result, JSON.stringify(result)).toMatchObject({ ok: true });
   }
   const item = state.project.timeline.tracks[0].items[0];
   if (!("RemotionGraphic" in item)) throw new Error("Missing graphic");

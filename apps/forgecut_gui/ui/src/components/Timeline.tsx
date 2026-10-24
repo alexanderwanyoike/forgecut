@@ -22,6 +22,7 @@ import {
 import { useClipMedia } from "../hooks/useClipMedia";
 import { useTimelineInteractions } from "../hooks/useTimelineInteractions";
 import { useTimelineShortcuts } from "../hooks/useTimelineShortcuts";
+import { graphicPresets } from "../../electron/domain/graphic-presets";
 import TimelineClip from "./TimelineClip";
 
 interface TimelineProps {
@@ -51,6 +52,7 @@ export default function Timeline(props: TimelineProps) {
   const [pixelsPerSecond, setPixelsPerSecond] = useState(100);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [viewWidth, setViewWidth] = useState(0);
+  const [graphicPreset, setGraphicPreset] = useState("title-card");
   const [snapping, setSnapping] = useState(true);
 
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -262,7 +264,7 @@ export default function Timeline(props: TimelineProps) {
     try {
       setTimeline(
         await invoke("add_graphic_item", {
-          templateId: "title-card",
+          templateId: graphicPreset,
           trackId:
             timeline.tracks.find((track) => track.kind === "Graphics")?.id ??
             crypto.randomUUID(),
@@ -294,6 +296,17 @@ export default function Timeline(props: TimelineProps) {
       <div className="timeline-controls">
         <span className="timeline-label">Timeline</span>
         <div className="control-group">
+          <select
+            aria-label="Graphic template"
+            value={graphicPreset}
+            onChange={(event) => setGraphicPreset(event.currentTarget.value)}
+          >
+            {graphicPresets.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
           <button className="add-text-btn" onClick={handleAddGraphic}>
             + Graphic
           </button>

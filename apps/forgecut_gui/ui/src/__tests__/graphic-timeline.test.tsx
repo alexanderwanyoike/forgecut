@@ -48,9 +48,9 @@ it("names and selects a pinned graphic instance in the timeline and Inspector", 
       />
     </>,
   );
-  const label = screen.getByText("Octane");
+  const label = screen.getByText("Octane", { selector: ".clip-label" });
   expect(screen.getByText("G1")).toBeTruthy();
-  expect(screen.getByText("Title card")).toBeTruthy();
+  expect(screen.getAllByText("Title card").length).toBeGreaterThan(0);
   fireEvent.mouseDown(label, { clientX: 100, clientY: 100 });
   expect(select).toHaveBeenCalledWith(item.RemotionGraphic.id);
 });
