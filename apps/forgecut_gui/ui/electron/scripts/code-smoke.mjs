@@ -74,12 +74,32 @@ export async function verifyCode(send) {
     `!!document.querySelector('.monaco-source-editor[data-ready="true"]')`,
     "offline Monaco worker",
   );
-  await evaluate(`document.querySelector('.theme-toggle').click()`);
+  await evaluate(
+    `document.querySelector('button[aria-label="Appearance"]').click()`,
+  );
+  await wait(
+    `!!document.querySelector('input[name="appearance-mode"]')`,
+    "appearance menu",
+  );
+  await evaluate(`(() => {
+    document.querySelector('input[name="appearance-mode"][value="light"]').click();
+    document.querySelector('button[aria-label="Close appearance"]').click();
+  })()`);
   await wait(
     `!!document.querySelector('.monaco-source-editor[data-ready="true"]')`,
     "theme preserves editor",
   );
-  await evaluate(`document.querySelector('.theme-toggle').click()`);
+  await evaluate(
+    `document.querySelector('button[aria-label="Appearance"]').click()`,
+  );
+  await wait(
+    `!!document.querySelector('input[name="appearance-mode"]')`,
+    "appearance menu",
+  );
+  await evaluate(`(() => {
+    document.querySelector('input[name="appearance-mode"][value="dark"]').click();
+    document.querySelector('button[aria-label="Close appearance"]').click();
+  })()`);
   const working = await evaluate(draft());
   working.component.source.files["helpers.ts"] =
     "export function word(value: string){return value}";
