@@ -1,4 +1,4 @@
-import { Images, X } from "lucide-react";
+import { AudioLines, Images, X } from "lucide-react";
 import type {
   Asset,
   ProjectSnapshot,
@@ -44,6 +44,16 @@ export default function SourceReviewPanel({
         >
           Contact sheet
         </ActionButton>
+        <ActionButton
+          icon={AudioLines}
+          disabled={review.busy || !valid || !asset.probe?.audio_channels}
+          tooltip="Generate waveform peaks from this source range"
+          onClick={() => {
+            void review.start("waveform");
+          }}
+        >
+          Waveform
+        </ActionButton>
         {review.busy && (
           <ActionButton
             icon={X}
@@ -58,6 +68,31 @@ export default function SourceReviewPanel({
       {review.status && <p role="status">Source review: {review.status}</p>}
       {review.result && !review.result.ok && (
         <p role="alert">{review.result.error.message}</p>
+      )}
+      {output && "peaks" in output && (
+        <figure>
+          <svg
+            role="img"
+            aria-label="Source waveform"
+            viewBox={`0 0 ${output.peaks.length} 100`}
+            preserveAspectRatio="none"
+            className="source-waveform"
+          >
+            {output.peaks.map(([low, high], index) => (
+              <line
+                key={index}
+                x1={index + 0.5}
+                x2={index + 0.5}
+                y1={50 - high * 48}
+                y2={50 - low * 48}
+              />
+            ))}
+          </svg>
+          <figcaption>
+            {(output.startUs / 1000000).toFixed(3)} to{" "}
+            {(output.endUs / 1000000).toFixed(3)} seconds
+          </figcaption>
+        </figure>
       )}
       {output && "mimeType" in output && (
         <figure>

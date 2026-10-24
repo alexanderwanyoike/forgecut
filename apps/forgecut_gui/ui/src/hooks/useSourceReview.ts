@@ -18,6 +18,18 @@ const contactSheetSchema = z.object({
   rows: z.literal(3),
   timesUs: z.array(z.number()).length(12),
 });
+const waveformSchema = z.object({
+  assetId: z.string(),
+  startUs: z.number(),
+  endUs: z.number(),
+  sampleRate: z.literal(8000),
+  samplesPerPeak: z.number().int().positive(),
+  peaks: z
+    .array(z.tuple([z.number().min(-1).max(1), z.number().min(-1).max(1)]))
+    .min(1)
+    .max(512),
+});
+const sourceReviewSchema = z.union([contactSheetSchema, waveformSchema]);
 const active = (job: JobSnapshot) =>
   !["completed", "failed", "cancelled"].includes(job.status);
 function stop(job: JobSnapshot | null) {
@@ -85,7 +97,7 @@ export function useSourceReview(input: Input) {
       } else if (!current.result.ok) {
         setResult(current.result);
       } else {
-        const parsed = contactSheetSchema.safeParse(current.result.value);
+        const parsed = sourceReviewSchema.safeParse(current.result.value);
         setResult(
           parsed.success
             ? { ok: true, value: parsed.data }
