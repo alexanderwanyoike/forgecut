@@ -65,3 +65,9 @@ Apply runs through the serial cancellable job queue. Build a candidate project w
 Default to a new project-local component identity for the selected instance. A shared update explicitly targets instances pinned to the selected component version. Preserve values by stable property IDs, including renamed property keys, and retain compatible layer states. Removed/replaced IDs and changed property types require explicit mappings or discards; a null mapping requests the new default or removes the old layer state. Reject collisions and invalid migrated values. Declared image/font dependencies must exist and are supplied alongside property resources, without granting unrelated project files.
 
 Compilation does not hold the draft lease or block manual editing. At publication, briefly take the lease and recheck the draft revision, session and project revision. Enter the job's commit barrier and publish one project/history change. Undo restores the previous component versions and instance data; draft undo remains separate. An error releasing the lease after a successful project commit is reported as a warning on the successful job rather than claiming the source was not applied.
+
+## Packaged editor origin
+
+The packaged UI loads from the secure standard `forgecut-app://editor/` origin selected in ADR 0001. Electron serves only built UI assets beneath its real resolved distribution directory, with a MIME allowlist, a 32 MiB asset limit and symlink/traversal checks. The CSP allows same-origin workers and required project image/font/media protocols while denying frames, objects, forms and arbitrary script evaluation. Development retains its explicit Vite URL.
+
+Long recordings keep their separate streaming `forgecut-media` handler and Range responses. Static UI loading does not read media into memory. The Linux unpacked/ASAR smoke test asserts the application origin and checks the existing UI, MCP, audio, graphics export and canvas workflow.
