@@ -1,0 +1,32 @@
+import { z } from "zod";
+
+export const resourceLicenseSchema = z.strictObject({
+  identifier: z.string().min(1).max(256),
+  text: z.string().min(1).max(65536),
+  attribution: z.string().max(2048).optional(),
+  source_url: z.url().max(2048).optional(),
+});
+export const graphicResourceSchema = z
+  .strictObject({
+    id: z.uuid(),
+    name: z.string().min(1).max(512),
+    kind: z.enum(["Image", "Font"]),
+    mime: z.enum([
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+      "font/ttf",
+      "font/otf",
+      "font/woff",
+      "font/woff2",
+    ]),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    path: z.string().regex(/^\.forgecut-resources\/[a-f0-9]{64}$/),
+    license: resourceLicenseSchema,
+  })
+  .refine(
+    (resource) =>
+      resource.path === `.forgecut-resources/${resource.sha256}` &&
+      resource.mime.startsWith(resource.kind === "Image" ? "image/" : "font/"),
+    "Invalid resource identity or media type",
+  );

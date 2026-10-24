@@ -12,6 +12,7 @@ import {
   graphicComponentSchema,
   graphicValuesSchema,
 } from "./graphic-schema.js";
+import { graphicResourceSchema } from "./graphic-resource-schema.js";
 import { validateProjectGraphics } from "./project-graphics.js";
 
 export const idSchema = z
@@ -109,6 +110,7 @@ const projectSchema = z.strictObject({
     .union([z.literal(1), z.literal(2)])
     .default(1)
     .transform(() => 2 as const),
+  resources: z.array(graphicResourceSchema).max(100).default([]),
   components: z.array(graphicComponentSchema).max(100).default([]),
   id: idSchema,
   name: z.string(),
@@ -165,6 +167,7 @@ export function validateProject(input: unknown): Project {
   };
   unique(project.id);
   project.assets.forEach((asset) => unique(asset.id));
+  project.resources.forEach((resource) => unique(resource.id));
   const assets = new Map(project.assets.map((asset) => [asset.id, asset]));
   const kinds = {
     VideoClip: "Video",

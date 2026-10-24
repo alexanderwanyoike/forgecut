@@ -1,3 +1,4 @@
+import type { GraphicResource, ResourceLicense } from "./graphic-resources.js";
 import type {
   GraphicComponent,
   GraphicValues,
@@ -139,6 +140,7 @@ export type Timeline = {
 export type Project = {
   schema_version?: 2;
   components?: GraphicComponent[];
+  resources?: GraphicResource[];
   id: string;
   name: string;
   settings: ProjectSettings;
@@ -313,6 +315,10 @@ export type CommandMap = {
   autosave: { args: undefined; result: void };
 
   // Timeline
+  import_graphic_resource: {
+    args: { path: string; kind: "Image" | "Font"; license: ResourceLicense };
+    result: GraphicResource;
+  };
   get_graphic_components: { args: undefined; result: GraphicComponent[] };
   add_graphic_item: {
     args: {
