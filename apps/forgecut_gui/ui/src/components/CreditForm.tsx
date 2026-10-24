@@ -1,4 +1,4 @@
-import { Save } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import type {
   EditOperation,
@@ -31,27 +31,22 @@ export default function CreditForm({
     setDraft((current) => ({ ...current, [key]: value }));
     setMessage("");
   };
-  const save = async (event: FormEvent) => {
-    event.preventDefault();
+  const commit = async (license: ResourceLicense | null) => {
+    let operation: EditOperation;
+    if (target.type === "asset")
+      operation = {
+        command: "set_asset_license",
+        args: { assetId: target.id, license },
+      };
+    else if (license)
+      operation = {
+        command: "set_resource_license",
+        args: { resourceId: target.id, license },
+      };
+    else return;
     setBusy(true);
     setError("");
     try {
-      const license: ResourceLicense = {
-        identifier: draft.identifier,
-        text: draft.text,
-        ...(draft.attribution ? { attribution: draft.attribution } : {}),
-        ...(draft.source_url ? { source_url: draft.source_url } : {}),
-      };
-      const operation: EditOperation =
-        target.type === "asset"
-          ? {
-              command: "set_asset_license",
-              args: { assetId: target.id, license },
-            }
-          : {
-              command: "set_resource_license",
-              args: { resourceId: target.id, license },
-            };
       await invokeInContext(
         {
           sessionId: snapshot.sessionId,
@@ -65,12 +60,22 @@ export default function CreditForm({
           operations: [operation],
         },
       );
-      setMessage("Credits saved");
+      setDraft(license ?? { identifier: "", text: "" });
+      setMessage(license ? "Credits saved" : "Credit removed");
     } catch (cause) {
       setError(String(cause));
     } finally {
       setBusy(false);
     }
+  };
+  const save = (event: FormEvent) => {
+    event.preventDefault();
+    void commit({
+      identifier: draft.identifier,
+      text: draft.text,
+      ...(draft.attribution ? { attribution: draft.attribution } : {}),
+      ...(draft.source_url ? { source_url: draft.source_url } : {}),
+    });
   };
   return (
     <form className="credit-form" onSubmit={save}>
@@ -126,6 +131,17 @@ export default function CreditForm({
         >
           Save credits
         </ActionButton>
+        {target.type === "asset" && target.license && (
+          <ActionButton
+            icon={Trash2}
+            disabled={busy}
+            onClick={() => {
+              void commit(null);
+            }}
+          >
+            Remove credit
+          </ActionButton>
+        )}
       </div>
     </form>
   );
