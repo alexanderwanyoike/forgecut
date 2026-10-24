@@ -30,6 +30,9 @@ it("serves the packaged index and worker with MIME and a restricted worker-capab
   expect(page.headers.get("Content-Security-Policy")).toContain(
     "frame-src 'none'",
   );
+  expect(page.headers.get("Content-Security-Policy")).toMatch(
+    /img-src[^;]*forgecut-media:/,
+  );
   const worker = await appAssetResponse(
     root,
     "forgecut-app://editor/assets/worker.js",
