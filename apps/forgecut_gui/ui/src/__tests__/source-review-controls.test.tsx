@@ -1,8 +1,18 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
+import type {
+  CommandMetadata,
+  CommandResponse,
+} from "../../electron/shared/ipc-contract";
 import { generateReviewSource } from "../../electron/backend/__tests__/source-review-fixture";
 import {
   cleanupSequenceWorkspace,
@@ -54,5 +64,51 @@ it("reviews the source waveform without changing the selection or timeline", asy
   expect(waveform.querySelectorAll("line").length).toBeGreaterThan(0);
   expect(waveform.querySelectorAll("line").length).toBeLessThanOrEqual(512);
   expect(screen.getByText("0.000 to 2.000 seconds")).toBeTruthy();
+  expect(state.snapshot()).toEqual(before);
+});
+
+it("ignores and cancels a delayed job when its source range changes", async () => {
+  const { state } = await reviewFixture();
+  const native = window.forgecut!.invoke;
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let delayed = false;
+  let started = false;
+  const cancelled: Record<string, unknown>[] = [];
+  window.forgecut!.invoke = async <T,>(
+    command: string,
+    args?: Record<string, unknown>,
+    metadata?: CommandMetadata,
+  ): Promise<CommandResponse<T>> => {
+    if (command === "cancel_media_job") cancelled.push(args ?? {});
+    const response = await native<T>(command, args, metadata);
+    if (command === "start_source_review" && !delayed) {
+      delayed = true;
+      started = true;
+      await gate;
+    }
+    return response;
+  };
+  const before = state.snapshot();
+  fireEvent.click(screen.getByRole("button", { name: "Contact sheet" }));
+  await waitFor(() => expect(started).toBe(true));
+  fireEvent.focus(screen.getByLabelText("Source out (s)"));
+  fireEvent.change(screen.getByLabelText("Source out (s)"), {
+    target: { value: "1" },
+  });
+  fireEvent.blur(screen.getByLabelText("Source out (s)"));
+  await act(async () => {
+    release();
+  });
+  await waitFor(() => expect(cancelled.length).toBe(1));
+  expect(cancelled[0].sessionId).toBe(state.sessionId);
+  expect(
+    screen.queryByRole("img", { name: "Source contact sheet" }),
+  ).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Contact sheet" }));
+  await screen.findByRole("img", { name: "Source contact sheet" });
+  expect(screen.getByText("0.000 to 1.000 seconds")).toBeTruthy();
   expect(state.snapshot()).toEqual(before);
 });
