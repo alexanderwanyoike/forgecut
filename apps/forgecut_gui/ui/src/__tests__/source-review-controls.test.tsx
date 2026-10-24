@@ -28,22 +28,36 @@ const mediaTest = it.skipIf(
 
 const createPreviewUrl = vi.fn(() => "blob:source-preview");
 const revokePreviewUrl = vi.fn();
+const originalCreateUrl = Object.getOwnPropertyDescriptor(
+  URL,
+  "createObjectURL",
+);
+const originalRevokeUrl = Object.getOwnPropertyDescriptor(
+  URL,
+  "revokeObjectURL",
+);
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubGlobal(
-    "URL",
-    class extends URL {
-      static createObjectURL = createPreviewUrl;
-      static revokeObjectURL = revokePreviewUrl;
-    },
-  );
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: createPreviewUrl,
+  });
+  Object.defineProperty(URL, "revokeObjectURL", {
+    configurable: true,
+    value: revokePreviewUrl,
+  });
 });
 let directory: string | undefined;
 afterEach(async () => {
   await cleanupSequenceWorkspace();
   if (directory) await rm(directory, { recursive: true, force: true });
   directory = undefined;
-  vi.unstubAllGlobals();
+  if (originalCreateUrl)
+    Object.defineProperty(URL, "createObjectURL", originalCreateUrl);
+  else Reflect.deleteProperty(URL, "createObjectURL");
+  if (originalRevokeUrl)
+    Object.defineProperty(URL, "revokeObjectURL", originalRevokeUrl);
+  else Reflect.deleteProperty(URL, "revokeObjectURL");
 });
 
 async function reviewFixture(durationSeconds = 2) {
