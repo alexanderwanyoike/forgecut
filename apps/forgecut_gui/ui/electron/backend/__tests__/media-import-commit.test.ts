@@ -3,21 +3,27 @@ import { spawnSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { AppState } from "../state";
 import { EditingService } from "../editing-service";
 import { startMediaJob } from "../media-jobs";
 
-it.skipIf(spawnSync("ffprobe", ["-version"]).status !== 0)(
-  "does not report a committed media import as cancelled",
-  async () => {
+afterEach(() => vi.unstubAllEnvs());
+for (const mode of ["import", "resource"] as const) {
+  it.skipIf(
+    mode === "import" && spawnSync("ffprobe", ["-version"]).status !== 0,
+  )(`does not report a committed ${mode} import as cancelled`, async () => {
     const directory = await mkdtemp(join(tmpdir(), "forgecut-import-commit-"));
+    vi.stubEnv("FORGECUT_RESOURCE_DIR", join(directory, "cache"));
     const state = new AppState();
     const service = new EditingService(state);
     let jobId = "";
     let cancelled: unknown;
     const unlisten = state.subscribe(() => {
-      if (state.project.assets.length === 1)
+      if (
+        state.project.assets.length + (state.project.resources?.length ?? 0) ===
+        1
+      )
         cancelled = service.jobs.cancel(jobId, state.sessionId);
     });
     try {
@@ -29,13 +35,25 @@ it.skipIf(spawnSync("ffprobe", ["-version"]).status !== 0)(
           "base64",
         ),
       );
-      const started = startMediaJob(service, {
-        action: "import",
+      const identity = {
         sessionId: state.sessionId,
         expectedRevision: state.revision,
         requestId: "commit-import",
-        paths: [path],
-      });
+      };
+      const started = startMediaJob(
+        service,
+        mode === "import"
+          ? { ...identity, action: "import", paths: [path] }
+          : {
+              ...identity,
+              action: "resource",
+              resource: {
+                path,
+                kind: "Image",
+                license: { identifier: "test-only", text: "Generated fixture" },
+              },
+            },
+      );
       if (!started.ok) throw new Error(started.error.message);
       jobId = started.value.id;
       let status = "";
@@ -51,11 +69,13 @@ it.skipIf(spawnSync("ffprobe", ["-version"]).status !== 0)(
         error: { code: "COMMITTING" },
       });
       expect(status).toBe("completed");
-      expect(state.project.assets).toHaveLength(1);
+      expect(
+        mode === "import" ? state.project.assets : state.project.resources,
+      ).toHaveLength(1);
     } finally {
       unlisten();
       await service.jobs.close();
       await rm(directory, { recursive: true, force: true });
     }
-  },
-);
+  });
+}
