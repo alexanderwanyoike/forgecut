@@ -1,4 +1,6 @@
+import { isAbsolute } from "node:path";
 import { z } from "zod";
+import { ensureForgeCutExtension } from "../backend/state.js";
 import type { EditingService } from "../backend/editing-service.js";
 import type { ProjectSnapshot } from "../shared/ipc-contract.js";
 import {
@@ -19,8 +21,19 @@ export const pageFields = {
   offset: timeSchema.default(0),
   limit: z.number().int().min(1).max(100).default(50),
 };
+export const projectFileRequestSchema = z.strictObject({
+  sessionId: idSchema,
+  expectedRevision: timeSchema,
+  path: z
+    .string()
+    .min(1)
+    .max(4096)
+    .refine(isAbsolute, "Use an absolute project path"),
+});
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("summary") }),
+  projectFileRequestSchema.extend({ action: z.literal("save") }),
+  projectFileRequestSchema.extend({ action: z.literal("open") }),
   z.strictObject({
     action: z.literal("history"),
     request: historyRequestSchema,
@@ -98,6 +111,28 @@ export async function dispatchLocal(
       };
     }
     state.assertSession(request.sessionId);
+    if (request.action === "save" || request.action === "open") {
+      if (request.expectedRevision !== state.revision)
+        return {
+          ok: false,
+          error: {
+            code: "CONFLICT",
+            message:
+              "The project changed. Read it again before using project files.",
+          },
+        };
+      if (request.action === "save") {
+        const { revision } = state;
+        const path = ensureForgeCutExtension(request.path);
+        await state.saveProject(path);
+        return {
+          ok: true,
+          value: { saved: true, path, sessionId: request.sessionId, revision },
+        };
+      }
+      await state.loadProject(request.path);
+      return { ok: true, value: summary(state) };
+    }
     if (request.action === "assets")
       return {
         ok: true,

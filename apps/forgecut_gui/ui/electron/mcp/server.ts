@@ -6,7 +6,7 @@ import {
   historyRequestSchema,
 } from "../backend/command-schema.js";
 import { idSchema, timeSchema } from "../backend/project-schema.js";
-import { pageFields } from "./dispatch.js";
+import { pageFields, projectFileRequestSchema } from "./dispatch.js";
 import { callBridge, listSessions, sessionDirectory } from "./sessions.js";
 import type { BridgeResult, LocalSession } from "./contract.js";
 
@@ -140,6 +140,24 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
       inputSchema: historyRequestSchema,
     },
     async (request) => call({ action: "history", request }),
+  );
+  server.registerTool(
+    "save_project",
+    {
+      description:
+        "Save a snapshot of the selected project atomically to an absolute path. Returns the saved revision, which may precede later manual edits.",
+      inputSchema: projectFileRequestSchema,
+    },
+    async (request) => call({ action: "save", ...request }),
+  );
+  server.registerTool(
+    "open_project",
+    {
+      description:
+        "Replace the selected instance's project with a validated project file. Requires the current identity/revision; rejects concurrent edits and preserves the open project on failure. Returns a new project session identity.",
+      inputSchema: projectFileRequestSchema,
+    },
+    async (request) => call({ action: "open", ...request }),
   );
   return server;
 }
