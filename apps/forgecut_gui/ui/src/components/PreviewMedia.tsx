@@ -16,6 +16,7 @@ export default function PreviewMedia(props: Props) {
   const mediaRef = useRef<HTMLVideoElement>(null);
   const synchronize = useRef(() => {});
   const epoch = useRef(0);
+  const previousPlaying = useRef(props.playing);
   synchronize.current = () => {
     const media = mediaRef.current;
     if (!media || media.readyState < 1) return;
@@ -45,6 +46,10 @@ export default function PreviewMedia(props: Props) {
     };
   }, [props.path, props.version]);
   useEffect(() => {
+    if (previousPlaying.current !== props.playing) {
+      epoch.current += 1;
+      previousPlaying.current = props.playing;
+    }
     synchronize.current();
   }, [props.playing, props.timeUs]);
   return (
