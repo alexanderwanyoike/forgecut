@@ -4,6 +4,7 @@ import ExportDialog from "../components/ExportDialog";
 
 const api = vi.hoisted(() => ({
   invoke: vi.fn(),
+  invokeInContext: vi.fn(),
   save: vi.fn(),
 }));
 vi.mock("../lib/bridge", () => api);
@@ -123,4 +124,39 @@ it("keeps cancellation details visible when staging cleanup also fails", async (
   fireEvent.click(screen.getByRole("button", { name: "Export" }));
   await screen.findByText("Export cancelled");
   expect(screen.getByText(/Staging cleanup failed at/)).toBeTruthy();
+});
+
+it("exports a review range from the captured sequence target", async () => {
+  api.save.mockResolvedValue("/review.mp4");
+  api.invokeInContext.mockResolvedValue({
+    id: "review",
+    sessionId: "original",
+    projectRevision: 1,
+    requestId: "review",
+    kind: "export",
+    label: "Review export",
+    status: "completed",
+    progress: 1,
+    result: { ok: true, value: { outputPath: "/review.mp4" } },
+  });
+  const target = {
+    sessionId: "original",
+    sequenceId: "clip",
+    name: "Clip",
+    durationUs: 2000000,
+    playheadUs: 1250000,
+  };
+  render(<ExportDialog open target={target} onClose={() => {}} />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Review a range" }));
+  fireEvent.change(screen.getByLabelText("Review end (s)"), {
+    target: { value: "1.85" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Export" }));
+  await waitFor(() =>
+    expect(api.invokeInContext).toHaveBeenCalledWith(target, "export_project", {
+      outputPath: "/review.mp4",
+      sequenceId: "clip",
+      range: { startUs: 1250000, endUs: 1850000 },
+    }),
+  );
 });
