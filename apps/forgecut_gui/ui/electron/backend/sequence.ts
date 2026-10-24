@@ -19,10 +19,7 @@ export function frameTimeUs(frame: number, fps: number): number {
 }
 
 export function sequenceDurationUs(project: Project): number {
-  const end = Math.max(
-    0,
-    ...project.timeline.tracks.flatMap((track) => track.items.map(timelineEndUs)),
-  );
+  const end = project.timeline.tracks.reduce((longest, track) => track.items.reduce((max, item) => Math.max(max, timelineEndUs(item)), longest), 0);
   return frameTimeUs(
     frameAtOrAfter(end, project.settings.fps),
     project.settings.fps,
