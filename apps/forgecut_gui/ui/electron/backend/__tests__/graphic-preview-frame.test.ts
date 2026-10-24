@@ -1,6 +1,9 @@
 /** @vitest-environment node */
 import { spawnSync } from "node:child_process";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { AppState } from "../state";
 import { EditingService } from "../editing-service";
 import { componentVersion } from "../graphic-component";
@@ -154,4 +157,57 @@ it.skipIf(!available)(
     }
   },
   45000,
+);
+it.skipIf(!available)(
+  "preloads owned fonts for custom draft preview without network access",
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), "forgecut-preview-font-"));
+    vi.stubEnv("FORGECUT_RESOURCE_DIR", directory);
+    const state = new AppState();
+    const service = new EditingService(state);
+    try {
+      await service.execute("update_project", {
+        settings: { width: 64, height: 36, fps: 10 },
+      });
+      await service.execute("add_graphic_item", {
+        templateId: "title-card",
+        trackId: "graphics",
+        timelineStartUs: 0,
+        durationUs: 1000000,
+        props: { title: "Owned font", entrance_frames: 0 },
+      });
+      const item = state.project.timeline.tracks[0].items[0];
+      if (!("RemotionGraphic" in item)) throw new Error("Missing graphic");
+      const imported = await service.execute("import_graphic_resource", {
+        path: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        kind: "Font",
+        licensePath: "/usr/share/doc/fonts-dejavu-core/copyright",
+        target: {
+          itemId: item.RemotionGraphic.id,
+          property: "font",
+          sessionId: state.sessionId,
+          expectedRevision: state.revision,
+        },
+      });
+      expect(imported).toMatchObject({ ok: true });
+      const component = state.project.components![0];
+      source(state, component.source.files[component.source.entry] + "\n");
+      const before = state.snapshot();
+      const rendered = await service.execute("get_graphic_preview", {
+        itemId: item.RemotionGraphic.id,
+        frame: 0,
+      });
+      expect(rendered, JSON.stringify(rendered)).toMatchObject({
+        ok: true,
+        value: { mimeType: "image/png", width: 64, height: 36 },
+      });
+      expect(state.snapshot()).toEqual(before);
+    } finally {
+      await service.closeGraphicsPreview();
+      await service.jobs.close();
+      vi.unstubAllEnvs();
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+  20000,
 );
