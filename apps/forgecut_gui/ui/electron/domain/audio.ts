@@ -2,11 +2,8 @@ import type { TimelineItem } from "../shared/ipc-contract.js";
 
 export function audioEnvelope(item: TimelineItem, durationUs: number) {
   const music = "AudioClip" in item;
-  const clip = music
-    ? item.AudioClip
-    : "VideoClip" in item
-      ? item.VideoClip
-      : null;
+  let clip = "VideoClip" in item ? item.VideoClip : null;
+  if ("AudioClip" in item) clip = item.AudioClip;
   const defaultFade = music ? 100000 : 0;
   return {
     volume: clip?.muted ? 0 : (clip?.volume ?? 1),

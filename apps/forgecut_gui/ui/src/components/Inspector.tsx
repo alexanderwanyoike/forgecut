@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { getItemData } from "../lib/timeline/items";
 import { invoke, invokeGrouped } from "../lib/bridge";
 import type {
+  AudioSettings,
   ItemPatch,
   Project,
   ProjectSettings,
@@ -98,13 +99,14 @@ export default function Inspector({
   );
   const text = item && "TextOverlay" in item ? item.TextOverlay : null;
   const image = item && "ImageOverlay" in item ? item.ImageOverlay : null;
-  const clipAudio =
-    item &&
-    ("VideoClip" in item
-      ? { kind: "VideoClip" as const, settings: item.VideoClip }
-      : "AudioClip" in item
-        ? { kind: "AudioClip" as const, settings: item.AudioClip }
-        : null);
+  let clipAudio: {
+    kind: "VideoClip" | "AudioClip";
+    settings: AudioSettings;
+  } | null = null;
+  if (item && "VideoClip" in item)
+    clipAudio = { kind: "VideoClip", settings: item.VideoClip };
+  if (item && "AudioClip" in item)
+    clipAudio = { kind: "AudioClip", settings: item.AudioClip };
   const data = item
     ? (Object.values(item)[0] as {
         timeline_start_us: number;
