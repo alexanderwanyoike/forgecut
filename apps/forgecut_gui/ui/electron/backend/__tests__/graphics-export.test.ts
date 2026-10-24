@@ -236,7 +236,12 @@ it.skipIf(process.env.FORGECUT_GRAPHICS_TEST !== "1")(
         itemId: item.RemotionGraphic.id,
         patch: {
           kind: "RemotionGraphic",
-          changes: { props: { image_opacity: 0.5 } },
+          changes: {
+            props: { image_opacity: 0.5 },
+            layer_states: {
+              "1c1dfd1c-520b-4c83-8a82-b00fdf9b8d90": { order: -1 },
+            },
+          },
         },
       });
       const half = join(directory, "half.mp4");
