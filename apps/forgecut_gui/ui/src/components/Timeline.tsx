@@ -361,6 +361,17 @@ export default function Timeline(props: TimelineProps) {
             }}
           />
 
+          {timeline.duration_us !== undefined && (
+            <div
+              className="sequence-end"
+              title="Sequence end"
+              style={{
+                left: `${usToPixels(timeline.duration_us, pixelsPerSecond) + LABEL_W}px`,
+              }}
+            >
+              <span>End</span>
+            </div>
+          )}
           {snapLineUs !== null && (
             <div
               className="snap-line"

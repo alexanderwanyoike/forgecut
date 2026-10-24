@@ -39,7 +39,7 @@ export function getItemData(item: TimelineItem): ItemView {
 }
 
 export function timelineMaxEndUs(timeline: Timeline, floorUs: number): number {
-  let maxEnd = floorUs;
+  let maxEnd = Math.max(floorUs, timeline.duration_us ?? 0);
   for (const track of timeline.tracks) {
     for (const item of track.items) {
       const data = getItemData(item);
