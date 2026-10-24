@@ -104,7 +104,7 @@ function request<K extends CommandName>(
       return response.value;
     })
     .catch((error: unknown) => {
-      if (!command.startsWith("get_"))
+      if (!command.startsWith("get_") && command !== "set_editing_context")
         window.dispatchEvent(
           new CustomEvent("forgecut:command-error", {
             detail: error instanceof Error ? error.message : String(error),

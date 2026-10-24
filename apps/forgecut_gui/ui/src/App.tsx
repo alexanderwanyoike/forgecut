@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useEditingContext } from "./hooks/useEditingContext";
 import { getItemData } from "./lib/timeline/items";
 import { invoke, open, save } from "./lib/bridge";
 import AssetBin from "./components/AssetBin";
@@ -14,6 +15,7 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const { snapshot, error, setError } = useProject();
+  useEditingContext(snapshot, selectedClipId, playheadUs);
   const [recoveryPath, setRecoveryPath] = useState<string | null>(null);
   const [showFileMenu, setShowFileMenu] = useState(false);
   const projectVersion = snapshot?.revision ?? 0;
