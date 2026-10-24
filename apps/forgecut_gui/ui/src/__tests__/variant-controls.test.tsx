@@ -126,3 +126,30 @@ it("syncs selected variant timing without replacing manual wording and undoes on
   );
   expect(state.project.timeline).toEqual(source);
 });
+
+it("cancels a delayed variant action when its original project is replaced", async () => {
+  const { state, App } = await sequenceWorkspaceFixture();
+  render(<App />);
+  await screen.findByLabelText("Text");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Create sequence variant" }),
+  );
+  const native = window.forgecut!.invoke;
+  let switched = false;
+  window.forgecut!.invoke = async <T,>(...input: Parameters<typeof native>) => {
+    const [command] = input;
+    const response = await native<T>(...input);
+    if (command === "get_project_snapshot" && !switched) {
+      switched = true;
+      await act(async () => {
+        state.createProject();
+      });
+    }
+    return response;
+  };
+  fireEvent.click(screen.getByRole("button", { name: "Create variant" }));
+  await waitFor(() => expect(switched).toBe(true));
+  await screen.findByText("Project Settings");
+  expect(state.project.name).toBe("Untitled");
+  expect(state.project.sequences).toEqual([]);
+});
