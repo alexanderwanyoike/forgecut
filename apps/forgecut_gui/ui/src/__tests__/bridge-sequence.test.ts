@@ -1,0 +1,82 @@
+import { afterEach, expect, it, vi } from "vitest";
+import { AppState } from "../../electron/backend/state";
+import { EditingService } from "../../electron/backend/editing-service";
+import type {
+  CommandMetadata,
+  CommandResponse,
+} from "../../electron/shared/ipc-contract";
+let service: EditingService | undefined;
+afterEach(async () => {
+  delete window.forgecut;
+  if (service) {
+    await service.jobs.close();
+    await service.closeGraphicsPreview();
+  }
+  vi.resetModules();
+});
+async function fixture() {
+  const state = new AppState();
+  service = new EditingService(state);
+  const owner = service;
+  await owner.execute("create_sequence", { name: "Clip" });
+  window.forgecut = {
+    invoke: async <T>(
+      command: string,
+      args?: Record<string, unknown>,
+      metadata?: CommandMetadata,
+    ): Promise<CommandResponse<T>> =>
+      owner.execute(command, args, metadata) as Promise<CommandResponse<T>>,
+    events: {
+      listen: <T>(
+        event: string,
+        callback: (message: { event: string; payload: T }) => void,
+      ) =>
+        state.subscribe((snapshot) => {
+          if (event === "project-changed")
+            callback({ event, payload: snapshot as T });
+        }),
+    },
+    dialog: { open: vi.fn(), save: vi.fn() },
+    mcp: { status: vi.fn() },
+    window: { scaleFactor: vi.fn(), onMoved: vi.fn(), onResized: vi.fn() },
+    mediaUrl: (path) => path,
+  };
+  const bridge = await import("../lib/bridge");
+  const unlisten = await bridge.listen("project-changed", () => {});
+  await bridge.invoke("get_project_snapshot");
+  return { state, bridge, unlisten };
+}
+it("binds UI edits to the accepted active sequence snapshot", async () => {
+  const { state, bridge, unlisten } = await fixture();
+  try {
+    const clip = state.project.sequences![0].id;
+    const text = {
+      trackId: "root-titles",
+      timelineStartUs: 0,
+      durationUs: 1000000,
+      text: "Root wording",
+      fontSize: 48,
+      color: "#ffffff",
+      x: 10,
+      y: 20,
+    };
+    await bridge.invoke("add_text_overlay", text);
+    await bridge.invoke("select_sequence", {
+      sessionId: state.sessionId,
+      sequenceId: clip,
+    });
+    await bridge.invoke("add_text_overlay", {
+      ...text,
+      trackId: "clip-titles",
+      text: "Clip wording",
+    });
+    expect(state.project.timeline.tracks[0].items[0]).toMatchObject({
+      TextOverlay: { text: "Root wording" },
+    });
+    expect(
+      state.project.sequences![0].timeline.tracks[0].items[0],
+    ).toMatchObject({ TextOverlay: { text: "Clip wording" } });
+  } finally {
+    unlisten();
+  }
+});
