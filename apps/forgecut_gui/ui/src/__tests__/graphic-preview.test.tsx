@@ -129,3 +129,20 @@ it("adds a title at the playhead through the shared service command", async () =
     ),
   );
 });
+
+it("crops the composition when a graphic uses cover placement", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  await service.execute("add_graphic_item", { templateId: "title-card", trackId: "graphics", timelineStartUs: 0, durationUs: 2000000 });
+  const project = structuredClone(state.project);
+  const item = project.timeline.tracks[0].items[0];
+  if (!("RemotionGraphic" in item)) throw new Error("Invalid fixture");
+  item.RemotionGraphic.transform = { x: 0, y: 0, width: 100, height: 100, opacity: 1, fit: "cover" };
+  const view = render(<Preview project={project} projectVersion={1} playheadUs={500000} playing={false} onPlayingChange={vi.fn()} onPlayheadChange={vi.fn()} />);
+  await waitFor(() => expect(view.container.querySelector(".graphic-player")).toBeTruthy());
+  const player = view.container.querySelector<HTMLElement>(".graphic-player")!;
+  expect(parseFloat(player.style.width)).toBeCloseTo(177.7778, 3);
+  expect(player.style.height).toBe("100px");
+  expect(parseFloat(player.style.left)).toBeCloseTo(-38.8889, 3);
+  expect(player.parentElement?.style.overflow).toBe("hidden");
+});
