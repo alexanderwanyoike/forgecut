@@ -1,16 +1,19 @@
+import { budgetedMediaCommand } from "./process-budget.js";
 import { spawn } from "node:child_process";
 import type { Result } from "../shared/result.js";
 
-export function runMediaProcess(
+export async function runMediaProcess(
   executable: "ffmpeg" | "ffprobe",
   args: string[],
   options: {
     signal?: AbortSignal;
+    budget?: boolean;
     maxOutputBytes?: number;
     cwd?: string;
     onStderr?: (chunk: string) => void;
   } = {},
 ): Promise<Result<Buffer>> {
+  const invocation = options.budget ? await budgetedMediaCommand(executable, args) : {command: executable, args};
   return new Promise((resolve) => {
     const cancelled = (): Result<Buffer> => ({
       ok: false,
@@ -20,7 +23,7 @@ export function runMediaProcess(
       resolve(cancelled());
       return;
     }
-    const child = spawn(executable, args, {
+    const child = spawn(invocation.command, invocation.args, {
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
       cwd: options.cwd,
