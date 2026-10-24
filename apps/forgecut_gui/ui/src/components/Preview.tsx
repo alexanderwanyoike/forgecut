@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { resolveSequenceFrame } from "../../electron/domain/sequence";
 import { itemData } from "../../electron/domain/timeline-item";
 import { mediaUrl } from "../lib/bridge";
@@ -8,6 +8,7 @@ import { usePlayback } from "../hooks/usePlayback";
 import { useCompositionSize } from "../hooks/useCompositionSize";
 import PreviewMedia from "./PreviewMedia";
 import { AudioMixer } from "../lib/preview/AudioMixer";
+import type { VisualPlacement } from "../../electron/shared/ipc-contract";
 
 export default function Preview(props: PreviewProps) {
   const [mixer] = useState(() => new AudioMixer());
@@ -37,9 +38,6 @@ export default function Preview(props: PreviewProps) {
     ...props,
     durationUs: frame?.durationUs ?? 0,
   });
-  const primary = props.project?.timeline.tracks.find(
-    (track) => track.kind === "Video",
-  )?.id;
   return (
     <section className="panel preview">
       <div className="preview-viewport" ref={viewportRef}>
@@ -56,17 +54,10 @@ export default function Preview(props: PreviewProps) {
           }}
         >
           {frame?.layers.map((layer) => {
-            const { item, asset } = layer;
+            const { item, asset, placement } = layer;
             const data = itemData(item);
             const key = `${data.id}:${props.projectVersion}`;
-            if ("VideoClip" in item && asset) {
-              const pip = item.VideoClip.track_id !== primary;
-              const width = pip
-                ? Math.trunc(settings.width / 4)
-                : settings.width;
-              const height = pip
-                ? Math.trunc(settings.height / 4)
-                : settings.height;
+            if ("VideoClip" in item && asset && placement) {
               return (
                 <PreviewMedia
                   key={key}
@@ -81,13 +72,7 @@ export default function Preview(props: PreviewProps) {
                   playing={playback.playing}
                   version={props.projectVersion}
                   fps={settings.fps}
-                  style={{
-                    position: "absolute",
-                    width,
-                    height,
-                    left: pip ? settings.width - width - 20 : 0,
-                    top: pip ? settings.height - height - 20 : 0,
-                  }}
+                  style={visualStyle(placement)}
                   onError={reportError}
                 />
               );
@@ -108,23 +93,13 @@ export default function Preview(props: PreviewProps) {
                 />
               );
             }
-            if ("ImageOverlay" in item && asset) {
-              const image = item.ImageOverlay;
+            if ("ImageOverlay" in item && asset && placement) {
               return (
                 <img
                   key={key}
                   alt={asset.name}
                   src={mediaUrl(asset.path)}
-                  style={{
-                    position: "absolute",
-                    left: image.x,
-                    top: image.y,
-                    width: image.width,
-                    height: image.height,
-                    opacity: image.opacity,
-                    objectFit: "contain",
-                    pointerEvents: "none",
-                  }}
+                  style={visualStyle(placement)}
                 />
               );
             }
@@ -174,4 +149,18 @@ export default function Preview(props: PreviewProps) {
       </div>
     </section>
   );
+}
+
+function visualStyle(placement: VisualPlacement): CSSProperties {
+  return {
+    position: "absolute",
+    left: placement.x,
+    top: placement.y,
+    width: placement.width,
+    height: placement.height,
+    opacity: placement.opacity,
+    objectFit: placement.fit,
+    background: "transparent",
+    pointerEvents: "none",
+  };
 }
