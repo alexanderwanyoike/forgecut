@@ -6,6 +6,8 @@ import {
   sequenceDurationUs,
 } from "../domain/sequence.js";
 
+import { audioEnvelope } from "../domain/audio.js";
+
 export type RenderInput = { path: string; index: number };
 export type RenderPlan = {
   inputs: RenderInput[];
@@ -85,14 +87,18 @@ export function compileExportPlan(project: Project): RenderPlan {
         ("VideoClip" in item && (asset.probe?.audio_channels ?? 0) > 0)
       ) {
         const clip = "AudioClip" in item ? item.AudioClip : item.VideoClip;
-        const volume = "AudioClip" in item ? item.AudioClip.volume : 1;
+        const envelope = audioEnvelope(item, length * 1_000_000);
         const delay = Math.round((range.start / fps) * sampleRate);
-        const fades =
-          "AudioClip" in item
-            ? `,afade=t=in:d=0.1,afade=t=out:st=${Math.max(0, length - 0.1)}:d=0.1`
-            : "";
+        const fades = [
+          envelope.fadeInUs > 0
+            ? `,afade=t=in:d=${envelope.fadeInUs / 1_000_000}`
+            : "",
+          envelope.fadeOutUs > 0
+            ? `,afade=t=out:st=${length - envelope.fadeOutUs / 1_000_000}:d=${envelope.fadeOutUs / 1_000_000}`
+            : "",
+        ].join("");
         filters.push(
-          `[${input.index}:a]atrim=start=${clip.source_in_us / 1_000_000}:end=${clip.source_out_us / 1_000_000},asetpts=PTS-STARTPTS,aresample=${sampleRate},aformat=channel_layouts=stereo,volume=${volume}${fades},atrim=duration=${length},adelay=${delay}S:all=1[audio${index}]`,
+          `[${input.index}:a]atrim=start=${clip.source_in_us / 1_000_000}:end=${clip.source_out_us / 1_000_000},asetpts=PTS-STARTPTS,aresample=${sampleRate},aformat=channel_layouts=stereo,volume=${envelope.volume}${fades},atrim=duration=${length},adelay=${delay}S:all=1[audio${index}]`,
         );
         audioLabels.push(`[audio${index}]`);
       }

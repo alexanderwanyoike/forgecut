@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import { getItemData } from "../lib/timeline/items";
 import { invoke, invokeGrouped } from "../lib/bridge";
 import type {
+  AudioSettings,
   ItemPatch,
   Project,
   ProjectSettings,
   TimelineItem,
 } from "../../electron/shared/ipc-contract";
 import PropertyInput from "./PropertyInput";
+import ClipAudioProperties from "./ClipAudioProperties";
 
 interface InspectorProps {
   selectedClipId: string | null;
@@ -97,7 +99,14 @@ export default function Inspector({
   );
   const text = item && "TextOverlay" in item ? item.TextOverlay : null;
   const image = item && "ImageOverlay" in item ? item.ImageOverlay : null;
-  const audio = item && "AudioClip" in item ? item.AudioClip : null;
+  let clipAudio: {
+    kind: "VideoClip" | "AudioClip";
+    settings: AudioSettings;
+  } | null = null;
+  if (item && "VideoClip" in item)
+    clipAudio = { kind: "VideoClip", settings: item.VideoClip };
+  if (item && "AudioClip" in item)
+    clipAudio = { kind: "AudioClip", settings: item.AudioClip };
   const data = item
     ? (Object.values(item)[0] as {
         timeline_start_us: number;
@@ -278,24 +287,8 @@ export default function Inspector({
                 </label>
               </>
             )}
-            {audio && (
-              <label className="inspector-row">
-                <span className="inspector-label">Volume</span>
-                <input
-                  type="range"
-                  className="inspector-slider"
-                  min="0"
-                  max="4"
-                  step="0.01"
-                  value={audio.volume}
-                  onChange={(event) =>
-                    update({
-                      kind: "AudioClip",
-                      changes: { volume: Number(event.currentTarget.value) },
-                    })
-                  }
-                />
-              </label>
+            {clipAudio && (
+              <ClipAudioProperties {...clipAudio} update={update} />
             )}
           </div>
         ) : (

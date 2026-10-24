@@ -1,4 +1,5 @@
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, type CSSProperties } from "react";
+import type { AudioMixer } from "../lib/preview/AudioMixer";
 import { mediaUrl } from "../lib/bridge";
 import { usToSeconds } from "../lib/preview/time-utils";
 
@@ -8,30 +9,62 @@ type Props = {
   playing: boolean;
   version: number;
   fps: number;
-  style: CSSProperties;
+  style?: CSSProperties;
+  audioOnly?: boolean;
+  mixer: AudioMixer;
+  audioGain?: number;
   onError: (message: string) => void;
 };
 
 export default function PreviewMedia(props: Props) {
-  const mediaRef = useRef<HTMLVideoElement>(null);
+  const mediaRef = useRef<HTMLMediaElement | null>(null);
+  const setMedia = useCallback((media: HTMLMediaElement | null) => {
+    mediaRef.current = media;
+  }, []);
+  const gain = useRef<GainNode | null>(null);
   const synchronize = useRef(() => {});
   const epoch = useRef(0);
   const previousPlaying = useRef(props.playing);
   synchronize.current = () => {
     const media = mediaRef.current;
-    if (!media || media.readyState < 1) return;
+    if (!media) return;
+    if (gain.current) props.mixer.setGain(gain.current, props.audioGain ?? 0);
+    if (media.readyState < 1) return;
     const target = usToSeconds(props.timeUs);
-    const tolerance = props.playing ? Math.max(0.03, 1 / props.fps) : 0.001;
+    const tolerance = props.playing
+      ? Math.max(0.03, Math.min(0.05, 1 / props.fps))
+      : 0.001;
     if (Math.abs(media.currentTime - target) > tolerance)
       media.currentTime = target;
     if (!props.playing) media.pause();
     else if (media.paused) {
       const { current } = epoch;
+      void props.mixer.resume().then((result) => {
+        if (!result.ok && current === epoch.current)
+          props.onError(result.error.message);
+      });
       void media.play().catch((error: unknown) => {
         if (current === epoch.current) props.onError(String(error));
       });
     }
   };
+  const audible = props.audioGain !== undefined;
+  useEffect(() => {
+    const media = mediaRef.current;
+    if (!media || !audible) return undefined;
+    const connection = props.mixer.connect(media);
+    if (!connection.ok) {
+      media.muted = true;
+      props.onError(connection.error.message);
+      return undefined;
+    }
+    gain.current = connection.value;
+    synchronize.current();
+    return () => {
+      gain.current = null;
+      props.mixer.disconnect(media);
+    };
+  }, [props.mixer, props.path, props.version, audible]);
   useEffect(() => {
     const media = mediaRef.current;
     if (!media) return undefined;
@@ -51,11 +84,15 @@ export default function PreviewMedia(props: Props) {
       previousPlaying.current = props.playing;
     }
     synchronize.current();
-  }, [props.playing, props.timeUs]);
+  }, [props.playing, props.timeUs, props.audioGain]);
+  const Media = props.audioOnly ? "audio" : "video";
   return (
-    <video
-      ref={mediaRef}
-      className="preview-video"
+    <Media
+      ref={setMedia}
+      className={props.audioOnly ? undefined : "preview-video"}
+      hidden={props.audioOnly}
+      crossOrigin="anonymous"
+      muted={!audible}
       src={mediaUrl(props.path)}
       playsInline
       preload="auto"

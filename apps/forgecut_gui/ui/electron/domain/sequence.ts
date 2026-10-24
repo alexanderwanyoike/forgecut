@@ -2,6 +2,7 @@ import type {
   Project,
   SequenceFrame,
   TimelineItem,
+  TimelineItemDetail,
 } from "../shared/ipc-contract.js";
 import {
   assetIdOf,
@@ -9,6 +10,8 @@ import {
   timelineStartUs,
   timelineEndUs,
 } from "./timeline-item.js";
+
+import { audioGainAt } from "./audio.js";
 
 // Serialized frame boundaries can differ by half a microsecond after rounding.
 export function frameAtOrAfter(timeUs: number, fps: number): number {
@@ -53,21 +56,32 @@ export function resolveSequenceFrame(
       const range = itemFrameRange(item, fps);
       if (frame < range.start || frame >= range.end) return [];
       const data = itemData(item);
-      const sourceTimeUs =
-        "source_in_us" in data
-          ? Math.min(
-              data.source_out_us - 1,
-              data.source_in_us + frameTimeUs(frame - range.start, fps),
-            )
-          : undefined;
+      const elapsedUs = Math.max(0, playheadUs - frameTimeUs(range.start, fps));
+      const sourceTimeUs = sourceTimeAt(
+        data,
+        frameTimeUs(frame - range.start, fps),
+      );
+      const playbackTimeUs = sourceTimeAt(data, elapsedUs);
+      const asset =
+        project.assets.find((candidate) => candidate.id === assetIdOf(item)) ??
+        null;
+      const audible =
+        "AudioClip" in item ||
+        ("VideoClip" in item && (asset?.probe?.audio_channels ?? 0) > 0);
       return [
         {
           item,
           trackIndex,
-          asset:
-            project.assets.find((asset) => asset.id === assetIdOf(item)) ??
-            null,
+          asset,
+          audioGain: audible
+            ? audioGainAt(
+                item,
+                elapsedUs,
+                frameTimeUs(range.end - range.start, fps),
+              )
+            : undefined,
           sourceTimeUs,
+          playbackTimeUs,
         },
       ];
     }),
@@ -79,4 +93,13 @@ export function resolveSequenceFrame(
     settings: project.settings,
     layers,
   };
+}
+
+function sourceTimeAt(
+  data: TimelineItemDetail,
+  offsetUs: number,
+): number | undefined {
+  return "source_in_us" in data
+    ? Math.min(data.source_out_us - 1, data.source_in_us + offsetUs)
+    : undefined;
 }

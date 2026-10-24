@@ -26,6 +26,12 @@ export const settingsSchema = z.strictObject({
   sample_rate: positive.int().max(384000),
 });
 const position = { x: z.number(), y: z.number() };
+export const audioSettingsShape = {
+  volume: z.number().min(0).max(4).optional(),
+  muted: z.boolean().optional(),
+  fade_in_us: timeSchema.optional(),
+  fade_out_us: timeSchema.optional(),
+};
 const clip = z.strictObject({
   id: idSchema,
   asset_id: idSchema,
@@ -33,6 +39,7 @@ const clip = z.strictObject({
   timeline_start_us: timeSchema,
   source_in_us: timeSchema,
   source_out_us: timeSchema,
+  ...audioSettingsShape,
 });
 const image = z.strictObject({
   id: idSchema,

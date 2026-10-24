@@ -1,6 +1,6 @@
 # ForgeCut MCP and graphics editing implementation plan
 
-Status: Phase 0 feasibility and Phase 1 shared editing state are implemented and verified on Linux x64. Phase 1 changes the production editor, 23 October 2026. Phase 2 implementation and automated acceptance now pass on Linux: the live MCP bridge, guarded edits/history/files, shared editing context, status and cancellable import/frame jobs. The official SDK workflow assembles three generated source ranges, preserves a manual-service trim, reads current state, changes another range, undoes one agent batch, saves and reopens. Desktop human acceptance remains for stack review. Phase 3 is in progress: shared frame timing, timeline-positioned export and queued immutable exports are implemented. Playback, geometry/audio controls and explicit sequence ends remain.
+Status: Phase 0 feasibility and Phase 1 shared editing state are implemented and verified on Linux x64. Phase 1 changes the production editor, 23 October 2026. Phase 2 implementation and automated acceptance now pass on Linux: the live MCP bridge, guarded edits/history/files, shared editing context, status and cancellable import/frame jobs. The official SDK workflow assembles three generated source ranges, preserves a manual-service trim, reads current state, changes another range, undoes one agent batch, saves and reopens. Desktop human acceptance remains for stack review. Phase 3 is in progress: shared frame timing, timeline-positioned export and queued immutable exports are implemented. Continuous playback and shared source/music audio envelopes are also implemented. Editable geometry and explicit sequence ends remain.
 
 ForgeCut will become the shared editing workspace for videos assembled with Codex. Codex stays in its existing chat and operates the running editor through MCP. The user can change footage, text, images, fonts, colours, positioning and timing directly, then ask Codex to continue from the current project.
 
@@ -133,7 +133,7 @@ Primary touchpoints: `state.ts`, `editing-service.ts`, `commands/`, `timeline-op
 
 ## Phase 2 Live MCP editing
 
-Status: in progress. The first slice provides authenticated instance discovery, explicit attachment, operation schemas, bounded reads and guarded live edit batches. See the [MCP setup and scope](../mcp.md) and [bridge decision](../adr/0003-live-mcp-bridge.md). Guarded history and save/reopen controls are also implemented. Shared editing context and visible MCP readiness/activity are implemented. Cancellable media jobs remain before Phase 2 acceptance.
+Status: automated acceptance implemented. The first slice provides authenticated instance discovery, explicit attachment, operation schemas, bounded reads and guarded live edit batches. See the [MCP setup and scope](../mcp.md) and [bridge decision](../adr/0003-live-mcp-bridge.md). Guarded history and save/reopen controls are also implemented. Shared editing context and visible MCP readiness/activity are implemented. Cancellable media jobs and the three-range editing acceptance workflow now pass. Human desktop acceptance remains for stack review.
 
 **Outcome:** Codex here can inspect and edit a specific running ForgeCut session.
 

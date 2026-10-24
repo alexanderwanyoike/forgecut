@@ -96,6 +96,7 @@ it("keeps the bin, timeline, Inspector and paused preview in sync with edits and
   };
   const view = render(<App />);
   await screen.findByText("frame.png");
+  await act(async () => {});
   const clip = view.container.querySelector(".clip")!;
   fireEvent.mouseDown(clip, { clientX: 100, clientY: 100 });
   fireEvent.mouseUp(window, { clientX: 100, clientY: 100 });

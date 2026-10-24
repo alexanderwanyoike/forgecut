@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { resolveSequenceFrame } from "../../electron/domain/sequence";
 import { itemData } from "../../electron/domain/timeline-item";
 import { mediaUrl } from "../lib/bridge";
@@ -7,8 +7,20 @@ import { formatTimeUs } from "../lib/preview/time-utils";
 import { usePlayback } from "../hooks/usePlayback";
 import { useCompositionSize } from "../hooks/useCompositionSize";
 import PreviewMedia from "./PreviewMedia";
+import { AudioMixer } from "../lib/preview/AudioMixer";
 
 export default function Preview(props: PreviewProps) {
+  const [mixer] = useState(() => new AudioMixer());
+  useEffect(
+    () => () => {
+      void mixer
+        .close()
+        .catch((failure: unknown) =>
+          console.warn("Audio cleanup failed", failure),
+        );
+    },
+    [mixer],
+  );
   const [error, setError] = useState({ key: "", message: "" });
   const frame = props.project
     ? resolveSequenceFrame(props.project, props.playheadUs)
@@ -58,8 +70,14 @@ export default function Preview(props: PreviewProps) {
               return (
                 <PreviewMedia
                   key={key}
+                  mixer={mixer}
+                  audioGain={layer.audioGain}
                   path={asset.path}
-                  timeUs={layer.sourceTimeUs ?? 0}
+                  timeUs={
+                    (playback.playing
+                      ? layer.playbackTimeUs
+                      : layer.sourceTimeUs) ?? 0
+                  }
                   playing={playback.playing}
                   version={props.projectVersion}
                   fps={settings.fps}
@@ -70,6 +88,22 @@ export default function Preview(props: PreviewProps) {
                     left: pip ? settings.width - width - 20 : 0,
                     top: pip ? settings.height - height - 20 : 0,
                   }}
+                  onError={reportError}
+                />
+              );
+            }
+            if ("AudioClip" in item && asset) {
+              return (
+                <PreviewMedia
+                  key={key}
+                  mixer={mixer}
+                  audioOnly
+                  audioGain={layer.audioGain}
+                  path={asset.path}
+                  timeUs={layer.playbackTimeUs ?? 0}
+                  playing={playback.playing}
+                  version={props.projectVersion}
+                  fps={settings.fps}
                   onError={reportError}
                 />
               );
