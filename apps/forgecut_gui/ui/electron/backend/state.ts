@@ -106,6 +106,9 @@ export class AppState {
     this.context.update(
       input.selectedItemIds.filter((id) => ids.has(id)),
       input.playheadUs,
+      (input.selectedLayerIds ?? []).filter((id) =>
+        this.selectedGraphicLayers(input.selectedItemIds).has(id),
+      ),
     );
     return this.getEditingContext();
   }
@@ -319,6 +322,30 @@ export class AppState {
     }
   }
 
+  private selectedGraphicLayers(itemIds: string[]): Set<string> {
+    return new Set(
+      this.project.timeline.tracks
+        .flatMap((track) => track.items)
+        .flatMap((item) => {
+          if (
+            !("RemotionGraphic" in item) ||
+            !itemIds.includes(item.RemotionGraphic.id)
+          )
+            return [];
+          const graphic = item.RemotionGraphic;
+          return (
+            this.project.components
+              ?.find(
+                (component) =>
+                  component.id === graphic.component_id &&
+                  component.version === graphic.component_version,
+              )
+              ?.layers.map((layer) => layer.id) ?? []
+          );
+        }),
+    );
+  }
+
   private changed(): void {
     this.context.reconcile(
       new Set(
@@ -326,6 +353,7 @@ export class AppState {
           track.items.map((item) => itemData(item).id),
         ),
       ),
+      this.selectedGraphicLayers(this.context.snapshot().selectedItemIds),
     );
     this.revision += 1;
     for (const listener of this.listeners) {

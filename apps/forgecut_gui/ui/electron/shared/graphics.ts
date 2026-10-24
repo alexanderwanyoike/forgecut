@@ -52,6 +52,12 @@ export type GraphicComponent = {
     fonts: string[];
   };
 };
+export type GraphicLayerState = {
+  hidden?: boolean;
+  locked?: boolean;
+  order?: number;
+};
+export type GraphicLayerStates = Record<string, GraphicLayerState>;
 export type RemotionGraphicItem = {
   id: string;
   track_id: string;
@@ -60,6 +66,7 @@ export type RemotionGraphicItem = {
   component_id: string;
   component_version: string;
   props: GraphicValues;
+  layer_states?: GraphicLayerStates;
   transform?: VisualPlacement;
   layer_order?: number;
 };

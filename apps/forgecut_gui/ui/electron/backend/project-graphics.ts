@@ -56,6 +56,9 @@ export function validateProjectGraphics(project: Project): void {
           candidate.version === graphic.component_version,
       );
       if (!component) throw new Error("Missing graphic component version");
+      for (const id of Object.keys(graphic.layer_states ?? {}))
+        if (!component.layers.some((layer) => layer.id === id))
+          throw new Error(`Unknown graphic layer: ${id}`);
       const props = validateGraphicProperties(component, graphic.props);
       if (!props.ok) throw new Error(props.error.message);
       for (const [key, property] of Object.entries(component.properties))

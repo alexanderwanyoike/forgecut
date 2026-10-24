@@ -73,6 +73,7 @@ export async function prepareGraphicInputs(
           duration,
           renderFrames: Math.min(duration, end - range.start),
           values: graphic.props,
+          layerStates: graphic.layer_states,
           resources: resources.value,
         },
         directory,

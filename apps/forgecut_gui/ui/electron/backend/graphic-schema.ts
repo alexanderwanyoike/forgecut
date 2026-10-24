@@ -134,3 +134,14 @@ export const graphicComponentSchema = z.strictObject({
     )
     .max(100),
 });
+
+export const graphicLayerStatesSchema = z
+  .record(
+    z.uuid(),
+    z.strictObject({
+      hidden: z.boolean().optional(),
+      locked: z.boolean().optional(),
+      order: z.number().int().min(-10000).max(10000).optional(),
+    }),
+  )
+  .refine((states) => Object.keys(states).length <= 100);

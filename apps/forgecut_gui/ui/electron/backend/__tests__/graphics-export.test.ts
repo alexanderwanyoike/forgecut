@@ -236,7 +236,16 @@ it.skipIf(process.env.FORGECUT_GRAPHICS_TEST !== "1")(
         itemId: item.RemotionGraphic.id,
         patch: {
           kind: "RemotionGraphic",
-          changes: { props: { image_opacity: 0.5 } },
+          changes: {
+            props: {
+              image_opacity: 0.5,
+              background_opacity: 1,
+              background_color: "#000000",
+            },
+            layer_states: {
+              "1c1dfd1c-520b-4c83-8a82-b00fdf9b8d90": { order: -1 },
+            },
+          },
         },
       });
       const half = join(directory, "half.mp4");
@@ -263,6 +272,40 @@ it.skipIf(process.env.FORGECUT_GRAPHICS_TEST !== "1")(
       expect(mixed.status, mixed.stderr.toString()).toBe(0);
       expect(mixed.stdout[1]).toBeGreaterThan(110);
       expect(mixed.stdout[1]).toBeLessThan(145);
+      await service.execute("update_item", {
+        itemId: item.RemotionGraphic.id,
+        patch: {
+          kind: "RemotionGraphic",
+          changes: {
+            layer_states: {
+              "1c1dfd1c-520b-4c83-8a82-b00fdf9b8d90": { hidden: true },
+            },
+          },
+        },
+      });
+      const hidden = join(directory, "hidden.mp4");
+      expect(await exportProject(state.project, hidden)).toMatchObject({
+        ok: true,
+      });
+      const hiddenPixels = spawnSync("ffmpeg", [
+        "-v",
+        "error",
+        "-threads",
+        "1",
+        "-i",
+        hidden,
+        "-frames:v",
+        "1",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "-threads",
+        "1",
+        "pipe:1",
+      ]);
+      expect(hiddenPixels.status, hiddenPixels.stderr.toString()).toBe(0);
+      expect([...hiddenPixels.stdout.subarray(0, 3)]).toEqual([0, 0, 0]);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

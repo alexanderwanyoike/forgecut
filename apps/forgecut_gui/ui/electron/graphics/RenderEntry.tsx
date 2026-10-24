@@ -7,8 +7,14 @@ type Input = TitleCardProps & {
   fps: number;
   duration: number;
 };
-function Graphic({ values, resources }: Input) {
-  return <TitleCard values={values} resources={resources} />;
+function Graphic({ values, resources, layerStates }: Input) {
+  return (
+    <TitleCard
+      values={values}
+      resources={resources}
+      layerStates={layerStates}
+    />
+  );
 }
 function Root() {
   return (
