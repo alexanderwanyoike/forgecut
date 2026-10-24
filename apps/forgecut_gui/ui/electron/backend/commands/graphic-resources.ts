@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 import { lockedGraphicProperties } from "../../domain/graphic-layer-locks.js";
+import { resolveGraphicInstance } from "../../domain/graphic-instance.js";
 import type { CommandMap } from "../../shared/ipc-contract.js";
 import { readResourceFile } from "../graphic-resource-store.js";
 import { importGraphicResource } from "../graphic-resource-import.js";
@@ -57,49 +58,45 @@ export const graphicResourceCommands = {
         "CONFLICT",
         "Project changed while importing the resource. Read it again and retry.",
       );
+    const target = input.target
+      ? resolveGraphicInstance(state.project, input.target.itemId)
+      : undefined;
+    if (target && !target.ok)
+      throw new EditingError(target.error.code, target.error.message);
     if (beginCommit && !beginCommit())
       throw new EditingError(
         "CANCELLED",
         "Resource import cancelled before publication",
       );
-    state.executeProjectChange((project) => {
-      project.resources ??= [];
-      project.resources.push(imported.value);
-      if (input.target) {
-        const item = project.timeline.tracks
-          .flatMap((track) => track.items)
-          .find(
-            (candidate) =>
-              "RemotionGraphic" in candidate &&
-              candidate.RemotionGraphic.id === input.target?.itemId,
-          );
-        if (!item || !("RemotionGraphic" in item))
-          throw new Error("The target graphic no longer exists");
-        const component = project.components?.find(
-          (candidate) =>
-            candidate.id === item.RemotionGraphic.component_id &&
-            candidate.version === item.RemotionGraphic.component_version,
-        );
-        if (
-          component?.properties[input.target.property]?.type !==
-          imported.value.kind.toLowerCase()
-        )
-          throw new Error(
-            "The selected property does not accept this resource kind",
-          );
-        if (
-          component &&
-          lockedGraphicProperties(component, item.RemotionGraphic).has(
-            input.target.property,
+    state.executeProjectChange(
+      (project) => {
+        project.resources ??= [];
+        project.resources.push(imported.value);
+        if (input.target) {
+          const found = resolveGraphicInstance(project, input.target.itemId);
+          if (!found.ok)
+            throw new EditingError(found.error.code, found.error.message);
+          const { item, component } = found.value;
+          if (
+            component.properties[input.target.property]?.type !==
+            imported.value.kind.toLowerCase()
           )
-        )
-          throw new EditingError(
-            "CONFLICT",
-            "Unlock this layer before replacing its resource",
-          );
-        item.RemotionGraphic.props[input.target.property] = imported.value.id;
-      }
-    });
+            throw new EditingError(
+              "INVALID_INPUT",
+              "The selected property does not accept this resource kind",
+            );
+          if (
+            lockedGraphicProperties(component, item).has(input.target.property)
+          )
+            throw new EditingError(
+              "CONFLICT",
+              "Unlock this layer before replacing its resource",
+            );
+          item.props[input.target.property] = imported.value.id;
+        }
+      },
+      { sequenceId: target?.ok ? target.value.sequence.id : undefined },
+    );
     return imported.value;
   },
 } satisfies CommandRegistry;
