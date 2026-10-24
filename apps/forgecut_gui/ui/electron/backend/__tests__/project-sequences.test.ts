@@ -157,7 +157,11 @@ it("migrates version 3 without replacing default sequence identity or accepting 
   const current = structuredClone(new AppState().project);
   delete current.source_selections;
   current.schema_version = 3;
-  expect(validateProject(current)).toEqual({ ...current, schema_version: 4, source_selections: [] });
+  expect(validateProject(current)).toEqual({
+    ...current,
+    schema_version: 4,
+    source_selections: [],
+  });
   delete current.default_sequence;
   expect(() => validateProject(current)).toThrow();
 });
