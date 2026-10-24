@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { resolveGraphicInstance } from "../domain/graphic-instance.js";
 import type { Project } from "../shared/ipc-contract.js";
 import type { GraphicValues } from "../shared/graphics.js";
 import type {
@@ -47,28 +48,9 @@ export class GraphicPreviewService {
     const cancellation = signal
       ? AbortSignal.any([signal, this.controller.signal])
       : this.controller.signal;
-    const found = project.timeline.tracks
-      .flatMap((track) => track.items)
-      .find(
-        (item) =>
-          "RemotionGraphic" in item && item.RemotionGraphic.id === itemId,
-      );
-    if (!found || !("RemotionGraphic" in found))
-      return {
-        ok: false,
-        error: { code: "NOT_FOUND", message: "Graphic instance not found" },
-      };
-    const item = found.RemotionGraphic;
-    const component = project.components?.find(
-      (candidate) =>
-        candidate.id === item.component_id &&
-        candidate.version === item.component_version,
-    );
-    if (!component)
-      return {
-        ok: false,
-        error: { code: "NOT_FOUND", message: "Graphic component not found" },
-      };
+    const resolved = resolveGraphicInstance(project, itemId);
+    if (!resolved.ok) return resolved;
+    const { item, component } = resolved.value;
     const properties = validateGraphicProperties(
       component,
       values ?? item.props,

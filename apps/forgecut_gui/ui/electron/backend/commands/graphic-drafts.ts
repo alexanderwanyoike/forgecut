@@ -1,3 +1,4 @@
+import { resolveGraphicInstance } from "../../domain/graphic-instance.js";
 import type { GraphicComponent } from "../../shared/graphics.js";
 import type { GraphicDraft } from "../../shared/graphic-draft.js";
 import type { GraphicDraftStore } from "../GraphicDraftStore.js";
@@ -10,21 +11,10 @@ import {
 } from "./types.js";
 
 function initialDraft(state: AppState, itemId: string): GraphicDraft {
-  const found = state.project.timeline.tracks
-    .flatMap((track) => track.items)
-    .find(
-      (item) => "RemotionGraphic" in item && item.RemotionGraphic.id === itemId,
-    );
-  if (!found || !("RemotionGraphic" in found))
-    throw new EditingError("NOT_FOUND", "Graphic instance not found");
-  const graphic = found.RemotionGraphic;
-  const component = state.project.components?.find(
-    (candidate) =>
-      candidate.id === graphic.component_id &&
-      candidate.version === graphic.component_version,
-  );
-  if (!component)
-    throw new EditingError("NOT_FOUND", "Graphic component not found");
+  const resolved = resolveGraphicInstance(state.project, itemId);
+  if (!resolved.ok)
+    throw new EditingError(resolved.error.code, resolved.error.message);
+  const { component } = resolved.value;
   return {
     projectId: state.project.id,
     itemId,
