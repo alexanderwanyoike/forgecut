@@ -32,11 +32,14 @@ export const sequenceCommands = {
     });
   },
   get_sequences: (_args, { state }) =>
-    projectSequences(state.project).map(({ id, name, settings }) => ({
-      id,
-      name,
-      settings,
-    })),
+    projectSequences(state.project).map(
+      ({ id, name, settings, variant_source }) => ({
+        id,
+        name,
+        settings,
+        ...(variant_source ? { variant_source } : {}),
+      }),
+    ),
   rename_sequence: (args, { state }) => {
     const input = args as CommandMap["rename_sequence"]["args"];
     state.executeProjectChange((project) => {

@@ -29,7 +29,14 @@ export function dispatchSequenceAction(
         total: sequences.length,
         sequences: sequences
           .slice(request.offset, request.offset + request.limit)
-          .map(({ id, name, settings }) => ({ id, name, settings })),
+          .map(({ id, name, settings, variant_source }) => ({
+            id,
+            name,
+            settings,
+            ...(variant_source
+              ? { variantSourceSequenceId: variant_source.sequence_id }
+              : {}),
+          })),
       },
     };
   }
