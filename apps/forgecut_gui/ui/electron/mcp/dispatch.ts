@@ -73,6 +73,11 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
   }),
   z.strictObject({ action: z.literal("assets"), ...pageFields }),
   z.strictObject({
+    action: z.literal("source-selections"),
+    ...resourcePageFields,
+    assetId: idSchema.optional(),
+  }),
+  z.strictObject({
     action: z.literal("apply"),
     request: editRequestSchema,
     label: z.string().min(1).max(120),
@@ -171,6 +176,32 @@ export async function dispatchLocal(
       request.action === "item"
     )
       return dispatchSequenceAction(state, request);
+    if (request.action === "source-selections") {
+      if (
+        request.assetId &&
+        !state.project.assets.some((asset) => asset.id === request.assetId)
+      )
+        return {
+          ok: false,
+          error: { code: "NOT_FOUND", message: "Source asset not found" },
+        };
+      const selections = (state.project.source_selections ?? []).filter(
+        (selection) =>
+          !request.assetId || selection.asset_id === request.assetId,
+      );
+      return {
+        ok: true,
+        value: {
+          sessionId: state.sessionId,
+          revision: state.revision,
+          total: selections.length,
+          selections: selections.slice(
+            request.offset,
+            request.offset + request.limit,
+          ),
+        },
+      };
+    }
     if (request.action === "resources") {
       const resources = state.project.resources ?? [];
       return {

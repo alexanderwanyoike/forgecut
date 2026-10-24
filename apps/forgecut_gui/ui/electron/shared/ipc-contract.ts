@@ -1,3 +1,7 @@
+import type {
+  SourceSelection,
+  SourceSelectionInput,
+} from "./source-selection.js";
 import type { GraphicPromotionRequest } from "./graphic-promotion.js";
 import type { GraphicDraft } from "./graphic-draft.js";
 import type { GraphicPreviewFrame } from "./graphic-preview.js";
@@ -157,7 +161,8 @@ export type ProjectSequence = {
 };
 
 export type Project = {
-  schema_version?: 2 | 3;
+  schema_version?: 2 | 3 | 4;
+  source_selections?: SourceSelection[];
   default_sequence?: Pick<ProjectSequence, "id" | "name">;
   sequences?: ProjectSequence[];
   components?: GraphicComponent[];
@@ -290,6 +295,8 @@ export type ItemPatch =
     };
 
 export type EditCommandName =
+  | "save_source_selection"
+  | "delete_source_selection"
   | "create_sequence"
   | "rename_sequence"
   | "delete_sequence"
@@ -341,6 +348,11 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  save_source_selection: {
+    args: SourceSelectionInput;
+    result: SourceSelection;
+  };
+  delete_source_selection: { args: { selectionId: string }; result: undefined };
   get_sequence_timeline: { args: { sequenceId: string }; result: Timeline };
   select_sequence: {
     args: { sessionId: string; sequenceId: string };

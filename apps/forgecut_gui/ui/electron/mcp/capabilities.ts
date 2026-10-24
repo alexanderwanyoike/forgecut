@@ -26,6 +26,8 @@ export const editingCapabilities = {
     operationsPerBatch: 100,
     itemsPerPage: 100,
     graphicResourcesPerPage: 20,
+    sourceSelectionsPerPage: 20,
+    sourceSelectionsPerProject: 1000,
     graphicResourceBytes: 8 * 1024 * 1024,
     messageBytes: MAX_MESSAGE_BYTES,
   },

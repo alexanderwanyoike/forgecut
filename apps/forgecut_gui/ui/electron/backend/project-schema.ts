@@ -149,8 +149,24 @@ const timelineSchema = z.strictObject({
   markers: z.array(z.object({ time_us: timeSchema }).passthrough()),
 });
 
+export const sourceSelectionSchema = z
+  .strictObject({
+    id: idSchema,
+    asset_id: idSchema,
+    name: z.string().trim().min(1).max(200),
+    source_in_us: timeSchema,
+    source_out_us: timeSchema,
+    notes: z.string().max(2000),
+    rationale: z.string().max(2000),
+  })
+  .refine(
+    (selection) => selection.source_out_us > selection.source_in_us,
+    "Source selection must have a positive duration",
+  );
+
 const projectSchema = z.strictObject({
-  schema_version: z.literal(3),
+  schema_version: z.literal(4),
+  source_selections: z.array(sourceSelectionSchema).max(1000).default([]),
   default_sequence: z.strictObject({
     id: idSchema,
     name: z.string().trim().min(1).max(200),
@@ -181,18 +197,20 @@ export function validateProject(input: unknown): Project {
     previous.schema_version === undefined ||
     previous.schema_version === 1 ||
     previous.schema_version === 2;
-  const project = projectSchema.parse(
-    legacy
-      ? {
-          ...previous,
-          schema_version: 3,
-          default_sequence: previous.default_sequence ?? {
-            id: randomUUID(),
-            name: "Main",
-          },
-        }
-      : previous,
-  );
+  let migrated = previous;
+  if (legacy) {
+    migrated = {
+      ...previous,
+      schema_version: 4,
+      default_sequence: previous.default_sequence ?? {
+        id: randomUUID(),
+        name: "Main",
+      },
+    };
+  } else if (previous.schema_version === 3) {
+    migrated = { ...previous, schema_version: 4 };
+  }
+  const project = projectSchema.parse(migrated);
   const ids = new Set<string>();
   const unique = (id: string) => {
     if (ids.has(id)) throw new Error(`Duplicate ID: ${id}`);
@@ -204,6 +222,20 @@ export function validateProject(input: unknown): Project {
   project.assets.forEach((asset) => unique(asset.id));
   project.resources.forEach((resource) => unique(resource.id));
   const assets = new Map(project.assets.map((asset) => [asset.id, asset]));
+  for (const selection of project.source_selections) {
+    unique(selection.id);
+    const asset = assets.get(selection.asset_id);
+    if (
+      !asset ||
+      asset.kind === "Image" ||
+      !asset.probe ||
+      asset.probe.duration_us <= 0 ||
+      selection.source_out_us > asset.probe.duration_us
+    )
+      throw new Error(
+        `Source selection ${selection.id} requires available audio/video within its duration`,
+      );
+  }
   const kinds = {
     VideoClip: "Video",
     AudioClip: "Audio",

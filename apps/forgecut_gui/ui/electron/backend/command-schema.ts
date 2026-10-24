@@ -79,6 +79,21 @@ const patch = z.discriminatedUnion("kind", [
 ]);
 const none = z.strictObject({}).optional();
 export const editSchemas = {
+  save_source_selection: z
+    .strictObject({
+      selectionId: id.optional(),
+      assetId: id,
+      name: z.string().trim().min(1).max(200),
+      sourceInUs: time,
+      sourceOutUs: time,
+      notes: z.string().max(2000),
+      rationale: z.string().max(2000),
+    })
+    .refine(
+      (selection) => selection.sourceOutUs > selection.sourceInUs,
+      "Source selection must have a positive duration",
+    ),
+  delete_source_selection: z.strictObject({ selectionId: id }),
   delete_sequence: z.strictObject({ sequenceId: id }),
   rename_sequence: z.strictObject({
     sequenceId: id,
