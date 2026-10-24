@@ -112,6 +112,7 @@ async function main() {
       env: {
         ...process.env,
         FORGECUT_MCP_DIR: mcpDirectory,
+        FORGECUT_RESOURCE_DIR: join(mcpDirectory, "resources"),
         ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
         ELECTRON_REMOTE_DEBUGGING_PORT: remoteDebuggingPort,
       },

@@ -63,6 +63,7 @@ for (const input of [
     "scheduler",
     "remotion",
     "@remotion/player",
+    "@remotion/fonts",
     compositor,
   ].map((name) => relative(root, require.resolve(name))),
 ]) {
