@@ -40,6 +40,9 @@ export async function verifyCredits(directory, send) {
     await invoke('create_project');
     const assets = await invoke('import_assets', { paths: [${JSON.stringify(join(directory, "source-selection.mp4"))}] });
     await invoke('import_graphic_resource', { path: ${JSON.stringify(artwork)}, kind: 'Image', license: { identifier: 'Fixture artwork', text: 'Generated test image' } });
+    await invoke('add_text_overlay', { trackId: 'credit-title', timelineStartUs: 0, durationUs: 1000000, text: 'Credits fixture', fontSize: 24, color: '#ffffff', x: 20, y: 20 });
+    const selected = (await read()).project.timeline.tracks.flatMap(track => track.items).find(item => item.TextOverlay).TextOverlay.id;
+    await invoke('set_editing_context', { sessionId: (await read()).sessionId, selectedItemIds: [selected], playheadUs: 500000 });
     await openCredits();
     await set('Licence / permission', 'Original recording');
     await set('Attribution', 'Project editor');
@@ -90,6 +93,8 @@ export async function verifyCredits(directory, send) {
         if (rect.left < 0 || rect.right > innerWidth || rect.top < 0 || rect.bottom > innerHeight || dialog.scrollWidth > dialog.clientWidth + 1) throw new Error('Credit dialog exceeds the viewport');
         if ([...dialog.querySelectorAll('input, textarea, select, button')].some(element => element.scrollWidth > element.clientWidth + 1)) throw new Error('Credit control overflows');
         if (!dialog.contains(document.activeElement)) throw new Error('Modal did not receive keyboard focus');
+        button('Close project credits').focus(); await settle();
+        await wait(() => dialog.querySelector('[role="tooltip"]'), 'close tooltip in modal');
         if (field('Attribution').value !== 'Artwork designer') throw new Error('Saved artwork credit is missing');
         return true;
       })()`);
@@ -107,6 +112,30 @@ export async function verifyCredits(directory, send) {
         );
       }
     }
+  }
+  await evaluated(
+    `(async () => { ${helpers} window.creditKeyboardProject = JSON.stringify((await read()).project); button('Close project credits').focus(); return true; })()`,
+  );
+  for (const [key, code, windowsVirtualKeyCode] of [
+    ["Delete", "Delete", 46],
+    ["s", "KeyS", 83],
+    ["Backspace", "Backspace", 8],
+  ]) {
+    await send("Input.dispatchKeyEvent", {
+      type: "keyDown",
+      key,
+      code,
+      windowsVirtualKeyCode,
+    });
+    await send("Input.dispatchKeyEvent", {
+      type: "keyUp",
+      key,
+      code,
+      windowsVirtualKeyCode,
+    });
+    await evaluated(
+      `(async () => { ${helpers} if (JSON.stringify((await read()).project) !== window.creditKeyboardProject) throw new Error('Modal key edited the underlying timeline'); return true; })()`,
+    );
   }
   for (let index = 0; index < 10; index += 1) {
     await send("Input.dispatchKeyEvent", {
