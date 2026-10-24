@@ -43,6 +43,8 @@ export class GraphicPreviewHost {
   private closed = false;
 
   private running = false;
+  private draining: Promise<void> = Promise.resolve();
+  private generation = 0;
 
   private nextId = 1;
 
@@ -83,7 +85,7 @@ export class GraphicPreviewHost {
         return;
       }
       this.queued.set(input.key, { input, signal, resolve });
-      if (!this.running) void this.drain();
+      if (!this.running) this.draining = this.drain();
     });
   }
 
@@ -163,7 +165,14 @@ export class GraphicPreviewHost {
   }
 
   private async start(): Promise<Result<void>> {
+    const generation = this.generation;
     await this.stopping;
+    const interrupted = () => this.closed || generation !== this.generation;
+    const cancelled: Result<void> = {
+      ok: false,
+      error: { code: "CANCELLED", message: "Preview startup was interrupted" },
+    };
+    if (interrupted()) return cancelled;
     if (this.child) return { ok: true, value: undefined };
     if (process.platform !== "linux")
       return {
@@ -176,12 +185,20 @@ export class GraphicPreviewHost {
       };
     const runtime = graphicRuntimeDirectory();
     this.directory = await mkdtemp(join(tmpdir(), "forgecut-graphic-preview-"));
+    if (interrupted()) {
+      await this.stop();
+      return cancelled;
+    }
     const invocation = await budgetedMediaCommand("bwrap", [
       ...graphicSandboxArgs(runtime, this.directory),
       "--",
       process.execPath,
       join(runtime, "preview-worker.cjs"),
     ]);
+    if (interrupted()) {
+      await this.stop();
+      return cancelled;
+    }
     if (!invocation.unit) {
       await this.stop();
       return {
@@ -263,8 +280,7 @@ export class GraphicPreviewHost {
       }
       this.pending.clear();
       if (this.child === child) {
-        this.child = undefined;
-        this.loaded.clear();
+        void this.stop();
       }
     });
     const ready = await this.wait(0, 15000);
@@ -309,6 +325,7 @@ export class GraphicPreviewHost {
 
   async close(): Promise<void> {
     this.closed = true;
+    this.generation += 1;
     for (const entry of this.queued.values())
       entry.resolve({
         ok: false,
@@ -316,15 +333,20 @@ export class GraphicPreviewHost {
       });
     this.queued.clear();
     await this.stop();
+    await this.draining;
+    await this.stop();
   }
 
   async reset(): Promise<void> {
+    this.generation += 1;
     for (const entry of this.queued.values())
       entry.resolve({
         ok: false,
         error: { code: "CANCELLED", message: "Graphics preview reset" },
       });
     this.queued.clear();
+    await this.stop();
+    await this.draining;
     await this.stop();
   }
 

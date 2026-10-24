@@ -26,6 +26,7 @@ export class GraphicPreviewService {
   private epoch = 0;
 
   private closed = false;
+  private resetting: Promise<void> = Promise.resolve();
 
   async render(
     project: Project,
@@ -35,6 +36,7 @@ export class GraphicPreviewService {
     frame: number,
     signal?: AbortSignal,
   ): Promise<Result<GraphicPreviewFrame>> {
+    await this.resetting;
     if (this.closed)
       return {
         ok: false,
@@ -192,7 +194,10 @@ export class GraphicPreviewService {
     this.controller = new AbortController();
     const pending = [...this.preparing];
     this.cache.clear();
-    await Promise.allSettled([this.host.reset(), ...pending]);
+    this.resetting = Promise.allSettled([this.host.reset(), ...pending]).then(
+      () => {},
+    );
+    await this.resetting;
   }
 
   async close(): Promise<void> {
