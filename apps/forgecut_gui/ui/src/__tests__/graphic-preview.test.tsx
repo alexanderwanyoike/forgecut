@@ -105,7 +105,27 @@ it("reports an unavailable component rather than substituting different source",
 });
 
 it("adds a title at the playhead through the shared service command", async () => {
-  render(<Timeline playheadUs={750000} playing={false} onPlayingChange={vi.fn()} onPlayheadChange={vi.fn()} selectedClipId={null} onSelectedClipChange={vi.fn()} projectVersion={0} projectTimeline={{ tracks: [], markers: [] }} />);
+  render(
+    <Timeline
+      playheadUs={750000}
+      playing={false}
+      onPlayingChange={vi.fn()}
+      onPlayheadChange={vi.fn()}
+      selectedClipId={null}
+      onSelectedClipChange={vi.fn()}
+      projectVersion={0}
+      projectTimeline={{ tracks: [], markers: [] }}
+    />,
+  );
   fireEvent.click(screen.getByRole("button", { name: "+ Graphic" }));
-  await waitFor(() => expect(invoke).toHaveBeenCalledWith("add_graphic_item", expect.objectContaining({ templateId: "title-card", timelineStartUs: 750000, durationUs: 3000000 })));
+  await waitFor(() =>
+    expect(invoke).toHaveBeenCalledWith(
+      "add_graphic_item",
+      expect.objectContaining({
+        templateId: "title-card",
+        timelineStartUs: 750000,
+        durationUs: 3000000,
+      }),
+    ),
+  );
 });
