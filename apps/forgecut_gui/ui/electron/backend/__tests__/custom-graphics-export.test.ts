@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { AppState } from "../state";
 import { EditingService } from "../editing-service";
 import { componentVersion } from "../graphic-component";
@@ -46,7 +46,8 @@ it.skipIf(!available)(
         await fixture(`import {useCurrentFrame} from "remotion";
     export default function Card({values}:{values:Record<string,string|number|boolean|null>}){
       const frame=useCurrentFrame();
-      const isolated=typeof Reflect.get(globalThis,"forgecut")==="undefined" && typeof Reflect.get(globalThis,"process")==="undefined";
+      const browserProcess=Reflect.get(globalThis,"process") as {cwd?:unknown;versions?:{node?:unknown};env?:Record<string,unknown>}|undefined;
+      const isolated=typeof Reflect.get(globalThis,"forgecut")==="undefined" && typeof browserProcess?.cwd!=="function" && !browserProcess?.versions?.node && browserProcess?.env?.FORGECUT_HOST_SECRET===undefined;
       return <div style={{position:"absolute",inset:0,backgroundColor:isolated?(frame<5?String(values.color):"#0000ff"):"#ff0000"}}/>;
     }`);
       const manifest = join(directory, "custom.forgecut");
@@ -98,6 +99,7 @@ it.skipIf(!available)(
       expect(yellow.stdout[1]).toBeGreaterThan(240);
       expect(state.project.components![0].version).toBe(version);
     } finally {
+      vi.unstubAllEnvs();
       await rm(directory, { recursive: true, force: true });
     }
   },
@@ -115,6 +117,10 @@ it.skipIf(!available)(
       await writeFile(output, "previous approved render");
       expect(await exportProject(state.project, output)).toMatchObject({
         ok: false,
+        error: {
+          code: "RENDER_FAILED",
+          message: expect.stringContaining("Draft runtime failure"),
+        },
       });
       expect(await readFile(output, "utf8")).toBe("previous approved render");
     } finally {
@@ -123,3 +129,25 @@ it.skipIf(!available)(
   },
   120000,
 );
+
+it("rejects a declared dependency version that the runtime cannot provide", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "forgecut-dependency-"));
+  try {
+    const { state } = await fixture(
+      "export default function Card(){return <div/>}",
+    );
+    state.executeProjectChange((project) => {
+      const component = project.components![0];
+      component.dependencies.packages.react = "19.0.0";
+      component.version = componentVersion(component);
+      const item = project.timeline.tracks[0].items[0];
+      if (!("RemotionGraphic" in item)) throw new Error("Missing graphic");
+      item.RemotionGraphic.component_version = component.version;
+    });
+    expect(
+      await exportProject(state.project, join(directory, "mismatch.mp4")),
+    ).toMatchObject({ ok: false, error: { code: "UNSUPPORTED_DEPENDENCY" } });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}, 20000);
