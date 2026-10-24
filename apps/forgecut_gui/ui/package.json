@@ -34,13 +34,17 @@
     "build:mcp": "node electron/scripts/build-mcp.mjs"
   },
   "dependencies": {
+    "@remotion/player": "4.0.537",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "remotion": "4.0.537",
     "zod": "4.3.6"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.4.0",
     "@modelcontextprotocol/server": "2.4.0",
+    "@remotion/bundler": "4.0.537",
+    "@remotion/renderer": "4.0.537",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.1.0",
     "@types/node": "^22.10.2",
