@@ -1,4 +1,4 @@
-import { Save, X } from "lucide-react";
+import { RefreshCw, Save, X } from "lucide-react";
 import { useState } from "react";
 import type {
   GraphicComponent,
@@ -104,7 +104,7 @@ export default function GraphicStyleControls({
             void save().catch(() => {});
           }}
         >
-          {(styles.length > 0 || presetId) && (
+          {(styles.length > 0 || Boolean(presetId)) && (
             <label>
               Style destination
               <select
@@ -129,7 +129,11 @@ export default function GraphicStyleControls({
           {changed && (
             <div role="status" className="graphic-style-notice">
               <p>This style changed. Reload its details before replacing it.</p>
-              <ActionButton onClick={() => chooseStyle(presetId)}>
+              <ActionButton
+                icon={RefreshCw}
+                tooltip="Load the saved style's current details"
+                onClick={() => chooseStyle(presetId)}
+              >
                 Reload style
               </ActionButton>
             </div>
