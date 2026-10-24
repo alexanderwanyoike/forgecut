@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { copyFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -111,4 +111,29 @@ it("ignores and cancels a delayed job when its source range changes", async () =
   await screen.findByRole("img", { name: "Source contact sheet" });
   expect(screen.getByText("0.000 to 1.000 seconds")).toBeTruthy();
   expect(state.snapshot()).toEqual(before);
+});
+
+it("clears a completed review when its asset is relinked to another recording", async () => {
+  const { state, service } = await reviewFixture();
+  fireEvent.click(screen.getByRole("button", { name: "Contact sheet" }));
+  await screen.findByRole("img", { name: "Source contact sheet" });
+  const asset = state.project.assets[0];
+  const replacement = join(directory!, "replacement.mp4");
+  await copyFile(asset.path, replacement);
+  await act(async () => {
+    expect(
+      await service.execute("relink_asset", {
+        id: asset.id,
+        path: replacement,
+      }),
+    ).toMatchObject({ ok: true });
+  });
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("img", { name: "Source contact sheet" }),
+    ).toBeNull(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Contact sheet" }));
+  await screen.findByRole("img", { name: "Source contact sheet" });
+  expect(state.project.assets[0].path).toBe(replacement);
 });
