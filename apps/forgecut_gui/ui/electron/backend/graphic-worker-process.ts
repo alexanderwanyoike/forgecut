@@ -1,5 +1,6 @@
 import { spawn, execFile } from "node:child_process";
 import { dirname, join } from "node:path";
+import { graphicSandboxArgs } from "./graphic-sandbox.js";
 import type { Result } from "../shared/result.js";
 import { budgetedMediaCommand } from "./process-budget.js";
 
@@ -19,26 +20,7 @@ export async function runGraphicWorker(
     };
   const directory = dirname(jobPath);
   const invocation = await budgetedMediaCommand("bwrap", [
-    "--ro-bind",
-    "/",
-    "/",
-    "--tmpfs",
-    "/tmp",
-    "--dev",
-    "/dev",
-    "--proc",
-    "/proc",
-    "--ro-bind",
-    runtime,
-    runtime,
-    "--bind",
-    directory,
-    directory,
-    "--chdir",
-    directory,
-    "--unshare-pid",
-    "--die-with-parent",
-    "--new-session",
+    ...graphicSandboxArgs(runtime, directory),
     "--",
     process.execPath,
     join(runtime, "worker.cjs"),
