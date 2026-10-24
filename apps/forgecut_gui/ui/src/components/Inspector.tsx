@@ -22,6 +22,7 @@ interface InspectorProps {
   project?: Project;
   projectVersion?: number;
   sessionId?: string;
+  onEditCode?: (itemId: string) => void;
 }
 
 export default function Inspector({
@@ -31,6 +32,7 @@ export default function Inspector({
   project,
   projectVersion,
   sessionId,
+  onEditCode,
 }: InspectorProps) {
   const [details, setDetails] = useState<TimelineItem | null>(null);
   const [settings, setSettings] = useState<ProjectSettings | null>(null);
@@ -227,6 +229,14 @@ export default function Inspector({
             </div>
             {graphic && component && (
               <>
+                {onEditCode && (
+                  <button
+                    className="preview-btn"
+                    onClick={() => onEditCode(graphic.id)}
+                  >
+                    Edit code
+                  </button>
+                )}
                 <GraphicLayers
                   component={component}
                   item={graphic}

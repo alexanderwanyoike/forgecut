@@ -57,6 +57,7 @@ module.exports = {
           "electron/backend/graphic-preview-worker.ts",
           "electron/source/**",
           "src/components/GraphicPreview.tsx",
+          "src/lib/monaco-runtime.ts",
         ],
       },
     ],
