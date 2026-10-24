@@ -44,3 +44,15 @@ it("reviews a contact sheet for the selected source range without changing the p
   expect(screen.getByText("0.000 to 2.000 seconds")).toBeTruthy();
   await waitFor(() => expect(state.snapshot()).toEqual(before));
 });
+
+it("reviews the source waveform without changing the selection or timeline", async () => {
+  const { state } = await reviewFixture();
+  const before = state.snapshot();
+  fireEvent.click(screen.getByRole("button", { name: "Waveform" }));
+  const waveform = await screen.findByRole("img", { name: "Source waveform" });
+  expect(waveform.tagName.toLowerCase()).toBe("svg");
+  expect(waveform.querySelectorAll("line").length).toBeGreaterThan(0);
+  expect(waveform.querySelectorAll("line").length).toBeLessThanOrEqual(512);
+  expect(screen.getByText("0.000 to 2.000 seconds")).toBeTruthy();
+  expect(state.snapshot()).toEqual(before);
+});
