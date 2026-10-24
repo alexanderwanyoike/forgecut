@@ -59,8 +59,18 @@ export function useGraphicSourceDraft(
     }
   };
   async function reload(): Promise<Result<GraphicDraft>> {
+    const requestedEpoch = epoch.current;
     try {
       const value = await invoke("get_graphic_draft", { itemId });
+      if (epoch.current !== requestedEpoch)
+        return fail(
+          Object.assign(
+            new Error(
+              "Your buffer changed while loading. Choose the saved draft again to discard it.",
+            ),
+            { code: "CONFLICT" },
+          ),
+        );
       install(value);
       return { ok: true, value };
     } catch (failure) {
@@ -158,6 +168,7 @@ export function useGraphicSourceDraft(
         ok: false,
         error: { code: "UNAVAILABLE", message: "No source buffer" },
       };
+    const requestedEpoch = epoch.current;
     const local = structuredClone(buffer.current.component.source);
     const original = structuredClone(
       buffer.current.baseVersion === currentActive.current.version
@@ -166,6 +177,15 @@ export function useGraphicSourceDraft(
     );
     try {
       const latest = await invoke("get_graphic_draft", { itemId });
+      if (epoch.current !== requestedEpoch)
+        return fail(
+          Object.assign(
+            new Error(
+              "Your buffer changed while reconciling. Choose Keep edited files again to include your latest typing.",
+            ),
+            { code: "CONFLICT" },
+          ),
+        );
       const component = structuredClone(
         latest.baseVersion === currentActive.current.version
           ? latest.component
