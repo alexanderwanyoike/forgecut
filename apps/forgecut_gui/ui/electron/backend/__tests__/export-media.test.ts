@@ -1,7 +1,7 @@
 /** @vitest-environment node */
 import { spawnSync } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { tmpdir } from "node:os";
 import { expect, it } from "vitest";
 import { AppState } from "../state";
@@ -59,7 +59,7 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       ).toBe(true);
       await editing.execute("init_default_tracks");
       expect(
-        (await editing.execute("import_assets", { paths: [source, music] })).ok,
+        (await editing.execute("import_assets", { paths: [relative(process.cwd(), source), music] })).ok,
       ).toBe(true);
       const [video, audio] = state.project.assets;
       const [picture, sound] = state.project.timeline.tracks;
