@@ -106,6 +106,48 @@ export const assetSchema = z.strictObject({
     })
     .nullable(),
 });
+const timelineSchema = z.strictObject({
+  duration_us: timeSchema.positive().optional(),
+  tracks: z.array(
+    z.strictObject({
+      id: idSchema,
+      kind: trackKindSchema,
+      items: z.array(
+        z.union([
+          z.strictObject({
+            VideoClip: clip.extend({
+              transform: visualPlacementSchema.optional(),
+              layer_order: layerOrderSchema.optional(),
+            }),
+          }),
+          z.strictObject({
+            AudioClip: clip.extend({
+              volume: z.number().nonnegative().max(4),
+            }),
+          }),
+          z.strictObject({ ImageOverlay: image }),
+          z.strictObject({ TextOverlay: text }),
+          z.strictObject({
+            RemotionGraphic: z.strictObject({
+              id: idSchema,
+              track_id: idSchema,
+              timeline_start_us: timeSchema,
+              duration_us: timeSchema.positive(),
+              component_id: idSchema,
+              component_version: z.string().regex(/^[a-f0-9]{64}$/),
+              props: graphicValuesSchema,
+              layer_states: graphicLayerStatesSchema.optional(),
+              transform: visualPlacementSchema.optional(),
+              layer_order: layerOrderSchema.optional(),
+            }),
+          }),
+        ]),
+      ),
+    }),
+  ),
+  markers: z.array(z.object({ time_us: timeSchema }).passthrough()),
+});
+
 const projectSchema = z.strictObject({
   schema_version: z
     .union([z.literal(1), z.literal(2)])
@@ -117,47 +159,7 @@ const projectSchema = z.strictObject({
   name: z.string(),
   settings: settingsSchema,
   assets: z.array(assetSchema),
-  timeline: z.strictObject({
-    duration_us: timeSchema.positive().optional(),
-    tracks: z.array(
-      z.strictObject({
-        id: idSchema,
-        kind: trackKindSchema,
-        items: z.array(
-          z.union([
-            z.strictObject({
-              VideoClip: clip.extend({
-                transform: visualPlacementSchema.optional(),
-                layer_order: layerOrderSchema.optional(),
-              }),
-            }),
-            z.strictObject({
-              AudioClip: clip.extend({
-                volume: z.number().nonnegative().max(4),
-              }),
-            }),
-            z.strictObject({ ImageOverlay: image }),
-            z.strictObject({ TextOverlay: text }),
-            z.strictObject({
-              RemotionGraphic: z.strictObject({
-                id: idSchema,
-                track_id: idSchema,
-                timeline_start_us: timeSchema,
-                duration_us: timeSchema.positive(),
-                component_id: idSchema,
-                component_version: z.string().regex(/^[a-f0-9]{64}$/),
-                props: graphicValuesSchema,
-                layer_states: graphicLayerStatesSchema.optional(),
-                transform: visualPlacementSchema.optional(),
-                layer_order: layerOrderSchema.optional(),
-              }),
-            }),
-          ]),
-        ),
-      }),
-    ),
-    markers: z.array(z.object({ time_us: timeSchema }).passthrough()),
-  }),
+  timeline: timelineSchema,
 });
 
 export function validateProject(input: unknown): Project {
