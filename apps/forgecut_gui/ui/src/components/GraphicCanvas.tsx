@@ -71,7 +71,7 @@ export default function GraphicCanvas(props: Props) {
             background: "transparent",
             padding: 0,
             border: selected
-              ? `${1 / (props.displayScale ?? 1)}px solid #98b9a8`
+              ? `${1 / (props.displayScale ?? 1)}px solid var(--accent)`
               : "0",
             cursor: "move",
           };
@@ -132,7 +132,7 @@ export default function GraphicCanvas(props: Props) {
                     bottom: 0,
                     width: 12 / (props.displayScale ?? 1),
                     height: 12 / (props.displayScale ?? 1),
-                    background: "#98b9a8",
+                    background: "var(--accent)",
                     border: 0,
                     cursor: "nwse-resize",
                   }}
@@ -153,7 +153,7 @@ export default function GraphicCanvas(props: Props) {
               left: fit.x + (settings.width * fit.scale) / 2,
               top: 0,
               height: "100%",
-              borderLeft: "1px dashed #98b9a8",
+              borderLeft: "1px dashed var(--accent)",
             }}
           />
           <div
@@ -163,7 +163,7 @@ export default function GraphicCanvas(props: Props) {
               top: fit.y + (settings.height * fit.scale) / 2,
               left: 0,
               width: "100%",
-              borderTop: "1px dashed #98b9a8",
+              borderTop: "1px dashed var(--accent)",
             }}
           />
         </>

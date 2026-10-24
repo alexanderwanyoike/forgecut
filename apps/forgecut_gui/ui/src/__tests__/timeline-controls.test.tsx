@@ -83,7 +83,7 @@ describe("Timeline controls", () => {
 
   it("zooms out gradually without losing the overview range", () => {
     render(<Timeline {...defaultProps} />);
-    const zoomOut = screen.getByText("-");
+    const zoomOut = screen.getByRole("button", { name: "Zoom out" });
     const slider = screen.getByRole("slider") as HTMLInputElement;
 
     fireEvent.click(zoomOut);
@@ -193,7 +193,7 @@ describe("Timeline controls", () => {
     expect(screen.getByText("Playhead")).toBeTruthy();
     expect(screen.getByText("Fit")).toBeTruthy();
     expect(screen.getByText("Snap")).toBeTruthy();
-    expect(screen.getByText("+ Text")).toBeTruthy();
-    expect(screen.getByText("+ Track")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add text" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add track" })).toBeTruthy();
   });
 });

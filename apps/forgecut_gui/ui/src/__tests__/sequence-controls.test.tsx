@@ -127,7 +127,7 @@ it("adds an audio track to an empty sequence without changing another timeline",
   fireEvent.change(screen.getByLabelText("New track type"), {
     target: { value: "Audio" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "+ Track" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add track" }));
   await waitFor(() =>
     expect(
       state.project.sequences!.find(

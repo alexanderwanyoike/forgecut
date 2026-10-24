@@ -119,9 +119,8 @@ describe("AssetBin projectVersion", () => {
       return null;
     });
     render(<AssetBin projectVersion={0} />);
-    // Should not crash — asset list simply empty
     await waitFor(() => {
-      expect(document.querySelector(".asset-list")?.children.length).toBe(0);
+      expect(document.querySelectorAll(".asset-item").length).toBe(0);
     });
   });
 });

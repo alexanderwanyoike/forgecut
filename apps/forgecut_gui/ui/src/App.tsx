@@ -1,4 +1,14 @@
+import * as Popover from "@radix-ui/react-popover";
+import {
+  Clapperboard,
+  Download,
+  FolderOpen,
+  Redo2,
+  Save,
+  Undo2,
+} from "lucide-react";
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import ActionButton from "./components/ActionButton";
 import AppearanceControls from "./components/AppearanceControls";
 import McpStatus from "./components/McpStatus";
 import { useSequenceEditor } from "./hooks/useSequenceEditor";
@@ -98,50 +108,71 @@ export default function App() {
   };
 
   return (
-    <div
-      className="shell"
-      onClick={() => showFileMenu && setShowFileMenu(false)}
-    >
+    <div className={sourceItemId ? "shell shell--code" : "shell"}>
       <header className="menu-bar">
+        <div className="app-brand">
+          <Clapperboard size={21} strokeWidth={1.7} aria-hidden="true" />
+          <span>ForgeCut</span>
+        </div>
         <div className="menu-items">
-          <span
-            className="menu-label"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowFileMenu(!showFileMenu);
-            }}
-          >
-            File
-            {showFileMenu && (
-              <div
-                className="dropdown-menu"
-                onClick={(e) => e.stopPropagation()}
+          <Popover.Root open={showFileMenu} onOpenChange={setShowFileMenu}>
+            <Popover.Trigger asChild>
+              <ActionButton icon={FolderOpen} className="quiet-action">
+                File
+              </ActionButton>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content
+                className="file-popover"
+                align="start"
+                sideOffset={8}
+                aria-label="Project files"
               >
-                <div className="dropdown-item" onClick={handleOpen}>
+                <ActionButton
+                  icon={FolderOpen}
+                  className="quiet-action"
+                  onClick={handleOpen}
+                >
                   Open Project...
-                </div>
-                <div className="dropdown-item" onClick={handleSave}>
+                </ActionButton>
+                <ActionButton
+                  icon={Save}
+                  className="quiet-action"
+                  onClick={handleSave}
+                >
                   Save Project...
-                </div>
-              </div>
-            )}
-          </span>
-          <button
-            className="preview-btn"
-            disabled={!snapshot?.canUndo}
-            onClick={() => invoke("undo").catch(() => {})}
-          >
-            Undo
-          </button>
-          <button
-            className="preview-btn"
-            disabled={!snapshot?.canRedo}
-            onClick={() => invoke("redo").catch(() => {})}
-          >
-            Redo
-          </button>
-          <span
-            className="menu-label"
+                </ActionButton>
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+          <div className="history-actions">
+            <ActionButton
+              icon={Undo2}
+              tooltip="Undo project edit (Ctrl+Z)"
+              disabled={!snapshot?.canUndo}
+              onClick={() => invoke("undo").catch(() => {})}
+            >
+              Undo
+            </ActionButton>
+            <ActionButton
+              icon={Redo2}
+              tooltip="Redo project edit (Ctrl+Y)"
+              disabled={!snapshot?.canRedo}
+              onClick={() => invoke("redo").catch(() => {})}
+            >
+              Redo
+            </ActionButton>
+          </div>
+        </div>
+        <span className="project-name" title={projectName}>
+          {projectName}
+        </span>
+        <div className="project-actions">
+          <AppearanceControls />
+          <ActionButton
+            icon={Download}
+            className="primary-action"
+            disabled={!snapshot || !project?.default_sequence}
             onClick={() => {
               if (!snapshot || !project?.default_sequence) return;
               setExportTarget({
@@ -153,8 +184,10 @@ export default function App() {
             }}
           >
             Export
-          </span>
+          </ActionButton>
         </div>
+      </header>
+      <div className="workspace-bar">
         {snapshot && (
           <SequenceControls
             key={snapshot.sessionId}
@@ -167,25 +200,25 @@ export default function App() {
             }}
           />
         )}
-        <AppearanceControls />
         <McpStatus />
-        <span className="project-name">{projectName}</span>
-      </header>
+      </div>
 
       {error && (
         <div className="project-notice" role="alert">
           {error}
           {recoveryPath && (
-            <button onClick={handleRecover}>Open recovery copy</button>
+            <ActionButton onClick={handleRecover}>
+              Open recovery copy
+            </ActionButton>
           )}
-          <button
+          <ActionButton
             onClick={() => {
               setError(null);
               setRecoveryPath(null);
             }}
           >
             Dismiss
-          </button>
+          </ActionButton>
         </div>
       )}
 
@@ -238,7 +271,7 @@ export default function App() {
           {editor.error ? (
             <div role="alert">
               {editor.error}
-              <button onClick={editor.retry}>Retry sequence</button>
+              <ActionButton onClick={editor.retry}>Retry sequence</ActionButton>
             </div>
           ) : (
             "Loading sequence…"

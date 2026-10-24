@@ -36,7 +36,12 @@ export default function McpStatus() {
   if (status.available)
     label = status.lastAction ? `MCP: ${status.lastAction}` : "MCP ready";
   return (
-    <span className="mcp-status" role="status" title={label}>
+    <span
+      className="mcp-status"
+      role="status"
+      title={label}
+      data-available={status.available}
+    >
       {label}
     </span>
   );

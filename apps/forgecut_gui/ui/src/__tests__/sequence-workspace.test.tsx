@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import {
@@ -184,7 +185,7 @@ it("keeps an outgoing view's track command bound to that view during a native sw
   const requests = vi.spyOn(window.forgecut!, "invoke");
   render(<App />);
   await screen.findByLabelText("Text");
-  const add = screen.getByRole("button", { name: "+ Track" });
+  const add = screen.getByRole("button", { name: "Add track" });
   await act(async () => {
     state.selectSequence(state.sessionId, clip);
     fireEvent.click(add);
@@ -241,7 +242,11 @@ it("keeps the export target captured before the destination dialog opens", async
     render(<App />);
     await screen.findByLabelText("Text");
     fireEvent.click(screen.getByText("Export"));
-    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Export",
+      }),
+    );
     await dialogOpened;
     await act(async () => {
       state.selectSequence(state.sessionId, clip);

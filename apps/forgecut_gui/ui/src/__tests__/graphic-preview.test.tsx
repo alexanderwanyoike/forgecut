@@ -134,7 +134,7 @@ it("adds a title at the playhead through the shared service command", async () =
       projectTimeline={{ tracks: [], markers: [] }}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "+ Graphic" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add graphic" }));
   await waitFor(() =>
     expect(invoke).toHaveBeenCalledWith(
       "add_graphic_item",

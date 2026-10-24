@@ -1,4 +1,6 @@
+import { Upload } from "lucide-react";
 import { useState } from "react";
+import ActionButton from "./ActionButton";
 import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
 import { invoke, open } from "../lib/bridge";
 import type { GraphicResource } from "../../electron/shared/graphic-resources";
@@ -100,14 +102,15 @@ export default function ResourceProperty({
             ))}
         </select>
       </label>
-      <button
-        className="preview-btn"
+      <ActionButton
+        icon={Upload}
+        className="resource-import"
         aria-label={actionLabel}
         disabled={pending}
         onClick={importResource}
       >
         {pending ? "Importing…" : `${actionLabel}…`}
-      </button>
+      </ActionButton>
       {error && <p role="alert">{error}</p>}
     </>
   );

@@ -1,4 +1,14 @@
+import {
+  Layers3,
+  Magnet,
+  Maximize2,
+  Minus,
+  Plus,
+  ScanLine,
+  Type,
+} from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
+import ActionButton from "./ActionButton";
 import { invoke } from "../lib/bridge";
 import {
   LABEL_W,
@@ -192,20 +202,20 @@ export default function Timeline(props: TimelineProps) {
   };
 
   const trackColor = (kind: string, isPip?: boolean) => {
-    if (isPip) return "#9b59b6";
+    if (isPip) return "var(--clip-video)";
     switch (kind) {
       case "Video":
-        return "#4a9eff";
+        return "var(--clip-video)";
       case "Audio":
-        return "#4aff7f";
+        return "var(--clip-audio)";
       case "OverlayImage":
-        return "#c840e9";
+        return "var(--clip-image)";
       case "OverlayText":
-        return "#e9a840";
+        return "var(--clip-text)";
       case "Graphics":
-        return "#6f8e80";
+        return "var(--clip-graphic)";
       default:
-        return "#ff9f4a";
+        return "var(--clip-video)";
     }
   };
 
@@ -295,7 +305,10 @@ export default function Timeline(props: TimelineProps) {
   return (
     <section className="panel timeline">
       <div className="timeline-controls">
-        <span className="timeline-label">Timeline</span>
+        <span className="timeline-label">
+          <Layers3 size={15} aria-hidden="true" />
+          Timeline
+        </span>
         <div className="control-group">
           <select
             aria-label="Graphic template"
@@ -308,12 +321,24 @@ export default function Timeline(props: TimelineProps) {
               </option>
             ))}
           </select>
-          <button className="add-text-btn" onClick={handleAddGraphic}>
-            + Graphic
-          </button>
-          <button className="add-text-btn" onClick={handleAddText}>
-            + Text
-          </button>
+          <ActionButton
+            icon={Plus}
+            aria-label="Add graphic"
+            tooltip="Add graphic at the playhead"
+            onClick={handleAddGraphic}
+          >
+            Graphic
+          </ActionButton>
+          <ActionButton
+            icon={Type}
+            aria-label="Add text"
+            tooltip="Add text at the playhead"
+            onClick={handleAddText}
+          >
+            Text
+          </ActionButton>
+        </div>
+        <div className="control-group">
           <select
             aria-label="New track type"
             value={newTrackKind}
@@ -326,36 +351,50 @@ export default function Timeline(props: TimelineProps) {
             <option value="Video">Video</option>
             <option value="Audio">Audio</option>
           </select>
-          <button className="add-text-btn" onClick={handleAddTrack}>
-            + Track
-          </button>
+          <ActionButton
+            icon={Plus}
+            aria-label="Add track"
+            tooltip="Add a track of the selected type"
+            onClick={handleAddTrack}
+          >
+            Track
+          </ActionButton>
         </div>
         <div className="control-group">
-          <button
-            className="timeline-nav-btn"
+          <ActionButton
+            icon={ScanLine}
+            tooltip="Scroll to playhead"
             onClick={scrollToPlayhead}
-            title="Scroll to playhead"
           >
             Playhead
-          </button>
-          <button className="timeline-nav-btn" onClick={fitAll} title="Fit all">
+          </ActionButton>
+          <ActionButton
+            icon={Maximize2}
+            tooltip="Fit the entire sequence (Ctrl+0)"
+            onClick={fitAll}
+          >
             Fit
-          </button>
-        </div>
-        <div className="control-group">
-          <button
-            className={`snap-toggle-btn${snapping ? " snap-active" : ""}`}
+          </ActionButton>
+          <ActionButton
+            icon={Magnet}
+            aria-pressed={snapping}
+            tooltip={snapping ? "Snapping on" : "Snapping off"}
             onClick={() => setSnapping((s) => !s)}
-            title={snapping ? "Snapping on" : "Snapping off"}
           >
             Snap
-          </button>
+          </ActionButton>
         </div>
         <div className="control-group zoom-control">
-          <button onClick={() => setPixelsPerSecond(zoomOutLevel)}>-</button>
+          <ActionButton
+            icon={Minus}
+            iconOnly
+            tooltip="Zoom out"
+            onClick={() => setPixelsPerSecond(zoomOutLevel)}
+          />
           <input
             type="range"
             className="zoom-slider"
+            aria-label="Timeline zoom"
             min={TIMELINE_ZOOM_MIN}
             max={TIMELINE_ZOOM_MAX}
             value={pixelsPerSecond}
@@ -363,12 +402,14 @@ export default function Timeline(props: TimelineProps) {
               setPixelsPerSecond(clampZoom(Number(e.target.value)))
             }
           />
-          <button onClick={() => setPixelsPerSecond(zoomInLevel)}>+</button>
+          <ActionButton
+            icon={Plus}
+            iconOnly
+            tooltip="Zoom in"
+            onClick={() => setPixelsPerSecond(zoomInLevel)}
+          />
           <span className="zoom-label">{Math.round(pixelsPerSecond)}%</span>
         </div>
-        <span className="shortcut-hints">
-          S: Split | Del: Delete | Ctrl+Z/Y: Undo/Redo
-        </span>
       </div>
 
       <div className="timeline-minimap">
