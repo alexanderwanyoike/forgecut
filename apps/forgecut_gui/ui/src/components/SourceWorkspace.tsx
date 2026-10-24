@@ -1,12 +1,13 @@
-import { ArrowLeft, Film, Plus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Plus } from "lucide-react";
+import { useRef, useState } from "react";
 import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
 import type { SourceSelectionPatch } from "../../electron/shared/source-selection";
 import ActionButton from "./ActionButton";
+import SourceMonitor from "./SourceMonitor";
 import AppendSourceSelection from "./AppendSourceSelection";
 import PropertyInput from "./PropertyInput";
 import PropertyTextarea from "./PropertyTextarea";
-import { invokeGrouped, invokeInContext, mediaUrl } from "../lib/bridge";
+import { invokeGrouped, invokeInContext } from "../lib/bridge";
 import "./source-workspace.css";
 
 type Props = {
@@ -28,7 +29,6 @@ export default function SourceWorkspace({ snapshot, assetId, onClose }: Props) {
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const media = useRef<HTMLMediaElement | null>(null);
   const group = useRef(crypto.randomUUID());
   const selected = selections.find((value) => value.id === selectedId);
   const range = selected
@@ -46,10 +46,6 @@ export default function SourceWorkspace({ snapshot, assetId, onClose }: Props) {
       snapshot.project.default_sequence?.id ??
       snapshot.project.id,
   };
-  useEffect(() => {
-    const element = media.current;
-    return () => element?.pause();
-  }, [asset?.path]);
   function update(patch: SourceSelectionPatch) {
     if (!selected) return;
     void invokeGrouped(group.current, "update_source_selection", {
@@ -100,46 +96,7 @@ export default function SourceWorkspace({ snapshot, assetId, onClose }: Props) {
   }
   return (
     <>
-      <section className="panel source-monitor">
-        <div className="panel-header">
-          <span>
-            <Film size={15} aria-hidden="true" />
-            Source monitor
-          </span>
-          <ActionButton icon={ArrowLeft} onClick={onClose}>
-            Canvas
-          </ActionButton>
-        </div>
-        <div className="source-monitor-name" title={asset?.name}>
-          {asset?.name ?? "Source unavailable"}
-        </div>
-        <div className="source-media-stage">
-          {!asset ? (
-            <p role="alert">The source is no longer available.</p>
-          ) : asset.kind === "Audio" ? (
-            <audio
-              key={asset.path}
-              ref={(element) => {
-                media.current = element;
-              }}
-              controls
-              src={mediaUrl(asset.path)}
-            />
-          ) : (
-            <video
-              key={asset.path}
-              ref={(element) => {
-                media.current = element;
-              }}
-              controls
-              src={mediaUrl(asset.path)}
-            />
-          )}
-        </div>
-        <div className="source-monitor-help">
-          Choose source in and out points, then create a selection.
-        </div>
-      </section>
+      <SourceMonitor asset={asset} onClose={onClose} />
       <aside className="panel inspector source-selection-inspector">
         <div className="panel-header">
           <span>Source selection</span>
