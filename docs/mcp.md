@@ -84,3 +84,5 @@ This first Phase 2 slice provides session selection, capability discovery, bound
 `read_sequence_frame` takes an explicit `sessionId`, `playheadUs` and optional `offset`/`limit` (maximum 100). It returns the current revision, project frame/duration/settings and a page of active layers. Frame-snapped source positions support paused picture inspection; continuous playback positions and audio gains support the running sequence. A black gap has no visual layers. This read uses the same pure resolver as preview and does not change history.
 
 Source and music gain, mute and fades are exposed through the typed `update_item` patches advertised by `get_capabilities`. Time fields remain integer microseconds, and manual changes use the same guarded history as MCP edits.
+
+`set_sequence_end` is also available inside `apply_edits`: supply `endUs` as a positive integer or `null` to follow the content duration. Read `read_sequence_frame` for the resolved duration and frame count. This changes the sequence boundary without trimming any timeline item.

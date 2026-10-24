@@ -2,7 +2,7 @@
 
 Date: 24 October 2026.
 
-Status: shared timing, continuous playback, audio envelopes and queued timeline exports implemented. Editable geometry and explicit sequence ends remain in progress.
+Status: shared timing, continuous playback, audio envelopes and queued timeline exports implemented. Editable geometry remains in progress.
 
 The saved project retains integer microseconds. Resolve media at the project frame rate, using half-open frame ranges. Item start and end map to the first frame at or after the stored time; converting a frame boundary back to integer microseconds has a half-microsecond tolerance. Derive every source time from its frame offset, rather than adding rounded frame durations repeatedly. Source frame rates are sampled independently from the project frame rate. Track order supplies compositing order.
 
@@ -10,7 +10,7 @@ The saved project retains integer microseconds. Resolve media at the project fra
 
 The export integration follows FFmpeg's established [timeline filter and framesync patterns](https://www.ffmpeg.org/ffmpeg-filters.html): a bounded black/silent sequence base, trimmed and timestamped visual layers, half-open overlay enables, and independent delayed audio contributions. FFmpeg's [overlay implementation](https://github.com/FFmpeg/FFmpeg/blob/master/libavfilter/vf_overlay.c) informs explicit EOF behavior. System FFmpeg remains an external process under its applicable upstream licence; no upstream implementation is copied into ForgeCut. Preview and export consume the same frame boundaries rather than separately deciding clip durations.
 
-The sections below record the completed playback, audio and export slices. Geometry and explicit sequence ends remain to be integrated.
+The sections below record the completed playback, audio and export slices. Geometry remains to be integrated.
 
 ## Timeline export slice
 
@@ -39,3 +39,9 @@ Audio uses continuous sequence time independently of picture frame rate. The res
 Preview follows the established browser [MediaElementAudioSourceNode](https://developer.mozilla.org/en-US/docs/Web/API/MediaElementAudioSourceNode) to [GainNode](https://developer.mozilla.org/en-US/docs/Web/API/GainNode) graph, using one lazily created AudioContext for the preview. This supports gain above the HTML media volume limit and keeps an independent music element alive across picture cuts. Each source disconnects on removal; the context closes with the preview. Native play interruptions after pause are discarded, and genuine warnings are scoped to the current source snapshot.
 
 The same envelope settings compile to FFmpeg volume/afade filters. Maintained generated-tone tests compare decoded export amplitudes against resolver gains between frames in a 1 fps project. Renderer checks cover music continuity, mute, gain, seek, pause and cleanup. A native Electron smoke observes non-silent Web Audio samples through the actual project media protocol. These checks establish signal/timing behavior, with manual listening still part of editorial acceptance.
+
+## Explicit sequence ends
+
+An optional `timeline.duration_us` sets the sequence end without trimming its items. The typed `set_sequence_end` operation accepts a positive integer time or `null` to follow content again. It participates in the same history, persistence and UI/MCP revision guards as other edits. The resolver rounds the requested end to the first project frame at or after it, matching item end semantics, and returns no active layers after that resolved end.
+
+The Inspector accepts seconds, with a blank value selecting automatic duration. The timeline shows an explicit end marker and includes long tails in its scroll/fit bounds. Export keeps exactly the resolved number of frames, fills an extended tail with black/silence, and does not open source files whose items start wholly after the end. Item envelopes retain their own durations when the sequence cuts them short. Real FFmpeg fixtures verify frame counts, a black tail and an unavailable source outside the export interval.
