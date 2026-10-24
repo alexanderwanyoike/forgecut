@@ -108,7 +108,7 @@ export default function App() {
   };
 
   return (
-    <div className="shell">
+    <div className={sourceItemId ? "shell shell--code" : "shell"}>
       <header className="menu-bar">
         <div className="app-brand">
           <Clapperboard size={21} strokeWidth={1.7} aria-hidden="true" />
