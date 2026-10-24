@@ -7,6 +7,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import titleSource from "../../electron/graphics/TitleCard.tsx?raw";
+import { componentVersion } from "../../electron/backend/graphic-component";
 import { AppState } from "../../electron/backend/state";
 import { EditingService } from "../../electron/backend/editing-service";
 import Preview from "../components/Preview";
@@ -205,5 +206,37 @@ it("shows RGBA colours accurately and preserves alpha when the picker changes RG
         changes: { props: { color: "#00ff0080" } },
       },
     }),
+  );
+});
+
+it("rejects a component with known source but a different property contract", async () => {
+  const state = new AppState();
+  await new EditingService(state).execute("add_graphic_item", {
+    templateId: "title-card",
+    trackId: "graphics",
+    timelineStartUs: 0,
+    durationUs: 1000000,
+  });
+  const project = structuredClone(state.project);
+  const component = project.components![0];
+  component.properties.title.label = "Different contract";
+  component.version = componentVersion(component);
+  const item = project.timeline.tracks[0].items[0];
+  if (!("RemotionGraphic" in item)) throw new Error("Invalid fixture");
+  item.RemotionGraphic.component_version = component.version;
+  render(
+    <Preview
+      project={project}
+      projectVersion={1}
+      playheadUs={0}
+      playing={false}
+      onPlayingChange={vi.fn()}
+      onPlayheadChange={vi.fn()}
+    />,
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("alert").textContent).toContain(
+      "component version",
+    ),
   );
 });
