@@ -163,7 +163,13 @@ export async function verifySourceSelections(directory, send) {
           const stage = document.querySelector('.source-media-stage');
           const controls = [...panel.querySelectorAll('input, textarea, select, button')];
           if (panel.scrollWidth > panel.clientWidth + 1 || controls.some(element => element.scrollWidth > element.clientWidth + 1)) throw new Error('Source controls overflow');
-          if (stage.clientWidth < 300 || stage.clientHeight < 150) throw new Error('Source monitor is too small: ' + stage.clientWidth + 'x' + stage.clientHeight);
+          if ('${kind}' === 'Short preview') {
+            const preview = document.querySelector('video[aria-label="Source preview"]');
+            const review = document.querySelector('.source-review');
+            const bounds = preview.getBoundingClientRect();
+            const area = review.getBoundingClientRect();
+            if (stage.clientHeight !== 0 || preview.clientWidth < 300 || preview.clientHeight < 150 || bounds.top < area.top || bounds.bottom > area.bottom + 1) throw new Error('Bounded preview controls are clipped or the raw player is duplicated');
+          } else if (stage.clientWidth < 300 || stage.clientHeight < 150) throw new Error('Source monitor is too small: ' + stage.clientWidth + 'x' + stage.clientHeight);
           return true;
         })()`,
         });
@@ -190,6 +196,25 @@ export async function verifySourceSelections(directory, send) {
       }
     }
   }
+  const returned = await send("Runtime.evaluate", {
+    awaitPromise: true,
+    returnByValue: true,
+    expression: `(async () => {
+      [...document.querySelectorAll('button')].find(button => button.textContent.trim() === 'Back to source').click();
+      for (let attempt = 0; attempt < 100; attempt++) {
+        if (!document.querySelector('video[aria-label="Source preview"]') && document.querySelector('.source-media-stage').clientHeight >= 150) return true;
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      throw new Error('Original source player did not return');
+    })()`,
+  });
+  if (
+    returned.result?.exceptionDetails ||
+    returned.result?.result?.value !== true
+  )
+    throw new Error(
+      `Returning to source failed: ${JSON.stringify(returned.result)}`,
+    );
   await send("Emulation.clearDeviceMetricsOverride");
   await send("Runtime.evaluate", {
     awaitPromise: true,
