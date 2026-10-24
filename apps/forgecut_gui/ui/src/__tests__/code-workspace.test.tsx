@@ -423,3 +423,44 @@ it("shows successful Apply warnings without claiming publication failed", async 
   expect(screen.getByRole("status").textContent).toContain("Source applied");
   expect(state.revision).toBe(2);
 });
+it("retains typing made after Revert starts while its acknowledgement is delayed", async () => {
+  await fixture();
+  fireEvent.change(screen.getByLabelText("Graphic source editor"), {
+    target: { value: "export default function Earlier(){return null}" },
+  });
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toContain("Draft saved"),
+  );
+  const execute = bridge.getMockImplementation()!;
+  let release: (() => void) | undefined;
+  let began: (() => void) | undefined;
+  const paused = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    began = resolve;
+  });
+  bridge.mockImplementation(async (command: string, args: unknown) => {
+    const result = await execute(command, args);
+    if (command === "revert_graphic_draft") {
+      began!();
+      await paused;
+    }
+    return result;
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Revert draft" }));
+  await started;
+  const latest =
+    "export default function Later(){return <div>After Revert</div>}";
+  fireEvent.change(screen.getByLabelText("Graphic source editor"), {
+    target: { value: latest },
+  });
+  await screen.findByRole("button", { name: "Keep edited files" });
+  await act(async () => {
+    release!();
+  });
+  expect(
+    (screen.getByLabelText("Graphic source editor") as HTMLTextAreaElement)
+      .value,
+  ).toBe(latest);
+});
