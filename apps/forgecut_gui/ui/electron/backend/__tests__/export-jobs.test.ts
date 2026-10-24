@@ -48,14 +48,16 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
         },
       );
       const outputPath = join(dir, "result.mp4");
-      const started = await editing.execute("export_project", { outputPath });
+      const pending = editing.execute("export_project", { outputPath });
+      state.createProject();
+      await editing.execute("update_project", { settings: { width: 128 } });
+      const started = await pending;
       expect(started).toMatchObject({
         ok: true,
         value: { kind: "export", status: "queued", projectRevision: revision },
       });
       if (!started.ok) throw new Error(started.error.message);
       const job = started.value as JobSnapshot;
-      await editing.execute("update_project", { settings: { width: 128 } });
       expect(
         await editing.execute("get_media_job", {
           sessionId: state.sessionId,
@@ -64,7 +66,7 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       ).toMatchObject({ ok: true, value: { id: job.id, status: "queued" } });
       release();
       await vi.waitFor(() =>
-        expect(editing.jobs.read(job.id, state.sessionId)).toMatchObject({
+        expect(editing.jobs.read(job.id, job.sessionId)).toMatchObject({
           ok: true,
           value: {
             status: "completed",
