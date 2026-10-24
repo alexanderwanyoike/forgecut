@@ -100,6 +100,8 @@ export default function ExportDialog(props: {
     job?.status === "failed" && job.result && !job.result.ok
       ? job.result.error.message
       : null;
+  const output = job?.result?.ok ? job.result.value : null;
+  const cleanupWarning = output && typeof output === "object" && "cleanupWarning" in output && typeof output.cleanupWarning === "string" ? output.cleanupWarning : null;
   let statusLabel = "Rendering";
   if (job?.status === "queued") statusLabel = "Queued";
   if (job?.status === "cancelling") statusLabel = "Cancelling";
@@ -171,6 +173,7 @@ export default function ExportDialog(props: {
               {error || failed}
             </div>
           )}
+          {cleanupWarning && <div className="export-error" role="alert">{cleanupWarning}</div>}
           {job?.status === "completed" && (
             <div className="export-success" role="status">
               Export complete
