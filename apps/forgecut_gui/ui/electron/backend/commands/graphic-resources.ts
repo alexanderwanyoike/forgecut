@@ -19,7 +19,7 @@ export const graphicResourceCommands = {
     const { sessionId, revision } = state;
     let { license } = input;
     if (input.licensePath) {
-      const bytes = await readResourceFile(input.licensePath);
+      const bytes = await readResourceFile(input.licensePath, signal);
       if (bytes.length === 0 || bytes.length > 65536)
         throw new EditingError(
           "INVALID_INPUT",
@@ -39,12 +39,15 @@ export const graphicResourceCommands = {
       input.path,
       input.kind,
       license,
+      signal,
     );
-    if (!imported.ok)
+    if (!imported.ok) {
+      const { code, message } = imported.error;
       throw new EditingError(
-        imported.error.code === "INVALID_INPUT" ? "INVALID_INPUT" : "IO_ERROR",
-        imported.error.message,
+        code === "CANCELLED" || code === "INVALID_INPUT" ? code : "IO_ERROR",
+        message,
       );
+    }
     if (signal?.aborted)
       throw new EditingError("CANCELLED", "Resource import cancelled");
     state.assertSession(sessionId);

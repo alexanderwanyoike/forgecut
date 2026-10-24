@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { basename } from "node:path";
+import { EditingError } from "./editing-error.js";
 import type {
   GraphicResource,
   ResourceLicense,
@@ -35,9 +36,10 @@ export async function importGraphicResource(
   path: string,
   kind: GraphicResource["kind"],
   license: ResourceLicense,
+  signal?: AbortSignal,
 ): Promise<Result<GraphicResource>> {
   try {
-    const bytes = await readResourceFile(path);
+    const bytes = await readResourceFile(path, signal);
     const mime = mimeOf(bytes);
     if (!mime || !mime.startsWith(kind === "Image" ? "image/" : "font/"))
       return {
@@ -65,7 +67,7 @@ export async function importGraphicResource(
     return {
       ok: false,
       error: {
-        code: "IO_ERROR",
+        code: failure instanceof EditingError ? failure.code : "IO_ERROR",
         message: failure instanceof Error ? failure.message : String(failure),
       },
     };
