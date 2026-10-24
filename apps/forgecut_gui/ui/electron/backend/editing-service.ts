@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 import { createHash } from "node:crypto";
 import { sourceSelectionCommands } from "./commands/source-selections.js";
 import { sourceReviewCommands } from "./commands/source-review.js";
+import { variantCommands } from "./commands/sequence-variants.js";
 import { sequenceCommands } from "./commands/sequences.js";
 import { graphicEditorCommands } from "./commands/graphic-editor.js";
 import { graphicPromotionCommands } from "./commands/graphic-promotion.js";
@@ -52,6 +53,7 @@ const handlers: Record<
 > = {
   ...projectCommands,
   ...sequenceCommands,
+  ...variantCommands,
   ...sourceSelectionCommands,
   ...sourceReviewCommands,
   ...timelineCommands,
@@ -326,6 +328,7 @@ export class EditingService {
     const globalCommands = new Set<EditOperation["command"]>([
       "save_source_selection",
       "delete_source_selection",
+      "create_sequence_variant",
       "create_sequence",
       "rename_sequence",
       "delete_sequence",

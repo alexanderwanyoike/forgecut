@@ -62,6 +62,7 @@ export type GraphicLayerState = {
 };
 export type GraphicLayerStates = Record<string, GraphicLayerState>;
 export type RemotionGraphicItem = {
+  origin_item_id?: string;
   id: string;
   track_id: string;
   timeline_start_us: number;
