@@ -1,3 +1,4 @@
+import { scaleGraphicProperties } from "../../domain/graphic-scale.js";
 import { randomUUID } from "node:crypto";
 import type { GraphicValues } from "../../shared/graphics.js";
 import { graphicTemplates } from "../graphic-catalog.js";
@@ -35,29 +36,13 @@ export const graphicsCommands = {
           value.default,
         ]),
       );
-      const sx = sequence.settings.width / component.design_size.width;
-      const sy = sequence.settings.height / component.design_size.height;
-      for (const layer of component.layers) {
-        const scaled: [string, number][] = [
-          [layer.bindings.x, sx],
-          [layer.bindings.width, sx],
-          [layer.bindings.y, sy],
-          [layer.bindings.height, sy],
-        ];
-        if (layer.kind === "text")
-          scaled.push([layer.bindings.font_size, Math.min(sx, sy)]);
-        for (const [key, scale] of scaled) {
-          const value = defaults[key];
-          const property = component.properties[key];
-          if (typeof value === "number" && property.type === "number")
-            defaults[key] = Math.max(
-              property.min ?? -Infinity,
-              Math.min(property.max ?? Infinity, value * scale),
-            );
-        }
-      }
       const props = validateGraphicProperties(component, {
-        ...defaults,
+        ...scaleGraphicProperties(
+          component,
+          defaults,
+          component.design_size,
+          sequence.settings,
+        ),
         ...(args?.props as GraphicValues | undefined),
       });
       if (!props.ok) throw new Error(props.error.message);
