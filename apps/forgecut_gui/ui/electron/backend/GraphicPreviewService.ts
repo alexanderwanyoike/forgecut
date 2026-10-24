@@ -6,7 +6,7 @@ import type {
   GraphicPreviewInput,
   GraphicPreviewFrame,
 } from "../shared/graphic-preview.js";
-import type { Result } from "../shared/result.js";
+import type { GraphicPreviewResult as Result } from "../shared/graphic-preview.js";
 import { frameAtOrAfter } from "../domain/sequence.js";
 import { validateGraphicProperties } from "../domain/graphic-properties.js";
 import { validateGraphicDependencies } from "../domain/graphic-dependencies.js";

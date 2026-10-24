@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { graphicRuntimeFailureSchema } from "../shared/graphic-diagnostic-schema.js";
 import { graphicRenderJobSchema } from "./graphic-render-job.js";
 import {
   graphicValuesSchema,
@@ -41,7 +42,7 @@ export const previewResponseSchema = z.discriminatedUnion("ok", [
   z.object({
     ok: z.literal(false),
     id: z.number().int(),
-    error: z.object({ code: z.string(), message: z.string().max(8192) }),
+    error: graphicRuntimeFailureSchema,
   }),
 ]);
 export const previewFrameSchema = z.strictObject({

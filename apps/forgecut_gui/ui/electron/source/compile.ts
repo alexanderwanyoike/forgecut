@@ -30,6 +30,8 @@ export async function compileGraphicSource(
       entryPoints: [source.entry],
       bundle: true,
       write: false,
+      sourcemap: "inline",
+      sourcesContent: false,
       format: "cjs",
       platform: "browser",
       target: "es2022",

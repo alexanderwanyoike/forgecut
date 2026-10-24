@@ -196,7 +196,11 @@ export class EditingService {
       if (error instanceof EditingError)
         return {
           ok: false,
-          error: { code: error.code, message: error.message },
+          error: {
+            code: error.code,
+            message: error.message,
+            ...(error.diagnostics ? { diagnostics: error.diagnostics } : {}),
+          },
         };
       const io = (error as NodeJS.ErrnoException)?.code;
       return {

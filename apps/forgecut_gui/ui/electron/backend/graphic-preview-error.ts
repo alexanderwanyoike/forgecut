@@ -1,10 +1,10 @@
+import type { GraphicRuntimeFailure } from "../shared/graphic-diagnostic-schema.js";
 import type { EditErrorCode } from "../shared/ipc-contract.js";
 import { EditingError } from "./editing-error.js";
 
-export function graphicPreviewError(error: {
-  code: string;
-  message: string;
-}): EditingError {
+export function graphicPreviewError(
+  error: GraphicRuntimeFailure,
+): EditingError {
   const codes: EditErrorCode[] = [
     "NOT_FOUND",
     "INVALID_INPUT",
@@ -16,5 +16,5 @@ export function graphicPreviewError(error: {
   ];
   const code =
     codes.find((candidate) => candidate === error.code) ?? "IO_ERROR";
-  return new EditingError(code, error.message);
+  return new EditingError(code, error.message, error.diagnostics);
 }

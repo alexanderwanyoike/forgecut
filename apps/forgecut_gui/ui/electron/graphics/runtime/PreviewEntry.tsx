@@ -26,7 +26,7 @@ const setPlayer = (value: PlayerRef | null) => {
       waiting = false;
     });
     value.addEventListener("error", ({ detail }) => {
-      failure = detail.error.message;
+      failure = detail.error.stack ?? detail.error.message;
     });
   }
 };
@@ -79,7 +79,7 @@ window.graphicPreview = async (input) => {
           layerStates: input.layerStates,
         }}
         errorFallback={({ error }) => {
-          failure = error.message;
+          failure = error.stack ?? error.message;
           return null;
         }}
         initialFrame={input.frame}

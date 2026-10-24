@@ -97,6 +97,9 @@ function request<K extends CommandName>(
       if (!response.ok)
         throw Object.assign(new Error(response.error.message), {
           code: response.error.code,
+          ...(response.error.diagnostics
+            ? { diagnostics: response.error.diagnostics }
+            : {}),
         });
       if (
         !jobControl &&
