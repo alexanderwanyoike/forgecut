@@ -211,47 +211,59 @@ export function validateProject(input: unknown): Project {
     TextOverlay: "OverlayText",
     RemotionGraphic: "Graphics",
   };
-  for (const track of project.timeline.tracks) {
-    unique(track.id);
-    for (const item of track.items) {
-      const data = itemData(item);
-      unique(data.id);
-      if (
-        data.track_id !== track.id ||
-        kinds[itemVariant(item)] !== track.kind
-      ) {
-        throw new Error(`Item ${data.id} is incompatible with its track`);
-      }
-      if (durationUs(item) <= 0 || !Number.isSafeInteger(timelineEndUs(item))) {
-        throw new Error(`Invalid duration for item ${data.id}`);
-      }
-      if ("asset_id" in data) {
-        const asset = assets.get(data.asset_id);
-        if (!asset)
-          throw new Error(`Missing asset reference: ${data.asset_id}`);
-        let expected = "Video";
-        if ("ImageOverlay" in item) expected = "Image";
-        else if ("AudioClip" in item) expected = "Audio";
-        if (asset.kind !== expected)
-          throw new Error(`Incompatible asset for item ${data.id}`);
+  for (const sequence of [
+    { settings: project.settings, timeline: project.timeline },
+    ...project.sequences,
+  ]) {
+    for (const track of sequence.timeline.tracks) {
+      unique(track.id);
+      for (const item of track.items) {
+        const data = itemData(item);
+        unique(data.id);
         if (
-          "source_out_us" in data &&
-          asset.probe &&
-          asset.probe.duration_us > 0 &&
-          data.source_out_us > asset.probe.duration_us
+          data.track_id !== track.id ||
+          kinds[itemVariant(item)] !== track.kind
         ) {
-          throw new Error(`Item ${data.id} exceeds the source duration`);
+          throw new Error(`Item ${data.id} is incompatible with its track`);
+        }
+        if (
+          durationUs(item) <= 0 ||
+          !Number.isSafeInteger(timelineEndUs(item))
+        ) {
+          throw new Error(`Invalid duration for item ${data.id}`);
+        }
+        if ("asset_id" in data) {
+          const asset = assets.get(data.asset_id);
+          if (!asset)
+            throw new Error(`Missing asset reference: ${data.asset_id}`);
+          let expected = "Video";
+          if ("ImageOverlay" in item) expected = "Image";
+          else if ("AudioClip" in item) expected = "Audio";
+          if (asset.kind !== expected)
+            throw new Error(`Incompatible asset for item ${data.id}`);
+          if (
+            "source_out_us" in data &&
+            asset.probe &&
+            asset.probe.duration_us > 0 &&
+            data.source_out_us > asset.probe.duration_us
+          ) {
+            throw new Error(`Item ${data.id} exceeds the source duration`);
+          }
         }
       }
+      const sorted = [...track.items].sort(
+        (a, b) => timelineStartUs(a) - timelineStartUs(b),
+      );
+      for (let i = 1; i < sorted.length; i += 1) {
+        if (timelineStartUs(sorted[i]) < timelineEndUs(sorted[i - 1]))
+          throw new Error("Overlap detected");
+      }
     }
-    const sorted = [...track.items].sort(
-      (a, b) => timelineStartUs(a) - timelineStartUs(b),
-    );
-    for (let i = 1; i < sorted.length; i += 1) {
-      if (timelineStartUs(sorted[i]) < timelineEndUs(sorted[i - 1]))
-        throw new Error("Overlap detected");
-    }
+    validateProjectGraphics({
+      ...project,
+      settings: sequence.settings,
+      timeline: sequence.timeline,
+    });
   }
-  validateProjectGraphics(project);
   return project;
 }
