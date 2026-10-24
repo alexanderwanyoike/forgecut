@@ -222,7 +222,18 @@ export function useGraphicSourceDraft(
     }
   }
   async function revert(): Promise<Result<GraphicDraft>> {
+    const requestedEpoch = epoch.current;
+    const changed = () =>
+      fail(
+        Object.assign(
+          new Error(
+            "Your buffer changed while reverting. Reconcile the draft to retain your latest typing.",
+          ),
+          { code: "CONFLICT" },
+        ),
+      );
     if (pending.current) await pending.current;
+    if (epoch.current !== requestedEpoch) return changed();
     if (!saved.current)
       return {
         ok: false,
@@ -234,6 +245,7 @@ export function useGraphicSourceDraft(
         sessionId,
         expectedDraftRevision: saved.current.revision,
       });
+      if (epoch.current !== requestedEpoch) return changed();
       install(result);
       return { ok: true, value: result };
     } catch (failure) {
