@@ -134,26 +134,35 @@ it.skipIf(
   },
 );
 
-it.skipIf(
-  spawnSync("ffmpeg", ["-version"]).status !== 0 ||
-    spawnSync("ffprobe", ["-version"]).status !== 0,
-)(
-  "fits a silent portrait recording inside the preview bounds without inventing an audio stream",
-  async () => {
+it
+  .skipIf(
+    spawnSync("ffmpeg", ["-version"]).status !== 0 ||
+      spawnSync("ffprobe", ["-version"]).status !== 0,
+  )
+  .each([
+    ["portrait", "color=c=blue:s=720x1280:r=30:d=1", "vp8,202,360,1:1,101:180"],
+    [
+      "anamorphic",
+      "color=c=blue:s=720x576:r=30:d=1,setsar=64/45",
+      "vp8,450,360,64:45,16:9",
+    ],
+  ] as const)(
+  "preserves silent %s display aspect and bounded encoded dimensions",
+  async (name, input, expected) => {
     const directory = await mkdtemp(
       join(tmpdir(), "forgecut-portrait-preview-"),
     );
     const state = new AppState();
     const service = new EditingService(state);
     try {
-      const path = join(directory, "portrait.mp4");
+      const path = join(directory, `${name}.mp4`);
       const generated = spawnSync("ffmpeg", [
         "-v",
         "error",
         "-f",
         "lavfi",
         "-i",
-        "color=c=blue:s=720x1280:r=30:d=1",
+        input,
         "-an",
         "-c:v",
         "libx264",
@@ -171,7 +180,7 @@ it.skipIf(
       const started = await service.execute("start_source_review", {
         sessionId: state.sessionId,
         expectedRevision: state.revision,
-        requestId: "portrait-preview",
+        requestId: `${name}-preview`,
         assetId: state.project.assets[0].id,
         kind: "preview",
         startUs: 100000,
@@ -188,7 +197,7 @@ it.skipIf(
         result: { ok: true },
       });
       if (!completed.result?.ok) throw new Error("Missing portrait preview");
-      const output = join(directory, "portrait.webm");
+      const output = join(directory, `${name}.webm`);
       await writeFile(
         output,
         Buffer.from(
@@ -202,7 +211,7 @@ it.skipIf(
           "-v",
           "error",
           "-show_entries",
-          "stream=codec_name,width,height",
+          "stream=codec_name,width,height,sample_aspect_ratio,display_aspect_ratio",
           "-of",
           "csv=p=0",
           output,
@@ -210,7 +219,7 @@ it.skipIf(
         { encoding: "utf8" },
       );
       expect(probe.status, probe.stderr).toBe(0);
-      expect(probe.stdout.trim()).toBe("vp8,202,360");
+      expect(probe.stdout.trim()).toBe(expected);
       expect(state.snapshot()).toEqual(before);
     } finally {
       await service.jobs.close();
