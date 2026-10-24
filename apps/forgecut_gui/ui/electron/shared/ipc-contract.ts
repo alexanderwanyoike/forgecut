@@ -185,6 +185,8 @@ export type EditingContext = {
 };
 
 export type ProjectSnapshot = {
+  undoSequenceId?: string;
+  redoSequenceId?: string;
   activeSequenceId?: string;
   sequenceRevision?: number;
   project: Project;
@@ -319,7 +321,7 @@ export type EditRequest = {
 
 export type HistoryRequest = Pick<
   EditRequest,
-  "sessionId" | "expectedRevision" | "requestId"
+  "sessionId" | "expectedRevision" | "requestId" | "sequenceId"
 > & { direction: "undo" | "redo" };
 
 export type Thumbnail = {

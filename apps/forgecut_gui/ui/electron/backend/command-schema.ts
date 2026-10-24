@@ -171,6 +171,7 @@ export const editRequestSchema = z.strictObject({
     .max(100),
 });
 export const historyRequestSchema = z.strictObject({
+  sequenceId: id.optional(),
   sessionId: id,
   expectedRevision: time,
   requestId: id,

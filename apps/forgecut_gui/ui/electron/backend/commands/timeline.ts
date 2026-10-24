@@ -92,8 +92,8 @@ export const timelineCommands = {
         requiredNumber(args, "newStartUs"),
       );
     }),
-  undo: (_args, { state }) => state.undo(),
-  redo: (_args, { state }) => state.redo(),
+  undo: (_args, { state, sequenceId }) => state.undo(sequenceId),
+  redo: (_args, { state, sequenceId }) => state.redo(sequenceId),
   add_track: (args, { state }) =>
     state.executeTimelineChange((timeline) => {
       const kind = requiredString(args, "kind") as Track["kind"];

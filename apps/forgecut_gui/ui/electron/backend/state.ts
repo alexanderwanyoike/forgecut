@@ -48,10 +48,15 @@ type ProjectSnapshotEntry = {
   before: Project;
   after: Project;
   group?: string;
+  sequenceId?: string;
   bytes: number;
 };
 
-type ChangeOptions = { group?: string; availablePaths?: string[] };
+type ChangeOptions = {
+  group?: string;
+  availablePaths?: string[];
+  sequenceId?: string;
+};
 type HistoryLimits = { count?: number; bytes?: number };
 
 export class AppState {
@@ -122,12 +127,26 @@ export class AppState {
     return this.getEditingContext();
   }
 
+  get undoSequenceId(): string | undefined {
+    return this.undoStack.at(-1)?.sequenceId;
+  }
+
+  get redoSequenceId(): string | undefined {
+    return this.redoStack.at(-1)?.sequenceId;
+  }
+
   get canUndo(): boolean {
-    return this.undoStack.length > 0;
+    return (
+      this.undoStack.length > 0 &&
+      (!this.undoSequenceId || this.undoSequenceId === this.activeSequence.id)
+    );
   }
 
   get canRedo(): boolean {
-    return this.redoStack.length > 0;
+    return (
+      this.redoStack.length > 0 &&
+      (!this.redoSequenceId || this.redoSequenceId === this.activeSequence.id)
+    );
   }
 
   getEditingContext(): EditingContext {
@@ -177,6 +196,8 @@ export class AppState {
       revision: this.revision,
       canUndo: this.canUndo,
       canRedo: this.canRedo,
+      undoSequenceId: this.undoSequenceId,
+      redoSequenceId: this.redoSequenceId,
       missingMedia: this.project.assets
         .filter((asset) => this.missingMedia.has(asset.path))
         .map((asset) => asset.id),
@@ -290,6 +311,7 @@ export class AppState {
     const entryBefore =
       options.group &&
       previous?.group === options.group &&
+      previous.sequenceId === options.sequenceId &&
       this.redoStack.length === 0
         ? previous.before
         : before;
@@ -297,6 +319,7 @@ export class AppState {
       before: structuredClone(entryBefore),
       after: structuredClone(after),
       group: options.group,
+      sequenceId: options.sequenceId,
       bytes:
         Buffer.byteLength(JSON.stringify(entryBefore)) +
         Buffer.byteLength(JSON.stringify(after)),
@@ -315,28 +338,41 @@ export class AppState {
     mutator: (timeline: Timeline) => void,
     sequenceId = this.activeSequence.id,
   ): Timeline {
-    this.executeProjectChange((project) =>
-      mutator(this.sequenceIn(project, sequenceId).timeline),
+    this.executeProjectChange(
+      (project) => mutator(this.sequenceIn(project, sequenceId).timeline),
+      { sequenceId },
     );
     return this.sequenceIn(this.project, sequenceId).timeline;
   }
 
-  undo(): Timeline {
-    const entry = this.undoStack.pop();
+  undo(sequenceId = this.activeSequence.id): Timeline {
+    const entry = this.undoStack.at(-1);
     if (!entry) throw new EditingError("NOTHING_TO_UNDO", "Nothing to undo");
+    if (entry.sequenceId && entry.sequenceId !== sequenceId)
+      throw new EditingError(
+        "CONFLICT",
+        "This history action belongs to a different sequence",
+      );
+    this.undoStack.pop();
     this.currentProject = freezeProject(structuredClone(entry.before));
     this.redoStack.push({ ...entry, group: undefined });
     this.changed();
-    return this.project.timeline;
+    return this.activeSequence.timeline;
   }
 
-  redo(): Timeline {
-    const entry = this.redoStack.pop();
+  redo(sequenceId = this.activeSequence.id): Timeline {
+    const entry = this.redoStack.at(-1);
     if (!entry) throw new EditingError("NOTHING_TO_UNDO", "Nothing to redo");
+    if (entry.sequenceId && entry.sequenceId !== sequenceId)
+      throw new EditingError(
+        "CONFLICT",
+        "This history action belongs to a different sequence",
+      );
+    this.redoStack.pop();
     this.currentProject = freezeProject(structuredClone(entry.after));
     this.undoStack.push({ ...entry, group: undefined });
     this.changed();
-    return this.project.timeline;
+    return this.activeSequence.timeline;
   }
 
   async autosave(): Promise<void> {

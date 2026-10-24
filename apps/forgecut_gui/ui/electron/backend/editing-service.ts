@@ -13,6 +13,7 @@ import type {
   CommandResponse,
   EditOperation,
   EditRequest,
+  HistoryRequest,
   ProjectSnapshot,
 } from "../shared/ipc-contract.js";
 import { JobQueue } from "./job-queue.js";
@@ -123,7 +124,11 @@ export class EditingService {
                 sequenceId:
                   (args as EditRequest).sequenceId ?? meta?.sequenceId,
               })
-            : this.applyHistory(args);
+            : this.applyHistory({
+                ...(args as HistoryRequest),
+                sequenceId:
+                  (args as HistoryRequest).sequenceId ?? meta?.sequenceId,
+              });
         return {
           ok: true,
           value: snapshot,
@@ -244,8 +249,21 @@ export class EditingService {
   private applyHistory(input: unknown): ProjectSnapshot {
     const request = historyRequestSchema.parse(input);
     return this.executeGuarded(request, () => {
-      if (request.direction === "undo") this.state.undo();
-      else this.state.redo();
+      const target =
+        request.direction === "undo"
+          ? this.state.undoSequenceId
+          : this.state.redoSequenceId;
+      if (
+        !request.sequenceId &&
+        target &&
+        (this.state.project.sequences?.length ?? 0) > 0
+      )
+        throw new EditingError(
+          "INVALID_INPUT",
+          "Provide a sequence ID for this history action",
+        );
+      if (request.direction === "undo") this.state.undo(request.sequenceId);
+      else this.state.redo(request.sequenceId);
     });
   }
 
@@ -307,20 +325,21 @@ export class EditingService {
       "delete_sequence",
       "remove_asset",
     ]);
+    const scoped = operations.some(
+      (operation) => !globalCommands.has(operation.command),
+    );
     if (
       !sequenceId &&
       (this.state.project.sequences?.length ?? 0) > 0 &&
-      operations.some((operation) => !globalCommands.has(operation.command))
+      scoped
     )
       throw new EditingError(
         "INVALID_INPUT",
         "Provide a sequence ID before editing a multi-sequence project",
       );
     const draft = new AppState({ count: 0 }, this.state.project);
-    draft.selectSequence(
-      draft.sessionId,
-      sequenceId ?? this.state.activeSequence.id,
-    );
+    const targetId = sequenceId ?? this.state.activeSequence.id;
+    draft.selectSequence(draft.sessionId, targetId);
     let value: unknown;
     for (const operation of operations) {
       const args = editSchemas[operation.command].parse(
@@ -335,7 +354,7 @@ export class EditingService {
     }
     this.state.executeProjectChange(
       (project) => Object.assign(project, draft.project),
-      { group },
+      { group, sequenceId: scoped ? targetId : undefined },
     );
     return value;
   }
