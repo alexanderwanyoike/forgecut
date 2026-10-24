@@ -21,6 +21,7 @@ export function codeRuntimeDirectory(): string {
 export async function checkGraphicSource(
   source: GraphicComponent["source"],
   signal?: AbortSignal,
+  properties?: GraphicComponent["properties"],
 ): Promise<Result<GraphicCompilation>> {
   let directory = "";
   let outcome: Result<GraphicCompilation>;
@@ -38,7 +39,10 @@ export async function checkGraphicSource(
       };
     else {
       const input = join(directory, "source.json");
-      await writeFile(input, JSON.stringify(source));
+      await writeFile(
+        input,
+        JSON.stringify({ ...source, ...(properties ? { properties } : {}) }),
+      );
       outcome = await runSourceCompiler(runtime, input, directory, signal);
     }
   } catch (failure) {

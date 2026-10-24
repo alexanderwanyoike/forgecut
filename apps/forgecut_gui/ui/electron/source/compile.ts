@@ -8,10 +8,12 @@ import {
   type GraphicDiagnostic,
 } from "../shared/graphic-source.js";
 import { checkTypes } from "./type-check.js";
+import { graphicTypeDeclarations } from "../shared/graphic-type-declarations.js";
 
 export async function compileGraphicSource(
   source: GraphicComponent["source"],
   libraries: Record<string, string>,
+  properties?: GraphicComponent["properties"],
 ): Promise<GraphicCompilation> {
   const invalid = (diagnostics: GraphicDiagnostic[]): GraphicCompilation => ({
     ok: false,
@@ -85,7 +87,15 @@ export async function compileGraphicSource(
         },
       ],
     });
-    const diagnostics = checkTypes(source, libraries);
+    const schemaPath = "/forgecut/component-schema.d.ts";
+    const types = properties
+      ? { ...libraries, [schemaPath]: graphicTypeDeclarations(properties) }
+      : libraries;
+    const diagnostics = checkTypes(
+      source,
+      types,
+      properties ? [schemaPath] : [],
+    );
     if (diagnostics.length) return invalid(diagnostics);
     const code = result.outputFiles[0]?.text;
     if (!code || Buffer.byteLength(code) > 2097152)

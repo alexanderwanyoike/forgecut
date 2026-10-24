@@ -1,8 +1,8 @@
+import { z } from "zod";
 import {
   graphicPropertyNameSchema as key,
   graphicPropertiesSchema,
 } from "../shared/graphic-property-schema.js";
-import { z } from "zod";
 import { graphicSourceSchema } from "../shared/graphic-source-schema.js";
 
 export const graphicValueSchema = z.union([

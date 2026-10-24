@@ -106,6 +106,7 @@ export class GraphicPreviewService {
         const compiled = await checkGraphicSource(
           component.source,
           cancellation,
+          component.properties,
         );
         if (!compiled.ok) return compiled;
         if (!compiled.value.ok)

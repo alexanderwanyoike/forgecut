@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { graphicPropertiesSchema } from "../shared/graphic-property-schema.js";
 import { graphicSourceSchema } from "../shared/graphic-source-schema.js";
 import { resourceImportSchema } from "./graphic-resource-schema.js";
 import type { CommandName, EditCommandName } from "../shared/ipc-contract.js";
@@ -216,6 +217,7 @@ export const commandSchemas = {
     props: graphicValuesSchema.optional(),
   }),
   check_graphic_source: z.strictObject({
+    properties: graphicPropertiesSchema.optional(),
     source: graphicSourceSchema,
   }),
   import_graphic_resource: resourceImportSchema,

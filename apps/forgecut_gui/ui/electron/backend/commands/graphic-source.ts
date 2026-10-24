@@ -8,6 +8,7 @@ export const graphicSourceCommands = {
     const checked = await checkGraphicSource(
       args?.source as GraphicComponent["source"],
       signal,
+      args?.properties as GraphicComponent["properties"] | undefined,
     );
     if (!checked.ok)
       throw new EditingError(
