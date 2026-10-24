@@ -77,7 +77,7 @@ export default function ExportDialog(props: {
   }, [job?.id, job?.status]);
 
   const handleExport = async () => {
-    const target = props.target;
+    const {target} = props;
     setStarting(true);
     setJobTarget(target);
     setError(null);
