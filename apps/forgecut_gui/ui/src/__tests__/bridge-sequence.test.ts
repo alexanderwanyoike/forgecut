@@ -1,3 +1,5 @@
+import { createElement } from "react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { AppState } from "../../electron/backend/state";
 import { EditingService } from "../../electron/backend/editing-service";
@@ -7,6 +9,7 @@ import type {
 } from "../../electron/shared/ipc-contract";
 let service: EditingService | undefined;
 afterEach(async () => {
+  cleanup();
   delete window.forgecut;
   if (service) {
     await service.jobs.close();
@@ -132,6 +135,39 @@ it("keeps the newer sequence target when an older snapshot read arrives late", a
     expect(
       state.project.sequences![0].timeline.tracks[0].items[0],
     ).toMatchObject({ TextOverlay: { text: "Latest sequence" } });
+  } finally {
+    release();
+    unlisten();
+  }
+});
+
+it("keeps the newer visible sequence when the initial project read arrives late", async () => {
+  const { state, unlisten } = await fixture();
+  const { started, release } = holdSnapshotRead();
+  const { useProject } = await import("../hooks/useProject");
+  function Probe() {
+    const { snapshot } = useProject();
+    return createElement(
+      "output",
+      { role: "status" },
+      snapshot?.activeSequenceId ?? "Loading",
+    );
+  }
+  try {
+    render(createElement(Probe));
+    await started;
+    const clip = state.project.sequences![0].id;
+    await act(async () => {
+      await service!.execute("select_sequence", {
+        sessionId: state.sessionId,
+        sequenceId: clip,
+      });
+    });
+    expect(screen.getByRole("status").textContent).toBe(clip);
+    await act(async () => {
+      release();
+    });
+    expect(screen.getByRole("status").textContent).toBe(clip);
   } finally {
     release();
     unlisten();
