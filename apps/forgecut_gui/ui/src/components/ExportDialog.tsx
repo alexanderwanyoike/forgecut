@@ -190,7 +190,12 @@ export default function ExportDialog(props: {
             </div>
           )}
           {job?.status === "cancelled" && (
-            <div role="status">Export cancelled</div>
+            <div role="status">
+              <span>Export cancelled</span>
+              {job.result && !job.result.ok && (
+                <p className="export-detail">{job.result.error.message}</p>
+              )}
+            </div>
           )}
         </div>
         <div className="export-footer">
