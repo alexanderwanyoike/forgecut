@@ -2,7 +2,6 @@ import type { Project } from "./state.js";
 import { assetIdOf, itemData } from "./timeline-ops.js";
 import {
   frameAtOrAfter,
-  frameTimeUs,
   itemFrameRange,
   sequenceDurationUs,
 } from "./sequence.js";
@@ -36,10 +35,8 @@ export function compileExportPlan(project: Project): RenderPlan {
     for (const item of track.items) {
       const range = itemFrameRange(item, fps);
       if (range.end <= range.start) continue;
-      const start = frameTimeUs(range.start, fps) / 1_000_000;
-      const end = frameTimeUs(range.end, fps) / 1_000_000;
       const length = (range.end - range.start) / fps;
-      const active = `gte(t,${start})*lt(t,${end})`;
+      const active = `gte(round(t*${fps}),${range.start})*lt(round(t*${fps}),${range.end})`;
       const data = itemData(item);
       const index = layerIndex;
       layerIndex += 1;
@@ -76,10 +73,10 @@ export function compileExportPlan(project: Project): RenderPlan {
             ? `trim=start=${item.VideoClip.source_in_us / 1_000_000}:end=${item.VideoClip.source_out_us / 1_000_000},`
             : "";
         filters.push(
-          `[${input.index}:v]${trim}setpts=PTS-STARTPTS,${image ? "" : `fps=${fps},`}scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2:color=black@0,format=rgba,colorchannelmixer=aa=${image?.opacity ?? 1},setpts=PTS+${start}/TB[visual${index}]`,
+          `[${input.index}:v]${trim}setpts=PTS-STARTPTS,${image ? "" : `fps=${fps},`}scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2:color=black@0,format=rgba,colorchannelmixer=aa=${image?.opacity ?? 1},setpts=PTS+${range.start}/${fps}/TB[visual${index}]`,
         );
         filters.push(
-          `[${videoLabel}][visual${index}]overlay=x=${x}:y=${y}:eof_action=${image ? "repeat" : "pass"}:repeatlast=${image ? 1 : 0}:enable='${active}'[video${index}]`,
+          `[${videoLabel}][visual${index}]overlay=x=${x}:y=${y}:eof_action=repeat:repeatlast=1:enable='${active}'[video${index}]`,
         );
         videoLabel = `video${index}`;
       }
