@@ -13,7 +13,7 @@ import type {
 import { frameAtOrAfter } from "../../electron/domain/sequence";
 import { isPackagedGraphic } from "../lib/preview/graphic-runtime";
 
-type Props = {
+export type GraphicPreviewProps = {
   component?: GraphicComponent;
   resources: GraphicResource[];
   item: RemotionGraphicItem;
@@ -28,7 +28,7 @@ export default function GraphicPreview({
   frame,
   placement,
   settings,
-}: Props) {
+}: GraphicPreviewProps) {
   const inputs = useMemo(
     () =>
       Object.fromEntries(

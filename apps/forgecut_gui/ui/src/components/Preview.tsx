@@ -13,7 +13,7 @@ import PreviewMedia from "./PreviewMedia";
 import { AudioMixer } from "../lib/preview/AudioMixer";
 import type { VisualPlacement } from "../../electron/shared/ipc-contract";
 
-const GraphicPreview = lazy(() => import("./GraphicPreview"));
+const GraphicPreview = lazy(() => import("./GraphicCanvas"));
 
 export default function Preview(props: PreviewProps) {
   const [mixer] = useState(() => new AudioMixer());
@@ -119,6 +119,13 @@ export default function Preview(props: PreviewProps) {
                 <div key={key} style={visualStyle(placement)}>
                   <Suspense fallback={<span>Loading graphic…</span>}>
                     <GraphicPreview
+                      displayScale={scale}
+                      sessionId={props.sessionId}
+                      revision={props.projectVersion}
+                      selected={props.selectedClipId === graphic.id}
+                      selectedLayerId={props.selectedLayerId}
+                      editable={!playback.playing && !!props.onGraphicSelection}
+                      onSelect={props.onGraphicSelection}
                       resources={props.project?.resources ?? []}
                       placement={placement}
                       component={component}

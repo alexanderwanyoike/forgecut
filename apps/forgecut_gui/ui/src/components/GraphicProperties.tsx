@@ -109,6 +109,7 @@ export default function GraphicProperties({
               />
             ) : (
               <PropertyTextarea
+                propertyKey={key}
                 className="inspector-input"
                 value={String(value)}
                 onValueChange={(next) => {
