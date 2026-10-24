@@ -1,9 +1,9 @@
+import { randomUUID } from "node:crypto";
 import {
   projectSequences,
   findProjectSequence,
 } from "../../domain/project-sequences.js";
 import { EditingError } from "../editing-error.js";
-import { randomUUID } from "node:crypto";
 import type { CommandMap, ProjectSequence } from "../../shared/ipc-contract.js";
 import type { CommandRegistry } from "./types.js";
 
