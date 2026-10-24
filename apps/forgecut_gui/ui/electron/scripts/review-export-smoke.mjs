@@ -35,10 +35,15 @@ export async function verifyReviewExports(directory, send) {
     const snapshot = await read();
     const track = snapshot.project.timeline.tracks.find(track => track.kind === 'Video');
     await invoke('add_clip_to_timeline', { assetId: assets[0].id, trackId: track.id, timelineStartUs: 0 });
-    await invoke('set_editing_context', { sessionId: snapshot.sessionId, selectedItemIds: [], playheadUs: 1250000 });
+    const scroll = document.querySelector('.timeline-scroll');
+    const bounds = scroll.getBoundingClientRect();
+    const position = { bubbles: true, button: 0, clientX: bounds.x + 48 + 125 - scroll.scrollLeft, clientY: bounds.y + 10 };
+    document.querySelector('.time-ruler').dispatchEvent(new MouseEvent('mousedown', position));
+    window.dispatchEvent(new MouseEvent('mouseup', position));
+    await wait(() => document.querySelector('.preview-time')?.textContent === '00:00:01.250', 'visible playhead');
     await openRange();
     const start = [...dialog().querySelectorAll('label')].find(element => element.firstChild?.textContent.trim() === 'Review start (s)').querySelector('input');
-    if (start.value !== '1.25' || !button('Export', dialog())) throw new Error('Review controls did not capture the playhead or accept the range');
+    if (start.value !== '1.25' || !button('Export', dialog())) throw new Error('Review controls did not capture the visible playhead or accept the range');
     await click('Close export dialog', dialog());
     const before = await read();
     const job = await invoke('export_project', { outputPath: ${JSON.stringify(outputPath)}, sequenceId: before.project.default_sequence.id, range: { startUs: 1250000, endUs: 1850000 } });
