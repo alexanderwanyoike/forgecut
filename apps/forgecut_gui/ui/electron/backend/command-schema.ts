@@ -169,6 +169,26 @@ export const metadataSchema = z
   .strictObject({ sessionId: id.optional(), editGroup: id.optional() })
   .optional();
 export const commandSchemas = {
+  start_graphic_promotion: z.strictObject({
+    itemId: id,
+    sessionId: z.uuid(),
+    expectedRevision: time,
+    expectedDraftRevision: time,
+    requestId: z.uuid(),
+    scope: z.enum(["instance", "shared"]).optional(),
+    mappings: z
+      .strictObject({
+        properties: z
+          .record(z.uuid(), z.uuid().nullable())
+          .refine((value) => Object.keys(value).length <= 100)
+          .optional(),
+        layers: z
+          .record(z.uuid(), z.uuid().nullable())
+          .refine((value) => Object.keys(value).length <= 100)
+          .optional(),
+      })
+      .optional(),
+  }),
   get_graphic_draft: z.strictObject({ itemId: id }),
   save_graphic_draft: z.strictObject({
     itemId: id,

@@ -1,5 +1,6 @@
 import { ZodError } from "zod";
 import { createHash } from "node:crypto";
+import { graphicPromotionCommands } from "./commands/graphic-promotion.js";
 import { GraphicDraftStore } from "./GraphicDraftStore.js";
 import { graphicDraftCommands } from "./commands/graphic-drafts.js";
 import { GraphicPreviewService } from "./GraphicPreviewService.js";
@@ -49,6 +50,7 @@ const handlers: Record<
   ...graphicsCommands,
   ...graphicSourceCommands,
   ...graphicDraftCommands,
+  ...graphicPromotionCommands,
   ...graphicPreviewCommands,
   ...graphicResourceCommands,
   ...mediaCommands,
@@ -152,6 +154,7 @@ export class EditingService {
           state: this.state,
           preview: this.preview,
           drafts: this.drafts,
+          jobs: this.jobs,
           ...options,
         });
         if (
