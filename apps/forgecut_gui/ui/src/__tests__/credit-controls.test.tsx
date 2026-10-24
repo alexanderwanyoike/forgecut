@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import {
   cleanupSequenceWorkspace,
@@ -84,7 +90,9 @@ it("saves a music credit from the project menu and restores it through project u
   expect(screen.queryByRole("dialog", { name: "Project credits" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Undo" }));
   await waitFor(() => expect(state.project).toEqual(before));
-  expect(await service.execute("redo")).toMatchObject({ ok: true });
+  await act(async () => {
+    expect(await service.execute("redo")).toMatchObject({ ok: true });
+  });
 });
 
 it("updates a font attribution while retaining the imported font identity and notice", async () => {
@@ -109,4 +117,27 @@ it("updates a font attribution while retaining the imported font identity and no
       license: { ...original.license, attribution: "Font designer" },
     }),
   );
+});
+
+it("explicitly removes an asset credit and restores it with global undo", async () => {
+  const { state, service } = await fixture();
+  fireEvent.change(screen.getByLabelText("Licence / permission"), {
+    target: { value: "Original recording" },
+  });
+  fireEvent.change(screen.getByLabelText("Licence notice"), {
+    target: { value: "Recorded by the project editor" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save credits" }));
+  await waitFor(() =>
+    expect(state.project.assets[0].license?.identifier).toBe(
+      "Original recording",
+    ),
+  );
+  const before = structuredClone(state.project);
+  fireEvent.click(screen.getByRole("button", { name: "Remove credit" }));
+  await waitFor(() => expect(state.project.assets[0].license).toBeUndefined());
+  await act(async () => {
+    await service.execute("undo");
+  });
+  expect(state.project).toEqual(before);
 });
