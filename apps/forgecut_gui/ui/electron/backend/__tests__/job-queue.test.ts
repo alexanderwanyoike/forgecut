@@ -197,3 +197,43 @@ it("bounds cancelled-job retention while another worker remains active", async (
     await jobs.close();
   }
 });
+
+it("reports bounded progress while work is running and completes at one", async () => {
+  const jobs = new JobQueue();
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const job = jobs.start(
+    {
+      sessionId: "session",
+      projectRevision: 0,
+      requestId: "progress",
+      kind: "import",
+      label: "Import",
+      input: {},
+    },
+    async (_signal, report) => {
+      report(0.5);
+      await held;
+      return { ok: true, value: "done" };
+    },
+  );
+  if (!job.ok) throw new Error("Job rejected");
+  try {
+    expect(jobs.read(job.value.id, "session")).toMatchObject({
+      ok: true,
+      value: { status: "running", progress: 0.5 },
+    });
+    release();
+    await vi.waitFor(() =>
+      expect(jobs.read(job.value.id, "session")).toMatchObject({
+        ok: true,
+        value: { status: "completed", progress: 1 },
+      }),
+    );
+  } finally {
+    release();
+    await jobs.close();
+  }
+});
