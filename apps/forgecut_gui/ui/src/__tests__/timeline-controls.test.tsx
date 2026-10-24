@@ -153,7 +153,7 @@ describe("Timeline controls", () => {
         onSelectedClipChange={onSelectedClipChange}
       />,
     );
-    const clip = await screen.findByText("Video");
+    const clip = await screen.findByText("Video", { selector: ".clip-label" });
 
     for (const zoom of [25, 90, 180]) {
       const slider = screen.getByRole("slider") as HTMLInputElement;
@@ -194,6 +194,6 @@ describe("Timeline controls", () => {
     expect(screen.getByText("Fit")).toBeTruthy();
     expect(screen.getByText("Snap")).toBeTruthy();
     expect(screen.getByText("+ Text")).toBeTruthy();
-    expect(screen.getByText("+ PiP")).toBeTruthy();
+    expect(screen.getByText("+ Track")).toBeTruthy();
   });
 });
