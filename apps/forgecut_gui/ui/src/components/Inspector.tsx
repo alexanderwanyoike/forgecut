@@ -11,11 +11,14 @@ import type {
 import PropertyInput from "./PropertyInput";
 import NumberProperty from "./NumberProperty";
 import ClipAudioProperties from "./ClipAudioProperties";
+import GraphicLayers from "./GraphicLayers";
 import GraphicProperties from "./GraphicProperties";
 import VisualProperties from "./VisualProperties";
 
 interface InspectorProps {
   selectedClipId: string | null;
+  selectedLayerId?: string | null;
+  onSelectedLayerChange?: (id: string | null) => void;
   project?: Project;
   projectVersion?: number;
   sessionId?: string;
@@ -23,6 +26,8 @@ interface InspectorProps {
 
 export default function Inspector({
   selectedClipId,
+  selectedLayerId,
+  onSelectedLayerChange,
   project,
   projectVersion,
   sessionId,
@@ -221,17 +226,27 @@ export default function Inspector({
               </span>
             </div>
             {graphic && component && (
-              <GraphicProperties
-                origin={
-                  sessionId && projectVersion !== undefined
-                    ? { sessionId, revision: projectVersion }
-                    : undefined
-                }
-                component={component}
-                item={graphic}
-                resources={project?.resources ?? []}
-                update={update}
-              />
+              <>
+                <GraphicLayers
+                  component={component}
+                  item={graphic}
+                  selectedLayerId={selectedLayerId}
+                  onSelect={onSelectedLayerChange}
+                  update={update}
+                />
+                <GraphicProperties
+                  selectedLayerId={selectedLayerId}
+                  origin={
+                    sessionId && projectVersion !== undefined
+                      ? { sessionId, revision: projectVersion }
+                      : undefined
+                  }
+                  component={component}
+                  item={graphic}
+                  resources={project?.resources ?? []}
+                  update={update}
+                />
+              </>
             )}
             {text && (
               <>

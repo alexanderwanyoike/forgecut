@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { lockedGraphicProperties } from "../../domain/graphic-layer-locks.js";
+import { EditingError } from "../editing-error.js";
 import { resolveSequenceFrame } from "../../domain/sequence.js";
 import type { Asset, TimelineItem, Track } from "../state.js";
 import type { ItemPatch } from "../../shared/ipc-contract.js";
@@ -187,8 +189,33 @@ export const timelineCommands = {
       const data = patch && patch.kind in item ? itemData(item) : undefined;
       if (!data) throw new Error("Patch kind does not match the selected item");
       if (patch.kind === "RemotionGraphic" && "RemotionGraphic" in item) {
-        const { props, ...changes } = patch.changes;
+        const { props, layer_states, ...changes } = patch.changes;
+        const states = { ...item.RemotionGraphic.layer_states };
+        for (const [id, value] of Object.entries(layer_states ?? {}))
+          states[id] = { ...states[id], ...value };
+        const component = state.project.components?.find(
+          (candidate) =>
+            candidate.id === item.RemotionGraphic.component_id &&
+            candidate.version === item.RemotionGraphic.component_version,
+        );
+        if (component && props) {
+          const locked = lockedGraphicProperties(component, {
+            ...item.RemotionGraphic,
+            layer_states: states,
+          });
+          if (
+            Object.entries(props).some(
+              ([key, value]) =>
+                locked.has(key) && item.RemotionGraphic.props[key] !== value,
+            )
+          )
+            throw new EditingError(
+              "CONFLICT",
+              "Unlock this layer before editing its properties",
+            );
+        }
         Object.assign(item.RemotionGraphic, changes);
+        if (layer_states) item.RemotionGraphic.layer_states = states;
         if (props)
           item.RemotionGraphic.props = {
             ...item.RemotionGraphic.props,
