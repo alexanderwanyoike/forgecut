@@ -214,3 +214,44 @@ it("keeps the window open until the latest source buffer is recoverably saved", 
   });
   expect(state.project.components).toHaveLength(1);
 });
+it("retains typing made while Apply is refreshing the saved draft", async () => {
+  const { state } = await fixture();
+  const first = "export default function Applied(){return <div>First</div>}";
+  const latest =
+    "export default function Continued(){return <div>My next edit</div>}";
+  fireEvent.change(screen.getByLabelText("Graphic source editor"), {
+    target: { value: first },
+  });
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toContain("Draft saved"),
+  );
+  let release: (() => void) | undefined;
+  const paused = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const execute = bridge.getMockImplementation()!;
+  bridge.mockImplementation(async (command: string, args: unknown) => {
+    const result = await execute(command, args);
+    if (command === "get_graphic_draft" && state.revision > 1) await paused;
+    return result;
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Apply source" }));
+  await waitFor(() => expect(state.revision).toBe(2));
+  await waitFor(() =>
+    expect(
+      bridge.mock.calls.filter(([command]) => command === "get_graphic_draft")
+        .length,
+    ).toBeGreaterThan(2),
+  );
+  fireEvent.change(screen.getByLabelText("Graphic source editor"), {
+    target: { value: latest },
+  });
+  release!();
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toContain("Source applied"),
+  );
+  expect(
+    (screen.getByLabelText("Graphic source editor") as HTMLTextAreaElement)
+      .value,
+  ).toBe(latest);
+});
