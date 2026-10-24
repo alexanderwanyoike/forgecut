@@ -157,6 +157,19 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
     async (args) => call({ action: "select-sequence", ...args }),
   );
   server.registerTool(
+    "read_source_selections",
+    {
+      description:
+        "Read up to 20 source selections with source-relative in/out microseconds, names, notes and rationale. Optional assetId restricts the page. Read again before changing a selection through save_source_selection in apply_edits so manual notes are retained.",
+      inputSchema: z.strictObject({
+        ...resourcePageFields,
+        assetId: idSchema.optional(),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    async (args) => call({ action: "source-selections", ...args }),
+  );
+  server.registerTool(
     "read_timeline",
     {
       description:
