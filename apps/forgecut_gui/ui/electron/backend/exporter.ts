@@ -23,71 +23,102 @@ type ExportOptions = {
   onProgress?: (progress: RenderProgress) => void;
 };
 
+type ExportOutcome = { outputPath: string; cleanupWarning?: string };
+
 export async function exportProject(
   project: Project,
   outputPath: string,
   options: ExportOptions = {},
-): Promise<Result<{ outputPath: string }>> {
+): Promise<Result<ExportOutcome>> {
   if (options.signal?.aborted)
     return {
       ok: false,
       error: { code: "CANCELLED", message: "Export cancelled." },
     };
   let directory: string | undefined;
+  let result: Result<ExportOutcome>;
   try {
     const destination = resolvePath(outputPath);
     const plan = compileExportPlan(project);
     directory = await mkdtemp(join(dirname(destination), ".forgecut-export-"));
     plan.outputPath = join(directory, "render.mp4");
-    for (const file of plan.textFiles)
-      await writeFile(join(directory, file.name), file.content);
-    const rendered = await executeRenderPlan(
+    result = await renderPrepared(
       plan,
-      totalTimelineDurationUs(project) / 1_000_000,
-      directory,
+      {
+        directory,
+        destination,
+        totalSeconds: totalTimelineDurationUs(project) / 1_000_000,
+      },
       options,
     );
-    if (!rendered.ok) return rendered;
-    const file = await open(plan.outputPath, "r");
-    try {
-      await file.sync();
-    } finally {
-      await file.close();
-    }
-    if (options.signal?.aborted)
-      return {
-        ok: false,
-        error: { code: "CANCELLED", message: "Export cancelled." },
-      };
-    if (options.beginCommit && !options.beginCommit())
-      return {
-        ok: false,
-        error: {
-          code: "CANCELLED",
-          message: "Export cancelled before publication.",
-        },
-      };
-    await rename(plan.outputPath, destination);
-    if (process.platform === "linux") {
-      const parent = await open(dirname(destination), "r");
-      try {
-        await parent.sync();
-      } finally {
-        await parent.close();
-      }
-    }
-    return { ok: true, value: { outputPath: destination } };
   } catch (error) {
-    return {
+    result = {
       ok: false,
       error: {
         code: "IO_ERROR",
         message: error instanceof Error ? error.message : String(error),
       },
     };
-  } finally {
-    if (directory) await rm(directory, { recursive: true, force: true });
   }
+  if (directory) {
+    try {
+      await rm(directory, { recursive: true, force: true });
+    } catch (error) {
+      const warning = `Staging cleanup failed at ${directory}: ${error instanceof Error ? error.message : String(error)}`;
+      if (result.ok)
+        result = {
+          ok: true,
+          value: { ...result.value, cleanupWarning: warning },
+        };
+      else
+        result = {
+          ok: false,
+          error: {
+            ...result.error,
+            message: `${result.error.message} ${warning}`,
+          },
+        };
+    }
+  }
+  return result;
+}
+
+async function renderPrepared(
+  plan: RenderPlan,
+  target: { directory: string; destination: string; totalSeconds: number },
+  options: ExportOptions,
+): Promise<Result<ExportOutcome>> {
+  for (const file of plan.textFiles)
+    await writeFile(join(target.directory, file.name), file.content);
+  const rendered = await executeRenderPlan(
+    plan,
+    target.totalSeconds,
+    target.directory,
+    options,
+  );
+  if (!rendered.ok) return rendered;
+  const file = await open(plan.outputPath, "r");
+  try {
+    await file.sync();
+  } finally {
+    await file.close();
+  }
+  if (options.signal?.aborted)
+    return {
+      ok: false,
+      error: { code: "CANCELLED", message: "Export cancelled." },
+    };
+  if (options.beginCommit && !options.beginCommit()) return {ok: false, error: {code: "CANCELLED", message: "Export cancelled before publication."}};
+  await rename(plan.outputPath, target.destination);
+  if (process.platform === "linux") {
+    const parent = await open(dirname(target.destination), "r");
+    try {
+      await parent.sync();
+    } finally {
+      await parent.close();
+    }
+  }
+  return { ok: true, value: { outputPath: target.destination } };
 }
 
 export function buildFfmpegArgs(plan: RenderPlan): string[] {
