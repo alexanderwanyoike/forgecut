@@ -4,6 +4,7 @@ import type {
   RemotionGraphicItem,
 } from "../../electron/shared/graphics";
 import type { ItemPatch } from "../../electron/shared/ipc-contract";
+import ColorProperty from "./ColorProperty";
 import PropertyInput from "./PropertyInput";
 import NumberProperty from "./NumberProperty";
 
@@ -33,6 +34,17 @@ export default function GraphicProperties({ component, item, update }: Props) {
               }}
             />
           );
+        if (property.type === "color" && typeof value === "string")
+          return (
+            <ColorProperty
+              key={property.id}
+              label={property.label}
+              value={value}
+              onValueChange={(next) => {
+                void change(key, next);
+              }}
+            />
+          );
         return (
           <label key={property.id} className="inspector-row">
             <span className="inspector-label">{property.label}</span>
@@ -47,7 +59,7 @@ export default function GraphicProperties({ component, item, update }: Props) {
             ) : (
               <PropertyInput
                 className="inspector-input"
-                type={property.type === "color" ? "color" : "text"}
+                type="text"
                 value={String(value)}
                 onValueChange={(next) => {
                   void change(key, next);
