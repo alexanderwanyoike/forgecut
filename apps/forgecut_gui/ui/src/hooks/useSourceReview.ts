@@ -31,7 +31,10 @@ const waveformSchema = z.object({
 });
 const previewSchema = contactSheetSchema
   .omit({ columns: true, rows: true, timesUs: true })
-  .extend({ mimeType: z.literal("video/webm") });
+  .extend({
+    mimeType: z.literal("video/webm"),
+    data: z.base64().min(1).max(700000),
+  });
 const sourceReviewSchema = z.union([
   contactSheetSchema,
   waveformSchema,
