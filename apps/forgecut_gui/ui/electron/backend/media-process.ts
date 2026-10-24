@@ -4,7 +4,12 @@ import type { Result } from "../shared/result.js";
 export function runMediaProcess(
   executable: "ffmpeg" | "ffprobe",
   args: string[],
-  options: { signal?: AbortSignal; maxOutputBytes?: number } = {},
+  options: {
+    signal?: AbortSignal;
+    maxOutputBytes?: number;
+    cwd?: string;
+    onStderr?: (chunk: string) => void;
+  } = {},
 ): Promise<Result<Buffer>> {
   return new Promise((resolve) => {
     const cancelled = (): Result<Buffer> => ({
@@ -18,6 +23,7 @@ export function runMediaProcess(
     const child = spawn(executable, args, {
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
+      cwd: options.cwd,
       signal: options.signal,
       killSignal: "SIGKILL",
     });
@@ -35,6 +41,11 @@ export function runMediaProcess(
     });
     child.stderr.on("data", (chunk: Buffer) => {
       stderr = (stderr + chunk.toString()).slice(-8192);
+      try {
+        options.onStderr?.(chunk.toString());
+      } catch {
+        console.warn("Media progress observer failed.");
+      }
     });
     child.on("error", (error) => {
       failure = error;
