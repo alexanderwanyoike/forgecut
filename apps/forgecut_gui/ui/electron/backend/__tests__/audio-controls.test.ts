@@ -6,7 +6,7 @@ import { EditingService } from "../editing-service";
 it("edits source gain, mute and fades in shared history and resolves their current envelope", async () => {
   const state = new AppState();
   state.executeProjectChange((project) => {
-    project.settings.fps = 20;
+    project.settings.fps = 1;
     project.assets.push({
       id: "source",
       name: "Source",
@@ -69,7 +69,9 @@ it("edits source gain, mute and fades in shared history and resolves their curre
     await service.execute("get_sequence_frame", { playheadUs: 250000 }),
   ).toMatchObject({
     ok: true,
-    value: { layers: [{ audioGain: 1 }] },
+    value: {
+      layers: [{ audioGain: 1, sourceTimeUs: 0, playbackTimeUs: 250000 }],
+    },
   });
   expect(
     await service.execute("get_sequence_frame", { playheadUs: 1500000 }),

@@ -59,7 +59,7 @@ it("keeps the music source across picture cuts and seeks, pauses and mixes every
   const project: Project = {
     id: "project",
     name: "Music",
-    settings: { width: 64, height: 36, fps: 20, sample_rate: 48000 },
+    settings: { width: 64, height: 36, fps: 1, sample_rate: 48000 },
     assets: [
       {
         id: "video",
