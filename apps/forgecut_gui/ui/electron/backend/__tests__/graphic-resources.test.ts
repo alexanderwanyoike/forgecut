@@ -88,3 +88,30 @@ it("rejects a fake font without changing history or active project", async () =>
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+it("discards a resource import whose project changes during file reading", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "forgecut-resource-race-"));
+  try {
+    vi.stubEnv("FORGECUT_RESOURCE_DIR", join(directory, "cache"));
+    const path = join(directory, "art.png");
+    await writeFile(path, image);
+    const state = new AppState();
+    const pending = new EditingService(state).execute(
+      "import_graphic_resource",
+      {
+        path,
+        kind: "Image",
+        license: { identifier: "test-only", text: "Generated fixture" },
+      },
+    );
+    queueMicrotask(() => state.createProject());
+    expect(await pending).toMatchObject({
+      ok: false,
+      error: { code: "PROJECT_CHANGED" },
+    });
+    expect(state.project.resources).toEqual([]);
+    expect(state.canUndo).toBe(false);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
