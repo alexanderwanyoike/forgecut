@@ -233,4 +233,9 @@ it("renders the close tooltip inside the native modal layer", async () => {
   expect(
     screen.getByRole("dialog", { name: "Project credits" }).contains(tooltip),
   ).toBe(true);
+  fireEvent.keyDown(
+    screen.getByRole("button", { name: "Close project credits" }),
+    { key: "Escape" },
+  );
+  expect(screen.queryByRole("dialog", { name: "Project credits" })).toBeNull();
 });
