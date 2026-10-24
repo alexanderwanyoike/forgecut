@@ -18,7 +18,7 @@ it("checks typed local TSX files without executing component code", async () => 
       },
     },
   });
-  expect(checked).toMatchObject({
+  expect(checked, JSON.stringify(checked)).toMatchObject({
     ok: true,
     value: { ok: true, value: { code: expect.stringContaining("After dark") } },
   });
