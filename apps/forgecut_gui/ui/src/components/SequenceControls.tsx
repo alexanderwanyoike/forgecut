@@ -1,4 +1,4 @@
-import { Layers3, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, Layers3, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import ActionButton from "./ActionButton";
 import { projectSequences } from "../../electron/domain/project-sequences";
@@ -6,12 +6,28 @@ import type {
   ProjectSnapshot,
   ProjectSettings,
 } from "../../electron/shared/ipc-contract";
-import { invoke } from "../lib/bridge";
+import { invoke, invokeInContext } from "../lib/bridge";
 import "./sequence-controls.css";
 
 type NameEdit =
   | { kind: "create"; name: string; settings: ProjectSettings }
-  | { kind: "rename"; name: string; sequenceId: string };
+  | { kind: "rename"; name: string; sequenceId: string }
+  | {
+      kind: "variant";
+      name: string;
+      sourceSequenceId: string;
+      sourceName: string;
+      format: "source" | "portrait" | "landscape";
+    };
+const variantSizes = {
+  portrait: { width: 1080, height: 1920 },
+  landscape: { width: 1920, height: 1080 },
+};
+const submitLabels = {
+  create: "Create sequence",
+  rename: "Save sequence name",
+  variant: "Create variant",
+};
 
 type Props = {
   snapshot: ProjectSnapshot;
@@ -48,14 +64,34 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
         });
       } else {
         if (!(await canChangeProject())) return;
-        const sequence = await invoke("create_sequence", {
-          name: form.name,
-          settings: form.settings,
-        });
-        await invoke("select_sequence", {
-          sessionId: snapshot.sessionId,
-          sequenceId: sequence.id,
-        });
+        const sequence =
+          form.kind === "variant"
+            ? await invokeInContext(
+                {
+                  sessionId: snapshot.sessionId,
+                  sequenceId: form.sourceSequenceId,
+                },
+                "create_sequence_variant",
+                {
+                  sourceSequenceId: form.sourceSequenceId,
+                  name: form.name,
+                  ...(form.format === "source"
+                    ? {}
+                    : { settings: variantSizes[form.format] }),
+                },
+              )
+            : await invoke("create_sequence", {
+                name: form.name,
+                settings: form.settings,
+              });
+        await invokeInContext(
+          { sessionId: snapshot.sessionId, sequenceId: sequence.id },
+          "select_sequence",
+          {
+            sessionId: snapshot.sessionId,
+            sequenceId: sequence.id,
+          },
+        );
       }
       setForm(null);
     } finally {
@@ -114,6 +150,24 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
         New sequence
       </ActionButton>
       <ActionButton
+        icon={Copy}
+        iconOnly
+        tooltip="Create sequence variant"
+        disabled={busy || form !== null}
+        onClick={() =>
+          setForm({
+            kind: "variant",
+            name: `${selected.name.slice(0, 192)} variant`,
+            sourceSequenceId: selected.id,
+            sourceName: selected.name,
+            format:
+              selected.settings.width >= selected.settings.height
+                ? "portrait"
+                : "landscape",
+          })
+        }
+      />
+      <ActionButton
         icon={Pencil}
         iconOnly
         tooltip="Rename sequence"
@@ -157,15 +211,42 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
               }}
             />
           </label>
+          {form.kind === "variant" && (
+            <>
+              <p>Source: {form.sourceName}</p>
+              <label>
+                Variant format
+                <select
+                  value={form.format}
+                  disabled={busy}
+                  onChange={(event) => {
+                    const format = event.currentTarget.value;
+                    if (
+                      format === "source" ||
+                      format === "portrait" ||
+                      format === "landscape"
+                    )
+                      setForm((current) =>
+                        current?.kind === "variant"
+                          ? { ...current, format }
+                          : current,
+                      );
+                  }}
+                >
+                  <option value="source">Same dimensions</option>
+                  <option value="portrait">Portrait / 1080 × 1920</option>
+                  <option value="landscape">Landscape / 1920 × 1080</option>
+                </select>
+              </label>
+            </>
+          )}
           <div className="sequence-form-actions">
             <ActionButton
               type="submit"
 
               disabled={busy || !form.name.trim()}
             >
-              {form.kind === "create"
-                ? "Create sequence"
-                : "Save sequence name"}
+              {submitLabels[form.kind]}
             </ActionButton>
             <ActionButton
               type="button"
