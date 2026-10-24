@@ -100,3 +100,5 @@ Visual `update_item` patches support a complete video `transform`, image `fit` a
 `read_graphic_resources` returns up to 20 metadata records per page without binary data or full licence text. `read_graphic_resource` returns one exact record, including retained licence text. Import results identify the new resource; ordinary typed graphic property patches can select existing project fonts.
 
 Imports use the same `committing` barrier as export publication. Once that short project commit starts, cancellation returns `COMMITTING` and the job completes with its actual result. Cancellation cannot claim that an already committed import was discarded.
+
+Resource and licence imports accept regular files only. Nonblocking opens reject pipes before they can occupy the serial queue, and bounded reads check cancellation between chunks. Each resource is limited to 8 MiB.

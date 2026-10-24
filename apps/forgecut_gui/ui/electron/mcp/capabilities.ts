@@ -17,6 +17,8 @@ export const editingCapabilities = {
   limits: {
     operationsPerBatch: 100,
     itemsPerPage: 100,
+    graphicResourcesPerPage: 20,
+    graphicResourceBytes: 8 * 1024 * 1024,
     messageBytes: MAX_MESSAGE_BYTES,
   },
   history: z.toJSONSchema(historyRequestSchema),
