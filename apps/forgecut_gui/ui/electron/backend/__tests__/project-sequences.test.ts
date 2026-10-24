@@ -153,7 +153,7 @@ it("saves and reopens sequence names dimensions timelines and stable identities"
   }
 });
 
-it.each([3, 4, 5] as const)(
+it.each([3, 4, 5, 6] as const)(
   "migrates version %s without replacing default sequence identity or accepting corrupt metadata",
   (version) => {
     const current = structuredClone(new AppState().project);
