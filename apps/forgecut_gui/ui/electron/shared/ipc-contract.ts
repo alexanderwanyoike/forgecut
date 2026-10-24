@@ -316,7 +316,14 @@ export type CommandMap = {
 
   // Timeline
   import_graphic_resource: {
-    args: { path: string; kind: "Image" | "Font"; license: ResourceLicense };
+    args: {
+      path: string;
+      kind: "Image" | "Font";
+      target?: { itemId: string; property: string };
+    } & (
+      | { license: ResourceLicense; licensePath?: never }
+      | { licensePath: string; license?: never }
+    );
     result: GraphicResource;
   };
   get_graphic_components: { args: undefined; result: GraphicComponent[] };

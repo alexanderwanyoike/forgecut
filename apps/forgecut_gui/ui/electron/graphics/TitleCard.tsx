@@ -1,11 +1,60 @@
+import { useMemo, useState } from "react";
+import { loadFont } from "@remotion/fonts";
 import { interpolate, useCurrentFrame } from "remotion";
 
 type GraphicValues = Record<string, string | number | boolean | null>;
 
-export type TitleCardProps = { values: GraphicValues };
+type FontResource = { url: string; sha256: string; mime: string };
+export type TitleCardProps = {
+  values: GraphicValues;
+  resources?: Record<string, FontResource>;
+};
+const fontLoads = new Map<string, Promise<void>>();
+export function fontFamily(font: FontResource): string {
+  return `ForgeCut_${font.sha256}`;
+}
+export function prepareFont(font: FontResource): Promise<void> {
+  let loading = fontLoads.get(font.sha256);
+  if (!loading) {
+    let format: "woff2" | "woff" | "opentype" | "truetype" = "truetype";
+    if (font.mime === "font/woff2") format = "woff2";
+    if (font.mime === "font/woff") format = "woff";
+    if (font.mime === "font/otf") format = "opentype";
+    loading = loadFont({
+      family: fontFamily(font),
+      url: font.url,
+      format,
+      weight: "700",
+    }).catch((failure: unknown) => {
+      fontLoads.delete(font.sha256);
+      throw failure;
+    });
+    fontLoads.set(font.sha256, loading);
+  }
+  return loading;
+}
 
-export default function TitleCard({ values }: TitleCardProps) {
+export default function TitleCard({ values, resources = {} }: TitleCardProps) {
   const frame = useCurrentFrame();
+  const font =
+    typeof values.font === "string" ? resources[values.font] : undefined;
+  const [fontError, setFontError] = useState<{
+    hash: string;
+    message: string;
+  } | null>(null);
+  useMemo(() => {
+    if (font)
+      void prepareFont(font).catch((failure: unknown) =>
+        setFontError({
+          hash: font.sha256,
+          message: failure instanceof Error ? failure.message : String(failure),
+        }),
+      );
+  }, [font]);
+  if (values.font && !font)
+    throw new Error("The selected font resource is unavailable");
+  if (fontError && fontError.hash === font?.sha256)
+    throw new Error(fontError.message);
   const entrance =
     numeric(values, "entrance_frames") <= 0
       ? 1
@@ -33,7 +82,7 @@ export default function TitleCard({ values }: TitleCardProps) {
           height: numeric(values, "title_height"),
           opacity: numeric(values, "opacity"),
           fontSize: numeric(values, "font_size"),
-          fontFamily: "sans-serif",
+          fontFamily: font ? fontFamily(font) : "sans-serif",
           fontWeight: 700,
           lineHeight: 1.05,
           color: text(values, "color"),

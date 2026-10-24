@@ -21,7 +21,7 @@ const propertyBase = { id: z.uuid(), label: z.string().min(1).max(256) };
 const property = z.discriminatedUnion("type", [
   z.strictObject({
     ...propertyBase,
-    type: z.literal("text"),
+    type: z.enum(["text", "font"]),
     default: z.string().max(32768),
   }),
   z.strictObject({

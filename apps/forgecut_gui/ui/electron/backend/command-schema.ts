@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { resourceLicenseSchema } from "./graphic-resource-schema.js";
+import { resourceImportSchema } from "./graphic-resource-schema.js";
 import type { CommandName, EditCommandName } from "../shared/ipc-contract.js";
 import {
   idSchema as id,
@@ -163,11 +163,7 @@ export const metadataSchema = z
   .strictObject({ sessionId: id.optional(), editGroup: id.optional() })
   .optional();
 export const commandSchemas = {
-  import_graphic_resource: z.strictObject({
-    path: z.string().min(1),
-    kind: z.enum(["Image", "Font"]),
-    license: resourceLicenseSchema,
-  }),
+  import_graphic_resource: resourceImportSchema,
   get_graphic_components: none,
   ...editSchemas,
   create_project: none,

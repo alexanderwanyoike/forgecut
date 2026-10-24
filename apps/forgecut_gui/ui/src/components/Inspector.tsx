@@ -222,6 +222,7 @@ export default function Inspector({
               <GraphicProperties
                 component={component}
                 item={graphic}
+                resources={project?.resources ?? []}
                 update={update}
               />
             )}

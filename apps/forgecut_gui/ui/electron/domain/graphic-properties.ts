@@ -28,7 +28,7 @@ export function validateGraphicProperties(
       ? values[name]
       : property.default;
     let valid = false;
-    if (property.type === "text")
+    if (property.type === "text" || property.type === "font")
       valid = typeof value === "string" && value.length <= 32768;
     if (property.type === "color")
       valid =

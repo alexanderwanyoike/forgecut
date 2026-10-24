@@ -1,3 +1,5 @@
+import type { GraphicResource } from "../../electron/shared/graphic-resources";
+import ResourceProperty from "./ResourceProperty";
 import type {
   GraphicComponent,
   GraphicValue,
@@ -11,15 +13,35 @@ import NumberProperty from "./NumberProperty";
 type Props = {
   component: GraphicComponent;
   item: RemotionGraphicItem;
+  resources: GraphicResource[];
   update: (patch: ItemPatch) => Promise<void>;
 };
-export default function GraphicProperties({ component, item, update }: Props) {
+export default function GraphicProperties({
+  component,
+  item,
+  resources,
+  update,
+}: Props) {
   const change = (key: string, value: GraphicValue) =>
     update({ kind: "RemotionGraphic", changes: { props: { [key]: value } } });
   return (
     <>
       {Object.entries(component.properties).map(([key, property]) => {
         const value = item.props[key] ?? property.default;
+        if (property.type === "font" && typeof value === "string")
+          return (
+            <ResourceProperty
+              key={`${item.id}:${property.id}`}
+              itemId={item.id}
+              property={key}
+              label={property.label}
+              value={value}
+              resources={resources}
+              onValueChange={(next) => {
+                void change(key, next);
+              }}
+            />
+          );
         if (property.type === "number" && typeof value === "number")
           return (
             <NumberProperty

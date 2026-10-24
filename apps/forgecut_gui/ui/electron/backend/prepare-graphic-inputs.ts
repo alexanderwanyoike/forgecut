@@ -9,6 +9,7 @@ import {
   sequenceDurationUs,
 } from "../domain/sequence.js";
 import { resolveVisualPlacement } from "../domain/visual-placement.js";
+import { graphicResourceInputs } from "./graphic-inputs.js";
 import { graphicTemplates } from "./graphic-catalog.js";
 import { componentVersion } from "./graphic-component.js";
 import { renderGraphic } from "./graphic-render.js";
@@ -52,6 +53,12 @@ export async function prepareGraphicInputs(
               "This component version is unavailable in the graphics runtime.",
           },
         };
+      const resources = await graphicResourceInputs(
+        project,
+        component,
+        graphic.props,
+      );
+      if (!resources.ok) return resources;
       const id = randomUUID();
       const duration = range.end - range.start;
       const rendered = await renderGraphic(
@@ -66,6 +73,7 @@ export async function prepareGraphicInputs(
           duration,
           renderFrames: Math.min(duration, end - range.start),
           values: graphic.props,
+          resources: resources.value,
         },
         directory,
         signal,

@@ -20,3 +20,9 @@ export type GraphicResource = {
   path: string;
   license: ResourceLicense;
 };
+
+export type GraphicResourceInput = {
+  url: string;
+  sha256: string;
+  mime: GraphicResource["mime"];
+};

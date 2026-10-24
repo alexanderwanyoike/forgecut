@@ -6,7 +6,7 @@ export type GraphicValues = Record<string, GraphicValue>;
 type PropertyBase = { id: string; label: string };
 export type GraphicProperty = PropertyBase &
   (
-    | { type: "text" | "color"; default: string }
+    | { type: "text" | "color" | "font"; default: string }
     | { type: "number"; default: number; min?: number; max?: number }
     | { type: "boolean"; default: boolean }
   );

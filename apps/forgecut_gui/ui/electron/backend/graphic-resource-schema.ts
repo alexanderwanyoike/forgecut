@@ -30,3 +30,18 @@ export const graphicResourceSchema = z
       resource.mime.startsWith(resource.kind === "Image" ? "image/" : "font/"),
     "Invalid resource identity or media type",
   );
+
+const resourceImportFields = {
+  path: z.string().min(1),
+  kind: z.enum(["Image", "Font"]),
+  target: z
+    .strictObject({
+      itemId: z.string().min(1).max(256),
+      property: z.string().min(1).max(128),
+    })
+    .optional(),
+};
+export const resourceImportSchema = z.union([
+  z.strictObject({ ...resourceImportFields, license: resourceLicenseSchema }),
+  z.strictObject({ ...resourceImportFields, licensePath: z.string().min(1) }),
+]);
