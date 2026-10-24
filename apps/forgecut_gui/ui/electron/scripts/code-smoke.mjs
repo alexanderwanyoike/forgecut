@@ -121,7 +121,7 @@ export async function verifyCode(send) {
   );
   await key(" ", "Space", 32, 2);
   await wait(
-    `document.querySelector('.suggest-widget.visible')?.textContent.includes('title')`,
+    `document.querySelector('.suggest-widget.visible')?.textContent.includes('animation')`,
     "schema completion",
   );
   await key("Escape", "Escape", 27);
