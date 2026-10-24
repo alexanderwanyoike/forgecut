@@ -10,6 +10,7 @@ import {
   timelineEndUs,
 } from "./timeline-ops.js";
 
+// Serialized frame boundaries can differ by half a microsecond after rounding.
 export function frameAtOrAfter(timeUs: number, fps: number): number {
   return Math.ceil(((timeUs - 0.5) * fps) / 1_000_000 - 1e-9);
 }
@@ -19,7 +20,14 @@ export function frameTimeUs(frame: number, fps: number): number {
 }
 
 export function sequenceDurationUs(project: Project): number {
-  const end = project.timeline.tracks.reduce((longest, track) => track.items.reduce((max, item) => Math.max(max, timelineEndUs(item)), longest), 0);
+  const end = project.timeline.tracks.reduce(
+    (longest, track) =>
+      track.items.reduce(
+        (max, item) => Math.max(max, timelineEndUs(item)),
+        longest,
+      ),
+    0,
+  );
   return frameTimeUs(
     frameAtOrAfter(end, project.settings.fps),
     project.settings.fps,
