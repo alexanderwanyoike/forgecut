@@ -1,3 +1,4 @@
+import type { GraphicDraft } from "./graphic-draft.js";
 import type { GraphicPreviewFrame } from "./graphic-preview.js";
 import type { GraphicCompilation } from "./graphic-source.js";
 import type {
@@ -306,6 +307,21 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  get_graphic_draft: { args: { itemId: string }; result: GraphicDraft };
+  save_graphic_draft: {
+    args: {
+      itemId: string;
+      sessionId: string;
+      expectedDraftRevision: number;
+      baseVersion: string;
+      component: GraphicComponent;
+    };
+    result: GraphicDraft;
+  };
+  revert_graphic_draft: {
+    args: { itemId: string; sessionId: string; expectedDraftRevision: number };
+    result: GraphicDraft;
+  };
   get_graphic_preview: {
     args: { itemId: string; frame: number; props?: GraphicValues };
     result: GraphicPreviewFrame;

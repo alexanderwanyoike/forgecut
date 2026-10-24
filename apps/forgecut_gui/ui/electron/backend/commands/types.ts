@@ -1,3 +1,4 @@
+import type { GraphicDraftStore } from "../GraphicDraftStore.js";
 import type { GraphicPreviewService } from "../GraphicPreviewService.js";
 import type { AppState } from "../state.js";
 
@@ -5,6 +6,7 @@ export type CommandArgs = Record<string, unknown> | undefined;
 export type CommandContext = {
   state: AppState;
   preview?: GraphicPreviewService;
+  drafts?: GraphicDraftStore;
   signal?: AbortSignal;
   beginCommit?: () => boolean;
   onProgress?: (progress: number) => void;
