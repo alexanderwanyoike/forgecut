@@ -4,6 +4,7 @@ import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
 import type { SourceSelectionPatch } from "../../electron/shared/source-selection";
 import ActionButton from "./ActionButton";
 import PropertyInput from "./PropertyInput";
+import PropertyTextarea from "./PropertyTextarea";
 import { invokeGrouped, invokeInContext, mediaUrl } from "../lib/bridge";
 import "./source-workspace.css";
 
@@ -194,6 +195,26 @@ export default function SourceWorkspace({ snapshot, assetId, onClose }: Props) {
                 }}
               />
             </label>
+          )}
+          {selected && (
+            <>
+              <label className="source-selection-field">
+                Notes
+                <PropertyTextarea
+                  maxLength={2000}
+                  value={selected.notes}
+                  onValueChange={(notes) => update({ notes })}
+                />
+              </label>
+              <label className="source-selection-field">
+                Rationale
+                <PropertyTextarea
+                  maxLength={2000}
+                  value={selected.rationale}
+                  onValueChange={(rationale) => update({ rationale })}
+                />
+              </label>
+            </>
           )}
           <div className="inspector-section-title">Saved selections</div>
           <div className="source-selections-list">
