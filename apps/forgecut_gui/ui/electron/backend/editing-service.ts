@@ -342,6 +342,8 @@ export class EditingService {
     draft.selectSequence(draft.sessionId, targetId);
     let value: unknown;
     for (const operation of operations) {
+      if (!globalCommands.has(operation.command))
+        draft.selectSequence(draft.sessionId, targetId);
       const args = editSchemas[operation.command].parse(
         operation.args,
       ) as CommandArgs;
