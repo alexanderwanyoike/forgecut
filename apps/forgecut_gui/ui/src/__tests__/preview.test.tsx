@@ -110,6 +110,12 @@ describe("Preview component", () => {
       ).toBe(4),
     );
   });
+  it("keeps unprobed source audio silent until it can match export", () => {
+    const project = videoProject();
+    project.assets[0].probe = null;
+    render(<Preview {...idle} project={project} />);
+    expect(document.querySelector("video")?.muted).toBe(true);
+  });
   it("leaves a real gap black rather than retaining an old source", () => {
     const project = videoProject();
     const clip = project.timeline.tracks[0].items[0];
