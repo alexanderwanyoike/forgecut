@@ -42,6 +42,7 @@ module.exports = {
           "electron/preload.cts",
           "electron/mcp/server.ts",
           "electron/mcp/stdio.ts",
+          "electron/graphics/**",
         ],
       },
     ],
