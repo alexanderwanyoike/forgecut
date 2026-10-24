@@ -98,7 +98,7 @@ function Workspace({
       graphicComponentContent(component)
     : false;
   async function close(): Promise<boolean> {
-    if (source.draft) {
+    if (source.draft && source.dirty) {
       const saved = await source.flush();
       if (!saved.ok) return false;
     }
@@ -166,9 +166,7 @@ function Workspace({
           Apply source
         </button>
         <button
-          disabled={
-            !source.draft || checking || promotion.busy || source.conflict
-          }
+          disabled={!source.draft || checking || promotion.busy}
           onClick={async () => {
             await source.revert();
           }}

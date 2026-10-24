@@ -304,6 +304,7 @@ export function useGraphicSourceDraft(
   }, [sessionId, itemId]);
   return {
     draft,
+    dirty: pending.current !== null || epoch.current !== savedEpoch.current,
     status,
     error,
     conflict,
