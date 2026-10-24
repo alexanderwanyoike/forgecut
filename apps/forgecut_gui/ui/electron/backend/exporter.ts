@@ -152,6 +152,7 @@ function executeRenderPlan(
 ): Promise<Result<Buffer>> {
   let progressBuffer = "";
   return runMediaProcess("ffmpeg", buildFfmpegArgs(plan), {
+    budget: true,
     signal: options.signal,
     cwd,
     onStderr: (chunk) => {
