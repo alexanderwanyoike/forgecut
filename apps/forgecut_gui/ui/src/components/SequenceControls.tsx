@@ -7,6 +7,10 @@ import type {
 import { invoke } from "../lib/bridge";
 import "./sequence-controls.css";
 
+type NameEdit =
+  | { kind: "create"; name: string; settings: ProjectSettings }
+  | { kind: "rename"; name: string; sequenceId: string };
+
 type Props = {
   snapshot: ProjectSnapshot;
   beforeChange: () => Promise<boolean>;
@@ -14,10 +18,7 @@ type Props = {
 
 export default function SequenceControls({ snapshot, beforeChange }: Props) {
   const [busy, setBusy] = useState(false);
-  const [creating, setCreating] = useState<{
-    name: string;
-    settings: ProjectSettings;
-  } | null>(null);
+  const [form, setForm] = useState<NameEdit | null>(null);
   const sequences = projectSequences(snapshot.project);
   const active = snapshot.activeSequenceId ?? sequences[0].id;
   const selected =
@@ -34,19 +35,29 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
       setBusy(false);
     }
   }
-  async function create() {
-    if (!creating || busy) return;
+  async function save() {
+    if (!form || busy) return;
     setBusy(true);
     try {
-      if (!(await beforeChange())) return;
-      const current = await invoke("get_project_snapshot");
-      if (current.sessionId !== snapshot.sessionId) return;
-      const sequence = await invoke("create_sequence", creating);
-      await invoke("select_sequence", {
-        sessionId: snapshot.sessionId,
-        sequenceId: sequence.id,
-      });
-      setCreating(null);
+      if (form.kind === "rename") {
+        await invoke("rename_sequence", {
+          sequenceId: form.sequenceId,
+          name: form.name,
+        });
+      } else {
+        if (!(await beforeChange())) return;
+        const current = await invoke("get_project_snapshot");
+        if (current.sessionId !== snapshot.sessionId) return;
+        const sequence = await invoke("create_sequence", {
+          name: form.name,
+          settings: form.settings,
+        });
+        await invoke("select_sequence", {
+          sessionId: snapshot.sessionId,
+          sequenceId: sequence.id,
+        });
+      }
+      setForm(null);
     } finally {
       setBusy(false);
     }
@@ -57,7 +68,7 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
         <span>Sequence</span>
         <select
           aria-label="Active sequence"
-          disabled={busy || creating !== null}
+          disabled={busy || form !== null}
           value={active}
           onChange={(event) => {
             void select(event.currentTarget.value).catch(() => {});
@@ -72,19 +83,36 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
       </label>
       <button
         className="sequence-action"
-        disabled={busy || creating !== null}
+        disabled={busy || form !== null}
         onClick={() =>
-          setCreating({ name: "", settings: { ...selected.settings } })
+          setForm({
+            kind: "create",
+            name: "",
+            settings: { ...selected.settings },
+          })
         }
       >
         New sequence
       </button>
-      {creating && (
+      <button
+        className="sequence-action"
+        disabled={busy || form !== null}
+        onClick={() =>
+          setForm({
+            kind: "rename",
+            name: selected.name,
+            sequenceId: selected.id,
+          })
+        }
+      >
+        Rename sequence
+      </button>
+      {form && (
         <form
           className="sequence-name-form"
           onSubmit={(event) => {
             event.preventDefault();
-            void create().catch(() => {});
+            void save().catch(() => {});
           }}
         >
           <label>
@@ -94,12 +122,10 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
               maxLength={200}
               autoFocus
               disabled={busy}
-              value={creating.name}
+              value={form.name}
               onChange={(event) => {
                 const name = event.currentTarget.value;
-                setCreating((current) =>
-                  current ? { ...current, name } : null,
-                );
+                setForm((current) => (current ? { ...current, name } : null));
               }}
             />
           </label>
@@ -107,15 +133,17 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
             <button
               type="submit"
               className="sequence-action"
-              disabled={busy || !creating.name.trim()}
+              disabled={busy || !form.name.trim()}
             >
-              Create sequence
+              {form.kind === "create"
+                ? "Create sequence"
+                : "Save sequence name"}
             </button>
             <button
               type="button"
               className="sequence-action"
               disabled={busy}
-              onClick={() => setCreating(null)}
+              onClick={() => setForm(null)}
             >
               Cancel
             </button>
