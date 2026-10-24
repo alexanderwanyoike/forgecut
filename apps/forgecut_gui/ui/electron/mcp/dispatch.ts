@@ -1,6 +1,6 @@
-import { resolveSequenceFrame } from "../domain/sequence.js";
 import { isAbsolute } from "node:path";
 import { z } from "zod";
+import { resolveSequenceFrame } from "../domain/sequence.js";
 import { ensureForgeCutExtension } from "../backend/state.js";
 import type { EditingService } from "../backend/editing-service.js";
 import type { ProjectSnapshot } from "../shared/ipc-contract.js";
