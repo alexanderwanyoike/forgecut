@@ -31,10 +31,7 @@ export default function GraphicLayers({
     [reordered[index], reordered[next]] = [reordered[next], reordered[index]];
     void change(
       Object.fromEntries(
-        reordered.map((layer, order) => [
-          layer.id,
-          { ...item.layer_states?.[layer.id], order },
-        ]),
+        reordered.map((layer, order) => [layer.id, { order }]),
       ),
     );
   };
@@ -64,9 +61,7 @@ export default function GraphicLayers({
                 checked={!state.hidden}
                 onChange={(event) => {
                   void change({
-                    ...item.layer_states,
                     [layer.id]: {
-                      ...state,
                       hidden: !event.currentTarget.checked,
                     },
                   });
@@ -81,9 +76,7 @@ export default function GraphicLayers({
                 checked={state.locked ?? false}
                 onChange={(event) => {
                   void change({
-                    ...item.layer_states,
                     [layer.id]: {
-                      ...state,
                       locked: event.currentTarget.checked,
                     },
                   });
