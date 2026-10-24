@@ -18,9 +18,7 @@ it("keeps a project rename global even when another sequence is active", async (
         sessionId: state.sessionId,
         expectedRevision: state.revision,
         requestId: randomUUID(),
-        operations: [
-          { command: "update_project", args: { name: "Campaign" } },
-        ],
+        operations: [{ command: "update_project", args: { name: "Campaign" } }],
       }),
     ).toMatchObject({ ok: true });
     expect(state.project.name).toBe("Campaign");
