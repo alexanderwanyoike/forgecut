@@ -1,3 +1,4 @@
+import type { JobSnapshot } from "../../electron/shared/jobs";
 import { spawnSync } from "node:child_process";
 import { copyFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -279,5 +280,47 @@ mediaTest(
       });
       expect(state.project).toEqual(before);
     }
+  },
+);
+
+mediaTest(
+  "reports an unreadable preview without allocating a playback URL",
+  async () => {
+    const { state } = await reviewFixture();
+    const native = window.forgecut!.invoke;
+    window.forgecut!.invoke = async <T,>(
+      command: string,
+      args?: Record<string, unknown>,
+      metadata?: CommandMetadata,
+    ): Promise<CommandResponse<T>> => {
+      const response = await native<T>(command, args, metadata);
+      if (command === "get_media_job" && response.ok) {
+        const job = response.value as JobSnapshot;
+        if (job.kind === "source-preview" && job.result?.ok)
+          return {
+            ...response,
+            value: {
+              ...job,
+              result: {
+                ok: true,
+                value: {
+                  assetId: state.project.assets[0].id,
+                  startUs: 0,
+                  endUs: 2000000,
+                  mimeType: "video/webm",
+                  data: "invalid base64!",
+                },
+              },
+            } as T,
+          };
+      }
+      return response;
+    };
+    fireEvent.click(screen.getByRole("button", { name: "Short preview" }));
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Source review returned an unreadable result",
+    );
+    expect(screen.queryByLabelText("Source preview")).toBeNull();
+    expect(createPreviewUrl).not.toHaveBeenCalled();
   },
 );
