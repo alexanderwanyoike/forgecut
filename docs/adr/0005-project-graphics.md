@@ -25,3 +25,11 @@ The native Electron preview exposed React 18 ref warnings in the pinned Remotion
 ## Process ownership correction
 
 A detached Chromium process can outlive its Node worker, so killing only the worker process group is insufficient. A regression reproduced both forced cancellation and worker crashes without a systemd user scope. Graphics export now requires Linux Bubblewrap PID namespaces with parent-death handling; the existing user scope additionally bounds CPU/memory where available. The namespace ends detached descendants before the broker closes and staging cleanup proceeds. Other platforms report graphics export unavailable until equivalent native ownership is validated; ordinary FFmpeg exports remain supported. Linux packages declare Bubblewrap and CI tests the no-systemd path. This uses [Bubblewrap's namespace lifecycle](https://github.com/containers/bubblewrap), as evaluated in Phase 0. The trusted built-in worker receives read-only host files plus its writable staging directory; this is an ownership boundary, not the custom-source security policy required by Phase 6.
+
+## Project-owned resource persistence
+
+Graphic resources retain a UUID, content hash, MIME type and licence/provenance metadata in the project. Imports copy supported font/image bytes into an app-owned content-addressed store before the guarded project commit. Imports are bounded to 8 MiB each; unknown formats and stale project identities fail without changing history. Instances will reference resource IDs, so choosing a different font or image remains an instance edit.
+
+Saving writes immutable bytes into `.forgecut-resources/<sha256>` beside the manifest before replacing the manifest. Relative references and licence text travel with the project. Reopening verifies resource hashes and hydrates the app store; missing/corrupt resources produce an actionable load failure while preserving the current open project. Backups and undo can continue referencing older immutable files. No original asset path is required after import.
+
+The resource-persistence slice exposes import through the shared IPC command. Resource pickers, MCP import jobs and component rendering inputs follow in the next graphics slices. A maintained generated-PNG test moves the manifest/resource folder, clears the app cache and reopens without the original artwork.
