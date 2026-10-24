@@ -33,11 +33,11 @@ afterEach(async () => {
   directory = undefined;
 });
 
-async function reviewFixture() {
+async function reviewFixture(durationSeconds = 2) {
   const fixture = await sequenceWorkspaceFixture();
   directory = await mkdtemp(join(tmpdir(), "forgecut-source-ui-"));
   const path = join(directory, "recording.mp4");
-  generateReviewSource(path);
+  generateReviewSource(path, durationSeconds);
   expect(
     await fixture.service.execute("import_assets", { paths: [path] }),
   ).toMatchObject({ ok: true });
@@ -201,5 +201,38 @@ mediaTest(
       expect(screen.queryByLabelText("Source preview")).toBeNull(),
     );
     expect(stopPreview).toHaveBeenCalled();
+  },
+);
+
+mediaTest(
+  "keeps long ranges available for contact sheets while limiting video previews to five seconds",
+  async () => {
+    await reviewFixture(6);
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Short preview",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Contact sheet",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+    fireEvent.focus(screen.getByLabelText("Source out (s)"));
+    fireEvent.change(screen.getByLabelText("Source out (s)"), {
+      target: { value: "5" },
+    });
+    fireEvent.blur(screen.getByLabelText("Source out (s)"));
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Short preview",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
   },
 );
