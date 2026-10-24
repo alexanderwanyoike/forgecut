@@ -4,6 +4,7 @@ import type { GraphicDraft } from "../shared/graphic-draft.js";
 import type { GraphicPromotionRequest } from "../shared/graphic-promotion.js";
 import type { Result } from "../shared/result.js";
 import { resolveGraphicInstance } from "../domain/graphic-instance.js";
+import { projectSequences } from "../domain/project-sequences.js";
 import { migrateGraphicInstance } from "../domain/graphic-migration.js";
 import { validateGraphicDependencies } from "../domain/graphic-dependencies.js";
 import { componentVersion } from "./graphic-component.js";
@@ -79,13 +80,15 @@ export function prepareGraphicPromotion(
   )
     candidate.components.push(component);
   const references = new Set(
-    candidate.timeline.tracks.flatMap((track) =>
-      track.items.flatMap((item) =>
-        "RemotionGraphic" in item
-          ? [
-              `${item.RemotionGraphic.component_id}:${item.RemotionGraphic.component_version}`,
-            ]
-          : [],
+    projectSequences(candidate).flatMap((sequence) =>
+      sequence.timeline.tracks.flatMap((track) =>
+        track.items.flatMap((item) =>
+          "RemotionGraphic" in item
+            ? [
+                `${item.RemotionGraphic.component_id}:${item.RemotionGraphic.component_version}`,
+              ]
+            : [],
+        ),
       ),
     ),
   );
