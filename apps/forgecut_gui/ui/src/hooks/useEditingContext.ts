@@ -14,12 +14,17 @@ export function useEditingContext(
 ): void {
   useEffect(() => {
     if (!snapshot) return;
+    const sequenceId =
+      snapshot.project.default_sequence?.id ?? snapshot.project.id;
+    if (snapshot.activeSequenceId && snapshot.activeSequenceId !== sequenceId)
+      return;
     const selectedItemIds = snapshot.project.timeline.tracks
       .flatMap((track) => track.items)
       .filter((item) => getItemData(item).id === selectedItemId)
       .map((item) => getItemData(item).id);
     void invoke("set_editing_context", {
       sessionId: snapshot.sessionId,
+      sequenceId,
       selectedItemIds,
       selectedLayerIds: selectedLayerId ? [selectedLayerId] : [],
       playheadUs,
