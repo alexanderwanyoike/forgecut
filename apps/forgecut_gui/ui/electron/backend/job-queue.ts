@@ -7,6 +7,7 @@ type Entry = {
   snapshot: JobSnapshot;
   fingerprint: string;
   controller: AbortController;
+  timedOut?: boolean;
 };
 
 export class JobQueue {
@@ -16,7 +17,21 @@ export class JobQueue {
 
   private running = false;
 
+  private closed = false;
+
+  private idle: Promise<void> = Promise.resolve();
+
+  constructor(private readonly options: { timeoutMs?: number } = {}) {}
+
   start(request: JobRequest, run: Runner): Result<JobSnapshot> {
+    if (this.closed)
+      return {
+        ok: false,
+        error: {
+          code: "QUEUE_CLOSED",
+          message: "The media job queue is shutting down.",
+        },
+      };
     const fingerprint = createHash("sha256")
       .update(JSON.stringify(request))
       .digest("hex");
@@ -57,7 +72,7 @@ export class JobQueue {
     const entry = { snapshot, fingerprint, controller: new AbortController() };
     this.entries.set(snapshot.id, entry);
     this.pending.push({ entry, run });
-    void this.drain();
+    if (!this.running) this.idle = this.drain();
     return { ok: true, value: structuredClone(snapshot) };
   }
 
@@ -103,12 +118,26 @@ export class JobQueue {
     return { ok: true, value: structuredClone(entry.snapshot) };
   }
 
+  async close(): Promise<void> {
+    this.closed = true;
+    for (const entry of [...this.entries.values()]) {
+      if (["queued", "running", "cancelling"].includes(entry.snapshot.status))
+        this.cancel(entry.snapshot.id, entry.snapshot.sessionId);
+    }
+    await this.idle;
+  }
+
   private async drain(): Promise<void> {
     if (this.running) return;
     this.running = true;
     while (this.pending.length > 0) {
       const work = this.pending.shift()!;
       work.entry.snapshot.status = "running";
+      const timeout = setTimeout(() => {
+        work.entry.timedOut = true;
+        work.entry.controller.abort();
+      }, this.options.timeoutMs ?? 120000);
+      timeout.unref();
       try {
         const result = await work.run(work.entry.controller.signal);
         work.entry.snapshot.result = result;
@@ -123,11 +152,19 @@ export class JobQueue {
         };
         work.entry.snapshot.status = "failed";
       }
+      clearTimeout(timeout);
       if (work.entry.controller.signal.aborted) {
-        work.entry.snapshot.status = "cancelled";
+        work.entry.snapshot.status = work.entry.timedOut
+          ? "failed"
+          : "cancelled";
         work.entry.snapshot.result = {
           ok: false,
-          error: { code: "CANCELLED", message: "Job cancelled." },
+          error: {
+            code: work.entry.timedOut ? "TIMEOUT" : "CANCELLED",
+            message: work.entry.timedOut
+              ? "Job deadline exceeded."
+              : "Job cancelled.",
+          },
         };
       }
       this.prune();
