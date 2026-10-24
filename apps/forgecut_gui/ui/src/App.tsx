@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import CreditsDialog from "./components/CreditsDialog";
+import { sequenceDurationUs } from "../electron/domain/sequence";
 import ActionButton from "./components/ActionButton";
 import AppearanceControls from "./components/AppearanceControls";
 import McpStatus from "./components/McpStatus";
@@ -195,6 +196,8 @@ export default function App() {
             onClick={() => {
               if (!snapshot || !project?.default_sequence) return;
               setExportTarget({
+                durationUs: sequenceDurationUs(project),
+                playheadUs,
                 sessionId: snapshot.sessionId,
                 sequenceId: project.default_sequence.id,
                 name: project.default_sequence.name,
