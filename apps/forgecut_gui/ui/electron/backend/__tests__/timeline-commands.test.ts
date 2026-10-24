@@ -250,12 +250,17 @@ describe("Electron timeline commands", () => {
     );
 
     expect(
-      timelineCommands.get_clip_at_playhead({ playheadUs: 3_000_000 }, ctx),
+      timelineCommands.get_sequence_frame({ playheadUs: 3_000_000 }, ctx),
     ).toMatchObject({
-      file_path: "/media/clip.mp4",
-      seek_seconds: 2,
-      clip_start_us: 3_000_000,
-      source_in_us: 2_000_000,
+      layers: [
+        {
+          asset: { path: "/media/clip.mp4" },
+          sourceTimeUs: 2000000,
+          item: {
+            VideoClip: { timeline_start_us: 3000000, source_in_us: 2000000 },
+          },
+        },
+      ],
     });
   });
 });

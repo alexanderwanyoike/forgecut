@@ -210,19 +210,6 @@ export type HistoryRequest = Pick<
   "sessionId" | "expectedRevision" | "requestId"
 > & { direction: "undo" | "redo" };
 
-export type ClipAtPlayhead = {
-  file_path: string;
-  seek_seconds: number;
-  clip_start_us: TimeUs;
-  clip_end_us: TimeUs;
-  source_in_us: TimeUs;
-};
-
-/** Overlay items resolved for preview; asset-backed overlays gain file_path. */
-export type OverlayAtTime =
-  | { ImageOverlay: ImageOverlayItem & { file_path?: string } }
-  | { TextOverlay: TextOverlayItem };
-
 export type Thumbnail = {
   time_seconds: number;
   data_uri: string;
@@ -317,14 +304,6 @@ export type CommandMap = {
   };
   get_snap_points: { args: { excludeItemId?: string }; result: TimeUs[] };
   get_sequence_frame: { args: { playheadUs: TimeUs }; result: SequenceFrame };
-  get_clip_at_playhead: {
-    args: { playheadUs: TimeUs };
-    result: ClipAtPlayhead | null;
-  };
-  get_overlays_at_time: {
-    args: { playheadUs: TimeUs };
-    result: OverlayAtTime[];
-  };
   set_clip_volume: {
     args: { itemId: string; volume: number };
     result: Timeline;

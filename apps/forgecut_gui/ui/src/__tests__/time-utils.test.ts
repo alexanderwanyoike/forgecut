@@ -2,8 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   usToSeconds,
   secondsToUs,
-  computeSeekSeconds,
-  sourceTimeToPlayheadUs,
   formatTimeUs,
 } from "../lib/preview/time-utils";
 
@@ -33,50 +31,6 @@ describe("secondsToUs", () => {
 
   it("converts 0 to 0", () => {
     expect(secondsToUs(0)).toBe(0);
-  });
-});
-
-describe("computeSeekSeconds", () => {
-  it("computes seek at clip start with zero source_in", () => {
-    // playhead at clip start, source_in = 0 → seek to 0s
-    expect(computeSeekSeconds(1_000_000, 1_000_000, 0)).toBe(0);
-  });
-
-  it("computes seek for trimmed clip with non-zero source_in", () => {
-    // playhead at clip start, source_in = 2s → seek to 2s
-    expect(computeSeekSeconds(1_000_000, 1_000_000, 2_000_000)).toBe(2);
-  });
-
-  it("computes seek midway through clip", () => {
-    // playhead 1.5s into a clip starting at 1s, source_in = 0 → seek to 0.5s
-    expect(computeSeekSeconds(1_500_000, 1_000_000, 0)).toBe(0.5);
-  });
-
-  it("computes seek midway through trimmed clip", () => {
-    // playhead 1s into clip, source_in = 3s → seek to 4s
-    expect(computeSeekSeconds(2_000_000, 1_000_000, 3_000_000)).toBe(4);
-  });
-});
-
-describe("sourceTimeToPlayheadUs", () => {
-  it("round-trips with computeSeekSeconds", () => {
-    const clipStartUs = 5_000_000;
-    const sourceInUs = 2_000_000;
-    const playheadUs = 7_000_000;
-
-    const seekSec = computeSeekSeconds(playheadUs, clipStartUs, sourceInUs);
-    const result = sourceTimeToPlayheadUs(seekSec, clipStartUs, sourceInUs);
-    expect(result).toBe(playheadUs);
-  });
-
-  it("returns clip start when currentTime equals source_in", () => {
-    const result = sourceTimeToPlayheadUs(2, 5_000_000, 2_000_000);
-    expect(result).toBe(5_000_000);
-  });
-
-  it("handles zero source_in", () => {
-    const result = sourceTimeToPlayheadUs(1.5, 1_000_000, 0);
-    expect(result).toBe(2_500_000);
   });
 });
 

@@ -1,17 +1,21 @@
 import { useState } from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import Preview from "../components/Preview";
 import type { Project } from "../../electron/shared/ipc-contract";
 
 vi.mock("../lib/bridge", () => ({
-  invoke: vi.fn(async (command: string) =>
-    command === "get_overlays_at_time" ? [] : null,
-  ),
   mediaUrl: (path: string) =>
     `forgecut-media://source?path=${encodeURIComponent(path)}`,
 }));
 afterEach(() => {
+  cleanup();
   vi.restoreAllMocks();
   vi.useRealTimers();
 });

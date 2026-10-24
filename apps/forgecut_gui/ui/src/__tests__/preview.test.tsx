@@ -1,12 +1,15 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Preview from "../components/Preview";
 import type { Project } from "../../electron/shared/ipc-contract";
 
 vi.mock("../lib/bridge", () => ({
-  invoke: vi.fn(async (command: string) =>
-    command === "get_overlays_at_time" ? [] : null,
-  ),
   mediaUrl: (path: string) =>
     `forgecut-media://source?path=${encodeURIComponent(path)}`,
 }));
@@ -66,6 +69,7 @@ const idle = {
 
 describe("Preview component", () => {
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
   });
   beforeEach(() => {
