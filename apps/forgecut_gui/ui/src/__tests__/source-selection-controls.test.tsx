@@ -71,3 +71,65 @@ it("creates a saved footage selection from the source monitor", async () => {
     (screen.getByLabelText("Selection name") as HTMLInputElement).value,
   ).toContain("Recording.mp4");
 });
+
+it("keeps manual source notes when an agent changes the range and restores them on reopen", async () => {
+  const { state, service, App } = await sourceFixture();
+  expect(
+    await service.execute("save_source_selection", {
+      assetId: "source-recording",
+      name: "Opening",
+      sourceInUs: 1000000,
+      sourceOutUs: 3000000,
+      notes: "",
+      rationale: "",
+    }),
+  ).toMatchObject({ ok: true });
+  render(<App />);
+  await screen.findByLabelText("Text");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Review source: Recording.mp4" }),
+  );
+  const notes = await screen.findByLabelText("Notes");
+  fireEvent.focus(notes);
+  fireEvent.change(notes, { target: { value: "Keep the engine sound" } });
+  fireEvent.blur(notes);
+  await waitFor(() =>
+    expect(state.project.source_selections![0].notes).toBe(
+      "Keep the engine sound",
+    ),
+  );
+  const selectionId = state.project.source_selections![0].id;
+  await act(async () => {
+    expect(
+      await service.execute("apply_edits", {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        requestId: "agent-range",
+        operations: [
+          {
+            command: "update_source_selection",
+            args: { selectionId, patch: { source_in_us: 1500000 } },
+          },
+        ],
+      }),
+    ).toMatchObject({ ok: true });
+  });
+  await waitFor(() =>
+    expect(
+      (screen.getByLabelText("Source in (s)") as HTMLInputElement).value,
+    ).toBe("1.5"),
+  );
+  expect((screen.getByLabelText("Notes") as HTMLTextAreaElement).value).toBe(
+    "Keep the engine sound",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Canvas" }));
+  await screen.findByLabelText("Text");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Review source: Recording.mp4" }),
+  );
+  await waitFor(() =>
+    expect((screen.getByLabelText("Notes") as HTMLTextAreaElement).value).toBe(
+      "Keep the engine sound",
+    ),
+  );
+});
