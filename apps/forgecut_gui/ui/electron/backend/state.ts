@@ -6,10 +6,7 @@ import type {
   EditingContext,
   CommandMap,
   ProjectSnapshot,
-  ClipItem,
-  ImageOverlayItem,
   Project,
-  TextOverlayItem,
   Timeline,
 } from "../shared/ipc-contract.js";
 import { itemData } from "./timeline-ops.js";
@@ -33,14 +30,9 @@ export type {
   Timeline,
   TimelineItem,
   TimelineItemVariant,
+  TimelineItemDetail,
   Track,
 } from "../shared/ipc-contract.js";
-
-export type TimelineItemDetail =
-  | ClipItem
-  | (ClipItem & { volume: number })
-  | ImageOverlayItem
-  | TextOverlayItem;
 
 type ProjectSnapshotEntry = {
   before: Project;

@@ -12,7 +12,7 @@ import {
   itemData,
   timelineEndUs,
   timelineStartUs,
-} from "../backend/timeline-ops.js";
+} from "../domain/timeline-item.js";
 import { EditingError } from "../backend/editing-error.js";
 import type { BridgeResult } from "./contract.js";
 import {

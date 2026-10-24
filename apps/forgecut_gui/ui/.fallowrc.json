@@ -28,6 +28,10 @@
         "patterns": ["electron/shared/**"]
       },
       {
+        "name": "domain",
+        "patterns": ["electron/domain/**"]
+      },
+      {
         "name": "backend",
         "patterns": ["electron/backend/**"]
       },
@@ -47,7 +51,7 @@
     "rules": [
       {
         "from": "renderer",
-        "allow": [],
+        "allow": ["domain"],
         "allowTypeOnly": ["contract"]
       },
       {
@@ -56,7 +60,7 @@
       },
       {
         "from": "backend",
-        "allow": ["contract"]
+        "allow": ["contract", "domain"]
       },
       {
         "from": "shell",
@@ -68,7 +72,12 @@
       },
       {
         "from": "mcp",
-        "allow": ["backend", "contract"]
+        "allow": ["backend", "contract", "domain"]
+      },
+      {
+        "from": "domain",
+        "allow": [],
+        "allowTypeOnly": ["contract"]
       }
     ],
     "coverage": {

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { resolveSequenceFrame } from "../sequence.js";
+import { resolveSequenceFrame } from "../../domain/sequence.js";
 import type { Asset, TimelineItem, Track } from "../state.js";
 import type { ItemPatch } from "../../shared/ipc-contract.js";
 import {

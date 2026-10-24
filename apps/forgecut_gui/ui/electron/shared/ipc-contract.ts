@@ -79,6 +79,12 @@ export type TimelineItem =
   | { ImageOverlay: ImageOverlayItem }
   | { TextOverlay: TextOverlayItem };
 
+export type TimelineItemDetail =
+  | ClipItem
+  | (ClipItem & { volume: number })
+  | ImageOverlayItem
+  | TextOverlayItem;
+
 export type TimelineItemVariant =
   "VideoClip" | "AudioClip" | "ImageOverlay" | "TextOverlay";
 
