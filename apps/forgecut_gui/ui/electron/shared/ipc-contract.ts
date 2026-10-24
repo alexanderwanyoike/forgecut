@@ -92,11 +92,46 @@ export type Timeline = {
 };
 
 export type Project = {
+  schema_version?: 1;
   id: string;
   name: string;
   settings: ProjectSettings;
   assets: Asset[];
   timeline: Timeline;
+};
+
+export type ProjectSnapshot = {
+  project: Project;
+  sessionId: string;
+  revision: number;
+  canUndo: boolean;
+  canRedo: boolean;
+  missingMedia: string[];
+};
+
+export type EditErrorCode = "INVALID_INPUT" | "CONFLICT" | "PROJECT_CHANGED" | "NOT_FOUND" | "IO_ERROR" | "NOTHING_TO_UNDO" | "REQUEST_REUSED";
+export type CommandResponse<T = unknown> =
+  | { ok: true; value: T; sessionId: string; revision: number }
+  | { ok: false; error: { code: EditErrorCode; message: string } };
+
+export type CommandMetadata = { sessionId?: string; editGroup?: string };
+
+export type ItemPatch =
+  | { kind: "AudioClip"; changes: Partial<Pick<ClipItem & { volume: number }, "volume">> }
+  | { kind: "TextOverlay"; changes: Partial<Pick<TextOverlayItem, "text" | "font_size" | "color" | "x" | "y">> }
+  | { kind: "ImageOverlay"; changes: Partial<Pick<ImageOverlayItem, "asset_id" | "x" | "y" | "width" | "height" | "opacity">> };
+
+export type EditCommandName =
+  | "add_clip_to_timeline" | "trim_clip" | "split_clip" | "delete_clip" | "move_clip"
+  | "move_clip_to_track" | "add_track" | "add_text_overlay" | "add_image_overlay"
+  | "set_clip_volume" | "update_item" | "remove_asset" | "update_project";
+export type EditOperation = { [K in EditCommandName]: { command: K; args: CommandMap[K]["args"] } }[EditCommandName];
+export type EditRequest = {
+  sessionId: string;
+  expectedRevision: number;
+  requestId: string;
+  editGroup?: string;
+  operations: EditOperation[];
 };
 
 export type ClipAtPlayhead = {
@@ -141,6 +176,10 @@ export type CommandMap = {
   save_project: { args: { path: string }; result: void };
   load_project: { args: { path: string }; result: string };
   get_project_settings: { args: undefined; result: ProjectSettings };
+  get_project_snapshot: { args: undefined; result: ProjectSnapshot };
+  apply_edits: { args: EditRequest; result: ProjectSnapshot };
+  update_project: { args: { name?: string; settings?: Partial<ProjectSettings> }; result: Project };
+  recover_project: { args: { path: string }; result: string };
   autosave: { args: undefined; result: void };
 
   // Timeline
@@ -195,8 +234,8 @@ export type CommandMap = {
   get_overlays_at_time: { args: { playheadUs: TimeUs }; result: OverlayAtTime[] };
   set_clip_volume: { args: { itemId: string; volume: number }; result: Timeline };
   get_item_details: { args: { itemId: string }; result: TimelineItem };
-  update_item_property: {
-    args: { itemId: string; property: string; value: unknown };
+  update_item: {
+    args: { itemId: string; patch: ItemPatch };
     result: Timeline;
   };
 
@@ -204,6 +243,7 @@ export type CommandMap = {
   import_assets: { args: { paths: string[] }; result: Asset[] };
   get_assets: { args: undefined; result: Asset[] };
   remove_asset: { args: { id: string }; result: void };
+  relink_asset: { args: { id: string; path: string }; result: Asset };
   get_clip_thumbnails: { args: { assetId: string }; result: Thumbnail[] };
   get_waveform: { args: { assetId: string }; result: WaveformData };
 
@@ -221,6 +261,7 @@ export type CommandResultOf<K extends CommandName> = CommandMap[K]["result"];
  * The preload bridge prefixes names with "forgecut:event:" on the wire.
  */
 export type EventPayloads = {
+  "project-changed": ProjectSnapshot;
   "export-progress": RenderProgress;
   "export-complete": { output_path: string };
 };

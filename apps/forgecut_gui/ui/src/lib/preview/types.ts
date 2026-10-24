@@ -12,6 +12,7 @@ export interface OverlayData {
 }
 
 export interface PreviewProps {
+  projectVersion?: number;
   playheadUs: number;
   playing: boolean;
   onPlayingChange: (playing: boolean) => void;

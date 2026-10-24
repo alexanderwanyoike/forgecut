@@ -2,15 +2,15 @@ import { exportProject } from "../exporter.js";
 import { requiredString, type CommandRegistry } from "./types.js";
 
 export const exportCommands = {
-  export_project: async (args, { state, webContents }) => {
+  export_project: async (args, { state, emit }) => {
     const outputPath = requiredString(args, "outputPath");
 
-    await exportProject(state.project, outputPath, {
+    await exportProject(structuredClone(state.project), outputPath, {
       onProgress: (progress) => {
-        webContents.send("forgecut:event:export-progress", progress);
+        emit("export-progress", progress);
       },
     });
 
-    webContents.send("forgecut:event:export-complete", { output_path: outputPath });
+    emit("export-complete", { output_path: outputPath });
   },
 } satisfies CommandRegistry;

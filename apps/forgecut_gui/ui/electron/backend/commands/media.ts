@@ -1,4 +1,5 @@
 import { importAsset } from "../media-probe.js";
+import type { Asset } from "../state.js";
 import {
   extractThumbnailsBase64,
   extractWaveform,
@@ -11,22 +12,40 @@ import {
 
 export const mediaCommands = {
   import_assets: async (args, { state }) => {
-    const imported = [];
+    const sessionId = state.sessionId;
+    const imported: Asset[] = [];
     for (const path of requiredStringArray(args, "paths")) {
       try {
         const asset = await importAsset(path);
-        state.project.assets.push(asset);
         imported.push(asset);
       } catch (error) {
         throw new Error(`Failed to import ${path}: ${String(error)}`);
       }
     }
+    state.assertSession(sessionId);
+    state.executeProjectChange((project) => { project.assets.push(...imported); }, { availablePaths: imported.map((asset) => asset.path) });
     return imported;
   },
   get_assets: (_args, { state }) => state.project.assets,
   remove_asset: (args, { state }) => {
     const assetId = requiredString(args, "id");
-    state.project.assets = state.project.assets.filter((asset) => asset.id !== assetId);
+    state.executeProjectChange((project) => {
+      requireAsset(project.assets, assetId);
+      project.assets = project.assets.filter((asset) => asset.id !== assetId);
+    });
+  },
+  relink_asset: async (args, { state }) => {
+    const sessionId = state.sessionId;
+    const id = requiredString(args, "id");
+    requireAsset(state.project.assets, id);
+    const replacement = await importAsset(requiredString(args, "path"));
+    state.assertSession(sessionId);
+    state.executeProjectChange((project) => {
+      const original = requireAsset(project.assets, id);
+      if (original.kind !== replacement.kind) throw new Error("Replacement media must have the same kind");
+      Object.assign(original, replacement, { id });
+    }, { availablePaths: [replacement.path] });
+    return state.project.assets.find((asset) => asset.id === id)!;
   },
   get_clip_thumbnails: async (args, { state }) => {
     const asset = requireAsset(state.project.assets, requiredString(args, "assetId"));

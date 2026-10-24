@@ -5,21 +5,38 @@ import ExportDialog from "./components/ExportDialog";
 import Inspector from "./components/Inspector";
 import Preview from "./components/Preview";
 import Timeline from "./components/Timeline";
+import { useProject } from "./hooks/useProject";
 
 export default function App() {
   const [showExport, setShowExport] = useState(false);
   const [playheadUs, setPlayheadUs] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
-  const [projectName, setProjectName] = useState("Untitled Project");
+  const { snapshot, error, setError } = useProject();
+  const [recoveryPath, setRecoveryPath] = useState<string | null>(null);
   const [showFileMenu, setShowFileMenu] = useState(false);
-  const [projectVersion, setProjectVersion] = useState(0);
+  const projectVersion = snapshot?.revision ?? 0;
+  const projectName = snapshot?.project.name ?? "Untitled Project";
   const [theme, setTheme] = useState(() => localStorage.getItem("forgecut-theme") || "dark");
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("forgecut-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    setPlayheadUs(0);
+    setPlaying(false);
+    setSelectedClipId(null);
+    if (snapshot && snapshot.project.timeline.tracks.length === 0) {
+      invoke("init_default_tracks").catch(() => {});
+    }
+  }, [snapshot?.sessionId]);
+
+  useEffect(() => {
+    setPlaying(false);
+    if (snapshot) setSelectedClipId((id) => id && snapshot.project.timeline.tracks.some((track) => track.items.some((item) => Object.values(item)[0].id === id)) ? id : null);
+  }, [projectVersion]);
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -37,7 +54,6 @@ export default function App() {
     if (!filePath) return;
     try {
       await invoke("save_project", { path: filePath });
-      setProjectName(filePath.split("/").pop()?.replace(".forgecut", "") || "Project");
     } catch (e) {
       console.error("save_project failed:", e);
     }
@@ -53,16 +69,24 @@ export default function App() {
     const path = Array.isArray(filePath) ? filePath[0] : filePath;
     try {
       await invoke("load_project", { path });
-      setProjectName(
-        path.split("/").pop()?.replace(".forgecut", "") || "Project"
-      );
+      setError(null);
+      setRecoveryPath(null);
       setPlayheadUs(0);
       setPlaying(false);
       setSelectedClipId(null);
-      setProjectVersion((v) => v + 1);
     } catch (e) {
-      console.error("load_project failed:", e);
+      setError(`Could not open the project: ${String(e)}`);
+      setRecoveryPath(path);
     }
+  };
+
+  const handleRecover = async () => {
+    if (!recoveryPath) return;
+    try {
+      await invoke("recover_project", { path: recoveryPath });
+      setError(null);
+      setRecoveryPath(null);
+    } catch (reason) { setError(`Could not open the recovery copy: ${String(reason)}`); }
   };
 
   return (
@@ -81,7 +105,8 @@ export default function App() {
               </div>
             )}
           </span>
-          <span className="menu-label">Edit</span>
+          <button className="preview-btn" disabled={!snapshot?.canUndo} onClick={() => invoke("undo").catch(() => {})}>Undo</button>
+          <button className="preview-btn" disabled={!snapshot?.canRedo} onClick={() => invoke("redo").catch(() => {})}>Redo</button>
           <span className="menu-label" onClick={() => setShowExport(true)}>Export</span>
         </div>
         <button className="theme-toggle" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}>
@@ -90,16 +115,23 @@ export default function App() {
         <span className="project-name">{projectName}</span>
       </header>
 
-      <AssetBin projectVersion={projectVersion} />
+      {error && <div className="project-notice" role="alert">
+        {error}
+        {recoveryPath && <button onClick={handleRecover}>Open recovery copy</button>}
+        <button onClick={() => { setError(null); setRecoveryPath(null); }}>Dismiss</button>
+      </div>}
+
+      <AssetBin projectVersion={projectVersion} projectAssets={snapshot?.project.assets} missingMedia={snapshot?.missingMedia} />
 
       <Preview
         playheadUs={playheadUs}
         playing={playing}
         onPlayingChange={setPlaying}
         onPlayheadChange={setPlayheadUs}
+        projectVersion={projectVersion}
       />
 
-      <Inspector selectedClipId={selectedClipId} />
+      <Inspector selectedClipId={selectedClipId} project={snapshot?.project} projectVersion={projectVersion} />
 
       <Timeline
         playheadUs={playheadUs}
@@ -109,6 +141,8 @@ export default function App() {
         selectedClipId={selectedClipId}
         onSelectedClipChange={setSelectedClipId}
         projectVersion={projectVersion}
+        projectTimeline={snapshot?.project.timeline}
+        projectMediaVersion={JSON.stringify([snapshot?.sessionId, snapshot?.project.assets])}
       />
 
       {showExport && (

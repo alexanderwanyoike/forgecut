@@ -860,3 +860,17 @@ html, body, #root {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.06);
 }
+
+.project-notice {
+  position: absolute;
+  top: 42px;
+  left: 16px;
+  right: 16px;
+  z-index: 100;
+  padding: 12px;
+  background: var(--bg-panel, #242424);
+  color: var(--text-primary, #eee);
+  border: 1px solid var(--border-color, #666);
+  border-radius: 4px;
+}
+.project-notice button { margin-left: 12px; }

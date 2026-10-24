@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 vi.mock("../lib/bridge", () => ({
+  listen: vi.fn().mockResolvedValue(() => {}),
   invoke: vi.fn().mockImplementation(async (cmd: string) => {
     if (cmd === "init_default_tracks") return { tracks: [], markers: [] };
     if (cmd === "get_clip_at_playhead") return null;

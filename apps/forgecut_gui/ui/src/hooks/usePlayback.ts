@@ -7,6 +7,7 @@ import { loadVideo, seekVideo, waitForMetadata } from "../lib/preview/video-elem
 const POLL_INTERVAL_MS = 30;
 
 export interface PlaybackOptions {
+  projectVersion?: number;
   playheadUs: number;
   playing: boolean;
   onPlayingChange: (playing: boolean) => void;
@@ -30,6 +31,7 @@ export function usePlayback(options: PlaybackOptions) {
     currentFilePath: "",
     pollInterval: undefined as number | undefined,
   });
+  const projectEpoch = useRef(0);
 
   const stopPolling = useCallback(() => {
     clearInterval(pb.current.pollInterval);
@@ -37,6 +39,16 @@ export function usePlayback(options: PlaybackOptions) {
   }, []);
 
   useEffect(() => () => stopPolling(), [stopPolling]);
+
+  useEffect(() => {
+    projectEpoch.current += 1;
+    stopPolling();
+    videoRef.current?.pause();
+  }, [options.projectVersion, stopPolling]);
+
+  useEffect(() => {
+    if (!playing) projectEpoch.current += 1;
+  }, [playheadUs, playing]);
 
   /** Point the element at a clip's file and seek to the clip-relative time. */
   const showClip = useCallback(async (video: HTMLVideoElement, clip: ClipAtPlayhead) => {
@@ -98,7 +110,7 @@ export function usePlayback(options: PlaybackOptions) {
       .catch(() => { if (!cancelled) setOverlays([]); });
 
     return () => { cancelled = true; };
-  }, [playing, playheadUs, stopPolling]);
+  }, [playing, playheadUs, stopPolling, options.projectVersion]);
 
   // --- Polling: sync playhead to video position during playback ---
   const startPolling = useCallback(() => {
@@ -129,6 +141,7 @@ export function usePlayback(options: PlaybackOptions) {
   }, [stopPolling, onPlayingChange, onPlayheadChange]);
 
   const handlePlayPause = useCallback(async () => {
+    const epoch = ++projectEpoch.current;
     const video = videoRef.current;
     if (!video) return;
 
@@ -142,7 +155,9 @@ export function usePlayback(options: PlaybackOptions) {
     let clip: ClipAtPlayhead | null;
     try {
       clip = await invoke("get_clip_at_playhead", { playheadUs });
+      if (epoch !== projectEpoch.current) return;
     } catch (e) {
+      if (epoch !== projectEpoch.current) return;
       setStatusMsg(`Error: ${e}`);
       return;
     }
@@ -154,11 +169,14 @@ export function usePlayback(options: PlaybackOptions) {
 
     try {
       await showClip(video, clip);
+      if (epoch !== projectEpoch.current) return;
       await video.play();
+      if (epoch !== projectEpoch.current) return;
       onPlayingChange(true);
       setStatusMsg("");
       startPolling();
     } catch (e) {
+      if (epoch !== projectEpoch.current) return;
       setStatusMsg(`Play error: ${e}`);
       onPlayingChange(false);
     }

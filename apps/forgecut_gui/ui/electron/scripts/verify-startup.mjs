@@ -106,6 +106,50 @@ async function main() {
     returnByValue: true,
     awaitPromise: true,
   });
+
+  const editing = await send("Runtime.evaluate", {
+    expression: `(async () => {
+      const invoke = async (command, args) => {
+        const response = await window.forgecut.invoke(command, args);
+        if (!response.ok) throw new Error(response.error.message);
+        return response.value;
+      };
+      const waitFor = async (predicate) => {
+        for (let attempt = 0; attempt < 100; attempt++) {
+          if (predicate()) return;
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        throw new Error('Editor panels did not receive the project change');
+      };
+      await invoke('add_text_overlay', {
+        trackId: crypto.randomUUID(), timelineStartUs: 0, durationUs: 3000000,
+        text: 'Shared state check', fontSize: 48, color: '#ffffff', x: 100, y: 100,
+      });
+      await waitFor(() => document.querySelector('.clip-label')?.textContent === 'Shared state check');
+      await waitFor(() => document.querySelector('.preview-viewport')?.textContent.includes('Shared state check'));
+      await invoke('undo');
+      await waitFor(() => !document.querySelector('.clip'));
+      await invoke('redo');
+      await waitFor(() => document.querySelector('.clip-label')?.textContent === 'Shared state check');
+      const snapshot = await invoke('get_project_snapshot');
+      const request = {
+        sessionId: snapshot.sessionId, expectedRevision: snapshot.revision,
+        requestId: crypto.randomUUID(), operations: [{ command: 'update_project', args: { name: 'Shared editor check' } }],
+      };
+      const first = await invoke('apply_edits', request);
+      const retry = await invoke('apply_edits', request);
+      if (first.revision !== retry.revision) throw new Error('A retried edit was applied twice');
+      const stale = await window.forgecut.invoke('apply_edits', { ...request, requestId: crypto.randomUUID() });
+      if (stale.ok || stale.error.code !== 'CONFLICT') throw new Error('Stale edit was accepted');
+      await waitFor(() => document.querySelector('.project-name')?.textContent === 'Shared editor check');
+      return { revision: first.revision, sharedEditing: true };
+    })()`,
+    returnByValue: true,
+    awaitPromise: true,
+  });
+  if (!editing.result?.result?.value?.sharedEditing) {
+    throw new Error(`Shared editing smoke check failed: ${JSON.stringify(editing.result)}`);
+  }
   ws.close();
 
   const value = result.result?.result?.value;
@@ -127,7 +171,7 @@ async function main() {
     throw new Error(`Renderer emitted errors:\\n${errors.join("\\n")}`);
   }
 
-  console.log("Electron startup verified");
+  console.log("Electron startup and shared editing verified");
 }
 
 main()
