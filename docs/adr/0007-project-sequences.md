@@ -40,7 +40,7 @@ Maintained service and renderer workflows cover context restoration, unchanged c
 
 ## Visual sequence workspace
 
-The sequence selector drives the existing native context command. Hydrate selection, graphic-layer selection and playhead before enabling that sequence's editing surfaces. Ignore delayed context replies after another sequence or project is selected. Preview, timeline and Inspector receive a single-sequence view; the bin, Code tab and persistence retain the canonical project. Remount playback and gesture owners across sequence changes.
+The sequence selector drives the existing native context command. Hydrate selection, graphic-layer selection and playhead before enabling that sequence's editing surfaces. Identify each activation by session, sequence ID and sequence revision, so a batched A-to-B-to-A round trip also invalidates delayed context replies. Renderer context writes carry that activation revision; the native owner rejects a stale revision before updating cached state. The optional field preserves existing caller compatibility. Preview, timeline and Inspector receive a single-sequence view; the bin, Code tab and persistence retain the canonical project. Remount playback and gesture owners across sequence activations.
 
 Bind renderer command metadata to the controls currently displayed. A native context event can arrive before React paints the replacement view; an input event from the outgoing controls must retain its original sequence target. Release that binding when the view changes or unmounts. Commands that await a destination dialog can retain an explicit session/sequence target across that asynchronous boundary.
 
