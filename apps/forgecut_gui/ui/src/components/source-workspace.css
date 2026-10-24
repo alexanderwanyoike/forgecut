@@ -76,3 +76,12 @@
   color: var(--text-secondary);
   font-size: 12px;
 }
+.source-selection-field > label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.source-selection-field select {
+  width: 100%;
+  min-width: 0;
+}
