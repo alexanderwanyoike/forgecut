@@ -237,3 +237,47 @@ it("reports bounded progress while work is running and completes at one", async 
     await jobs.close();
   }
 });
+
+it("does not cancel a job after it begins publishing its completed output", async () => {
+  const jobs = new JobQueue();
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const job = jobs.start(
+    {
+      sessionId: "session",
+      projectRevision: 0,
+      requestId: "publish",
+      kind: "export",
+      label: "Export",
+      input: null,
+    },
+    async (signal, _progress, beginCommit) => {
+      expect(beginCommit()).toBe(true);
+      await held;
+      expect(signal.aborted).toBe(false);
+      return { ok: true, value: "published" };
+    },
+  );
+  if (!job.ok) throw new Error(job.error.message);
+  try {
+    expect(jobs.cancel(job.value.id, "session")).toMatchObject({
+      ok: false,
+      error: { code: "COMMITTING" },
+    });
+    release();
+    await vi.waitFor(() =>
+      expect(jobs.read(job.value.id, "session")).toMatchObject({
+        ok: true,
+        value: {
+          status: "completed",
+          result: { ok: true, value: "published" },
+        },
+      }),
+    );
+  } finally {
+    release();
+    await jobs.close();
+  }
+});
