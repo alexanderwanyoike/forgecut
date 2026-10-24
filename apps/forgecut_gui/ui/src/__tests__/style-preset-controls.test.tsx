@@ -1,26 +1,30 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import {
   cleanupSequenceWorkspace,
   sequenceWorkspaceFixture,
 } from "./sequence-workspace-fixture";
 
+import titleSource from "../../electron/graphics/TitleCard.tsx?raw";
+vi.mock("node:fs", () => ({
+  readFileSync: () => titleSource,
+  default: { readFileSync: () => titleSource },
+}));
 afterEach(cleanupSequenceWorkspace);
 async function styleFixture() {
   const fixture = await sequenceWorkspaceFixture();
-  expect(
-    await fixture.service.execute(
-      "add_graphic_item",
-      {
-        templateId: "title-card",
-        trackId: "root-graphics",
-        timelineStartUs: 0,
-        durationUs: 1000000,
-        props: { title: "Muted title", color: "#8293a4" },
-      },
-      { sessionId: fixture.state.sessionId, sequenceId: fixture.root },
-    ),
-  ).toMatchObject({ ok: true });
+  const added = await fixture.service.execute(
+    "add_graphic_item",
+    {
+      templateId: "title-card",
+      trackId: "root-graphics",
+      timelineStartUs: 0,
+      durationUs: 1000000,
+      props: { title: "Muted title", color: "#8293a4" },
+    },
+    { sessionId: fixture.state.sessionId, sequenceId: fixture.root },
+  );
+  expect(added, JSON.stringify(added)).toMatchObject({ ok: true });
   const source = fixture.state.project.timeline.tracks
     .flatMap((track) => track.items)
     .find((item) => "RemotionGraphic" in item);
