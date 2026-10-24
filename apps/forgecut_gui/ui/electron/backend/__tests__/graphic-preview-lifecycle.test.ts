@@ -66,7 +66,7 @@ function child() {
   return value;
 }
 afterEach(() => vi.clearAllMocks());
-for (const action of ["close", "reset"] as const) {
+for (const action of ["close", "reset", "abort"] as const) {
   it.skipIf(process.platform !== "linux")(
     `does not spawn after ${action} interrupts preview startup`,
     async () => {
@@ -84,9 +84,13 @@ for (const action of ["close", "reset"] as const) {
       });
       mocks.spawn.mockImplementation(child);
       const host = new GraphicPreviewHost();
-      const rendering = host.render(input);
+      const controller = new AbortController();
+      const rendering = host.render(input, controller.signal);
       await vi.waitFor(() => expect(release).toBeTypeOf("function"));
-      const closing = host[action]();
+      const closing =
+        action === "abort"
+          ? Promise.resolve(controller.abort())
+          : host[action]();
       release("/tmp/preview-startup");
       await closing;
       expect(await rendering).toMatchObject({ ok: false });
