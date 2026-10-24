@@ -4,6 +4,7 @@ import { once } from "node:events";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { verifyGraphicsPreview } from "./graphics-preview-smoke.mjs";
+import { verifyCode } from "./code-smoke.mjs";
 import { verifyCanvas } from "./canvas-smoke.mjs";
 import { verifyAudio } from "./audio-smoke.mjs";
 import { verifyMcp } from "./mcp-smoke.mjs";
@@ -133,6 +134,7 @@ async function main() {
         ...process.env,
         FORGECUT_MCP_DIR: mcpDirectory,
         FORGECUT_RESOURCE_DIR: join(mcpDirectory, "resources"),
+        FORGECUT_DRAFT_DIR: join(mcpDirectory, "drafts"),
         ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
         ELECTRON_REMOTE_DEBUGGING_PORT: remoteDebuggingPort,
       },
@@ -204,6 +206,7 @@ async function main() {
   await verifyAudio(mcpDirectory, send);
   await verifyGraphicsPreview(mcpDirectory, send);
   await verifyCanvas(send);
+  await verifyCode(send);
   ws.close();
 
   const value = result.result?.result?.value;

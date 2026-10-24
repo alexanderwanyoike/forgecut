@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import McpStatus from "./components/McpStatus";
 import { useEditingContext } from "./hooks/useEditingContext";
 import { getItemData } from "./lib/timeline/items";
@@ -10,12 +10,16 @@ import Preview from "./components/Preview";
 import Timeline from "./components/Timeline";
 import { useProject } from "./hooks/useProject";
 
+const CodeWorkspace = lazy(() => import("./components/CodeWorkspace"));
+
 export default function App() {
   const [showExport, setShowExport] = useState(false);
   const [playheadUs, setPlayheadUs] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [sourceItemId, setSourceItemId] = useState<string | null>(null);
+  const sourceClose = useRef<(() => Promise<boolean>) | null>(null);
   const selectClip = (id: string | null) => {
     setSelectedClipId(id);
     setSelectedLayerId(null);
@@ -36,6 +40,7 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    setSourceItemId(null);
     setPlayheadUs(0);
     setPlaying(false);
     selectClip(null);
@@ -86,6 +91,7 @@ export default function App() {
     });
     if (!filePath) return;
     const path = Array.isArray(filePath) ? filePath[0] : filePath;
+    if (sourceClose.current && !(await sourceClose.current())) return;
     try {
       await invoke("load_project", { path });
       setError(null);
@@ -101,6 +107,7 @@ export default function App() {
 
   const handleRecover = async () => {
     if (!recoveryPath) return;
+    if (sourceClose.current && !(await sourceClose.current())) return;
     try {
       await invoke("recover_project", { path: recoveryPath });
       setError(null);
@@ -191,23 +198,52 @@ export default function App() {
         missingMedia={snapshot?.missingMedia}
       />
 
-      <Preview
-        sessionId={snapshot?.sessionId}
-        selectedClipId={selectedClipId}
-        selectedLayerId={selectedLayerId}
-        onGraphicSelection={(itemId, layerId) => {
-          setSelectedClipId(itemId);
-          setSelectedLayerId(layerId);
-        }}
-        project={snapshot?.project}
-        playheadUs={playheadUs}
-        playing={playing}
-        onPlayingChange={setPlaying}
-        onPlayheadChange={setPlayheadUs}
-        projectVersion={projectVersion}
-      />
+      {sourceItemId && snapshot ? (
+        <Suspense
+          fallback={
+            <section className="panel preview">Loading code editor…</section>
+          }
+        >
+          <CodeWorkspace
+            key={`${snapshot.sessionId}:${sourceItemId}`}
+            snapshot={snapshot}
+            itemId={sourceItemId}
+            onClose={() => setSourceItemId(null)}
+            onRegisterClose={(guard) => {
+              sourceClose.current = guard;
+            }}
+          />
+        </Suspense>
+      ) : (
+        <Preview
+          sessionId={snapshot?.sessionId}
+          selectedClipId={selectedClipId}
+          selectedLayerId={selectedLayerId}
+          onGraphicSelection={(itemId, layerId) => {
+            setSelectedClipId(itemId);
+            setSelectedLayerId(layerId);
+          }}
+          project={snapshot?.project}
+          playheadUs={playheadUs}
+          playing={playing}
+          onPlayingChange={setPlaying}
+          onPlayheadChange={setPlayheadUs}
+          projectVersion={projectVersion}
+        />
+      )}
 
       <Inspector
+        onEditCode={async (itemId) => {
+          if (
+            sourceItemId &&
+            sourceItemId !== itemId &&
+            sourceClose.current &&
+            !(await sourceClose.current())
+          )
+            return;
+          setPlaying(false);
+          setSourceItemId(itemId);
+        }}
         selectedLayerId={selectedLayerId}
         onSelectedLayerChange={setSelectedLayerId}
         sessionId={snapshot?.sessionId}

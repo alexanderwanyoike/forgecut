@@ -68,8 +68,7 @@
     "rules": [
       {
         "from": "renderer",
-        "allow": ["domain", "graphics"],
-        "allowTypeOnly": ["contract"]
+        "allow": ["domain", "graphics", "contract"]
       },
       {
         "from": "contract",

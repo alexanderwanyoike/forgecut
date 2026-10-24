@@ -83,3 +83,17 @@ Preview, export and promotion all pass the component schema into the same compil
 The native editor can read approved package declarations from the prepared code runtime. Bound that fixed file to 8 MiB and return only its virtual package paths, leaving standard libraries to Monaco and excluding host Node declarations. This read does not expose arbitrary filesystem paths and requires no network request or package download.
 
 Draft preview builds the same candidate and migrations as Apply, then renders one requested frame in the isolated preview worker. It does not publish the candidate. Check the project/session and draft revisions before and after rendering so a late image cannot replace the user's newer work. Package-type and draft-preview commands remain native editor APIs; the MCP transport keeps its smaller bounded source reads and existing jobs.
+
+## Monaco code workspace
+
+Load Monaco 0.57.0 only when the user opens Edit code for a graphic. Keep the surrounding Inspector and timeline available. The editor follows Monaco's standalone models, language-service extra libraries, editor opener and Vite module-worker pattern. Include only the TypeScript/JavaScript and JSON languages and the completion/definition contributions needed here, rather than the full VS Code workbench. Monaco is MIT licensed; its licence and third-party notices are included with the prepared code runtime.
+
+Each source file has a virtual file URI. The shared property declaration generator supplies a read-only `ForgeCut.Props` model, and the native API supplies the approved offline package declarations. Preserve literal package path characters when registering extra libraries so scoped package resolution works. Language activation is asynchronous; wait a bounded five seconds for the TypeScript service before reporting readiness. Use Monaco's textarea input path for the supported Electron version. Editor theme changes update Monaco in place.
+
+The renderer may import the pure shared declaration generator at runtime; the contract zone still cannot import backend code, and the isolated execution zone remains forbidden to the renderer. No project code executes in Monaco or the application renderer.
+
+Serialize draft autosaves using acknowledged revisions. A conflicting agent write retains the local buffer, with explicit choices to load the saved draft or merge only edited files over its latest metadata. Clean agent changes appear without reopening the editor. Finish pending saves before leaving Code, opening another project or closing the window. A late Apply refresh cannot overwrite typing made after that request began.
+
+Preview renders a requested draft frame through the existing isolated native path and retains the last good image on syntax or runtime failure. Apply uses the guarded native promotion job, reports progress/cancellation and defaults to one instance; shared scope shows its affected instance count. Successful Apply advances the saved draft's base to the new active version so editing can continue. Monaco draft undo remains independent from project undo. Schema migration mappings are explicit; per-instance content and positioning remain in Properties.
+
+The isolated preview CSP permits `fetch` of embedded `data:` font resources because the pinned font loader reads those bytes before constructing the font. Network connections remain denied by the CSP and namespace boundary. A real owned-font preview regression covers this grant.

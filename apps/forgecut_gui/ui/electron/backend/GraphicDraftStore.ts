@@ -35,6 +35,7 @@ export class GraphicDraftStore {
   commit(
     initial: GraphicDraft,
     expectedRevision: number,
+    component: GraphicComponent,
     publish: () => Result<
       void,
       { code: "CONFLICT" | "PROJECT_CHANGED" | "CANCELLED"; message: string }
@@ -52,8 +53,25 @@ export class GraphicDraftStore {
               message: "The source draft changed during validation",
             },
           };
+        const next = graphicDraftSchema.parse({
+          ...current.value,
+          revision: current.value.revision + 1,
+          baseVersion: component.version,
+          component,
+        });
+        const data = JSON.stringify(next);
+        if (Buffer.byteLength(data) > 4 * 1024 * 1024)
+          return {
+            ok: false as const,
+            error: {
+              code: "INVALID_INPUT" as const,
+              message: "The applied source draft exceeds 4 MiB",
+            },
+          };
         const published = publish();
-        return published.ok ? current : published;
+        if (!published.ok) return published;
+        await atomicWrite(this.path(next), data);
+        return { ok: true as const, value: next };
       }),
     );
     this.pending = operation;

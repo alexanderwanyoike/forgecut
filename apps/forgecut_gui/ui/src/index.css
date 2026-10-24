@@ -958,3 +958,11 @@ body,
 .graphic-property:disabled {
   opacity: 0.55;
 }
+
+.inspector-code-button {
+  width: auto;
+  height: auto;
+  border-radius: 3px;
+  padding: 6px 10px;
+  margin: 8px 0;
+}

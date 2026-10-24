@@ -86,6 +86,15 @@ notices.push(
   "esbuild: MIT",
   await readFile(join(esbuildFolder, "LICENSE.md"), "utf8"),
 );
+const editorFolder = resolve(
+  dirname(require.resolve("monaco-editor")),
+  "../..",
+);
+notices.push(
+  "monaco-editor 0.57.0: MIT",
+  await readFile(join(editorFolder, "LICENSE"), "utf8"),
+  await readFile(join(editorFolder, "ThirdPartyNotices.txt"), "utf8"),
+);
 await writeFile(join(runtime, "types.json"), JSON.stringify(libraries));
 await writeFile(join(runtime, "THIRD_PARTY_NOTICES.txt"), notices.join("\n\n"));
 console.log(
