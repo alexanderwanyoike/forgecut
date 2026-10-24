@@ -323,7 +323,7 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
     "start_export",
     {
       description:
-        "Queue an MP4 export of the explicitly identified project revision. The immutable snapshot remains unchanged while editing continues. Poll get_job; cancel_job stops rendering before publication. A committing job is finishing its atomic output replacement and can no longer be cancelled.",
+        "Queue an MP4 export of the explicitly identified project revision and sequence. Provide sequenceId for multi-sequence projects. The immutable snapshot remains unchanged while editing continues. Poll get_job; cancel_job stops rendering before publication. A committing job is finishing its atomic output replacement and can no longer be cancelled.",
       inputSchema: exportRequestSchema,
     },
     async (request) => call({ action: "export", ...request }),
