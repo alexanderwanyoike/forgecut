@@ -93,3 +93,45 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
     }
   },
 );
+
+it("cancels a queued export through the renderer command boundary", async () => {
+  const state = new AppState();
+  const editing = new EditingService(state);
+  editing.jobs.start(
+    {
+      sessionId: state.sessionId,
+      projectRevision: 0,
+      requestId: "held",
+      kind: "frame",
+      label: "Held",
+      input: null,
+    },
+    async (signal) => {
+      await new Promise<void>((resolve) =>
+        signal.addEventListener("abort", () => resolve(), { once: true }),
+      );
+      return { ok: true, value: null };
+    },
+  );
+  try {
+    const started = await editing.execute("export_project", {
+      outputPath: join(tmpdir(), "never-rendered.mp4"),
+    });
+    if (!started.ok) throw new Error(started.error.message);
+    const job = started.value as JobSnapshot;
+    expect(
+      await editing.execute("cancel_media_job", {
+        sessionId: state.sessionId,
+        jobId: job.id,
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        status: "cancelled",
+        result: { ok: false, error: { code: "CANCELLED" } },
+      },
+    });
+  } finally {
+    await editing.jobs.close();
+  }
+});
