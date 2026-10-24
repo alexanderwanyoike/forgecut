@@ -71,8 +71,9 @@ export class EditingService {
         throw new EditingError("INVALID_INPUT", "Command must be a string");
       if (!Object.prototype.hasOwnProperty.call(commandSchemas, command))
         throw new EditingError("NOT_FOUND", `Unknown command: ${command}`);
+      const jobControl = command === "get_media_job" || command === "cancel_media_job";
       const meta = metadataSchema.parse(metadata);
-      if (meta?.sessionId) this.state.assertSession(meta.sessionId);
+      if (meta?.sessionId && !jobControl) this.state.assertSession(meta.sessionId);
       const args = commandSchemas[command as CommandName].parse(
         input,
       ) as CommandArgs;
@@ -121,7 +122,7 @@ export class EditingService {
           ...options,
         });
         if (
-          !["create_project", "load_project", "recover_project"].includes(
+          !jobControl && !["create_project", "load_project", "recover_project"].includes(
             command,
           )
         )
@@ -135,7 +136,7 @@ export class EditingService {
               ),
             );
         if (
-          command.startsWith("get_") &&
+          !jobControl && command.startsWith("get_") &&
           revision !== this.state.revision &&
           !assetUnchanged
         )
