@@ -77,7 +77,7 @@ export function useGraphicGesture({
     const move = (event: globalThis.MouseEvent) => {
       const gesture = active.current;
       if (!gesture) return;
-      const current = latest.current;
+      const { current } = latest;
       const bounds = layerBounds(current.item, gesture.layer);
       if (!bounds) return;
       const dx = (event.clientX - gesture.x) / gesture.scale;
