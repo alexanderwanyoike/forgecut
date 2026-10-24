@@ -30,7 +30,7 @@ export function useSequenceEditor(snapshot: ProjectSnapshot | null) {
     snapshot?.activeSequenceId ??
     snapshot?.project.default_sequence?.id ??
     snapshot?.project.id;
-  const key = `${snapshot?.sessionId ?? ""}:${sequenceId ?? ""}`;
+  const key = `${snapshot?.sessionId ?? ""}:${sequenceId ?? ""}:${snapshot?.sequenceRevision ?? 0}`;
   const [context, setContext] = useState({ ...empty, key: "", ready: false });
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
