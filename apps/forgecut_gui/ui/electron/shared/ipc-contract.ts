@@ -13,6 +13,7 @@ import type {
   GraphicCompilation,
 } from "./graphic-source.js";
 import type {
+  ResourceLicense,
   GraphicResource,
   GraphicResourceImport,
   GraphicResourceSelection,
@@ -55,6 +56,7 @@ export type ProbeResult = {
 };
 
 export type Asset = {
+  license?: ResourceLicense;
   id: string;
   name: string;
   path: string;
@@ -305,6 +307,7 @@ export type ItemPatch =
     };
 
 export type EditCommandName =
+  | "set_asset_license"
   | "delete_style_preset"
   | "save_style_preset"
   | "add_graphic_from_preset"
@@ -364,6 +367,10 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  set_asset_license: {
+    args: { assetId: string; license: ResourceLicense | null };
+    result: Asset;
+  };
   delete_style_preset: { args: { presetId: string }; result: undefined };
   save_style_preset: { args: StylePresetInput; result: StylePreset };
   add_graphic_from_preset: {

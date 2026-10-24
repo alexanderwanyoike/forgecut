@@ -1,3 +1,4 @@
+import { creditCommands } from "./commands/credits.js";
 import { ZodError } from "zod";
 import { createHash } from "node:crypto";
 import { stylePresetCommands } from "./commands/style-presets.js";
@@ -53,6 +54,7 @@ const handlers: Record<
   CommandHandler
 > = {
   ...projectCommands,
+  ...creditCommands,
   ...stylePresetCommands,
   ...sequenceCommands,
   ...variantCommands,
@@ -328,6 +330,7 @@ export class EditingService {
   ): unknown {
     // Reuse command semantics on an isolated owner; publish only the final batch.
     const globalCommands = new Set<EditOperation["command"]>([
+      "set_asset_license",
       "save_style_preset",
       "delete_style_preset",
       "update_source_selection",

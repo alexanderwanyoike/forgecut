@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { graphicPropertiesSchema } from "../shared/graphic-property-schema.js";
 import { graphicSourceSchema } from "../shared/graphic-source-schema.js";
-import { resourceImportSchema } from "./graphic-resource-schema.js";
+import {
+  resourceImportSchema,
+  resourceLicenseSchema,
+} from "./graphic-resource-schema.js";
 import type { CommandName, EditCommandName } from "../shared/ipc-contract.js";
 import {
   idSchema as id,
@@ -79,6 +82,10 @@ const patch = z.discriminatedUnion("kind", [
 ]);
 const none = z.strictObject({}).optional();
 export const editSchemas = {
+  set_asset_license: z.strictObject({
+    assetId: id,
+    license: resourceLicenseSchema.nullable(),
+  }),
   delete_style_preset: z.strictObject({ presetId: id }),
   save_style_preset: z.strictObject({
     presetId: id.optional(),
