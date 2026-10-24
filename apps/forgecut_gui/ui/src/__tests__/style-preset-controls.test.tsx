@@ -132,3 +132,33 @@ it("replaces a saved look from the current graphic and undoes it without changin
   fireEvent.click(screen.getByRole("button", { name: "Undo" }));
   await waitFor(() => expect(state.project).toEqual(before.project));
 });
+
+it("deletes a saved style from the timeline picker without selecting a graphic and restores it with undo", async () => {
+  const { state, service, source, root, App } = await styleFixture();
+  await service.execute("save_style_preset", {
+    sourceSequenceId: root,
+    itemId: source.id,
+    name: "Project card",
+    purpose: "card",
+  });
+  const preset = state.project.style_presets![0];
+  state.setEditingContext({
+    sessionId: state.sessionId,
+    sequenceId: root,
+    selectedItemIds: [],
+    playheadUs: 3000000,
+  });
+  const before = state.snapshot();
+  render(<App />);
+  await screen.findByLabelText("Name");
+  fireEvent.change(screen.getByLabelText("Graphic template"), {
+    target: { value: `style:${preset.id}` },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Delete style: Project card" }),
+  );
+  await waitFor(() => expect(state.project.style_presets).toEqual([]));
+  expect(state.project.timeline).toEqual(before.project.timeline);
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  await waitFor(() => expect(state.project).toEqual(before.project));
+});
