@@ -50,6 +50,8 @@ export const editSchemas = {
     assetId: id,
     trackId: id,
     timelineStartUs: time,
+    sourceInUs: time.optional(),
+    sourceOutUs: time.optional(),
   }),
   trim_clip: z.strictObject({
     itemId: id,

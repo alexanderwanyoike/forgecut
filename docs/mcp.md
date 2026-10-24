@@ -24,6 +24,8 @@ Run `list_sessions`, explicitly select an `instanceId`, and call `attach_session
 
 Submit `apply_edits` with the current identity, expected revision, a unique request ID, a short action label and supported operations. The editor validates and commits one batch, publishes one change and retains one undo action. The result includes created, changed and removed timeline item IDs. On `CONFLICT`, read the latest state before creating another request. Retry an uncertain successful request with its original ID and identical input. Deduplication retains its original revision and changed IDs within the existing bounded in-memory window.
 
+`add_clip_to_timeline` accepts optional `sourceInUs` and `sourceOutUs` for video and audio clips. Omitted bounds retain the full-source defaults. Use these fields to assemble several short ranges in one atomic batch without creating overlapping full-length clips first. Ranges must be positive, within the source duration and compatible with their destination tracks. Invalid operations roll back the complete batch.
+
 If an instance disappears, tools return `UNAVAILABLE`. List sessions and explicitly attach again. Opening another project changes its project session identity; reads and writes using the old identity fail. Local credentials are never returned by MCP tools.
 
 ## Editing context and activity
@@ -63,6 +65,6 @@ The default registry is `$XDG_CONFIG_HOME/forgecut/mcp-sessions`, falling back t
 
 ## Scope and verification
 
-This first Phase 2 slice provides session selection, capability discovery, bounded project reads and live guarded edit batches. Guarded `apply_history`, `save_project` and `open_project` controls are also available. `read_context` now reports selection and playhead with an independent context revision. The editor header shows bridge readiness and the latest successful MCP action. Cancellable imports and source-frame jobs are available. The three-range manual/agent editing acceptance workflow remains before Phase 2 completion.
+This first Phase 2 slice provides session selection, capability discovery, bounded project reads and live guarded edit batches. Guarded `apply_history`, `save_project` and `open_project` controls are also available. `read_context` now reports selection and playhead with an independent context revision. The editor header shows bridge readiness and the latest successful MCP action. Cancellable imports and source-frame jobs are available. The automated three-range manual/agent editing workflow now passes through the official SDK and live owner. Human acceptance in the desktop editor remains part of reviewing this stack.
 
 `yarn --cwd apps/forgecut_gui/ui test` exercises the real local bridge and official SDK. `yarn --cwd apps/forgecut_gui/ui verify:electron` additionally starts a real STDIO child with an isolated copy of the adapter bundle, edits Electron's project, imports generated media through a job and checks both the rendered project name and asset bin. Use Xvfb on headless Linux and an isolated Vite port when another development server is running. This checks the built adapter and development Electron application; full installer validation remains a separate check. Windows/macOS runtime transport has not been manually verified here.

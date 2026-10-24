@@ -251,7 +251,13 @@ export type CommandMap = {
   get_timeline: { args: undefined; result: Timeline };
   init_default_tracks: { args: undefined; result: Timeline };
   add_clip_to_timeline: {
-    args: { assetId: string; trackId: string; timelineStartUs: TimeUs };
+    args: {
+      assetId: string;
+      trackId: string;
+      timelineStartUs: TimeUs;
+      sourceInUs?: TimeUs;
+      sourceOutUs?: TimeUs;
+    };
     result: Timeline;
   };
   trim_clip: {
