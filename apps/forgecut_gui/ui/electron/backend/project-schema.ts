@@ -197,20 +197,20 @@ export function validateProject(input: unknown): Project {
     previous.schema_version === undefined ||
     previous.schema_version === 1 ||
     previous.schema_version === 2;
-  const project = projectSchema.parse(
-    legacy
-      ? {
-          ...previous,
-          schema_version: 4,
-          default_sequence: previous.default_sequence ?? {
-            id: randomUUID(),
-            name: "Main",
-          },
-        }
-      : previous.schema_version === 3
-        ? { ...previous, schema_version: 4 }
-        : previous,
-  );
+  let migrated = previous;
+  if (legacy) {
+    migrated = {
+      ...previous,
+      schema_version: 4,
+      default_sequence: previous.default_sequence ?? {
+        id: randomUUID(),
+        name: "Main",
+      },
+    };
+  } else if (previous.schema_version === 3) {
+    migrated = { ...previous, schema_version: 4 };
+  }
+  const project = projectSchema.parse(migrated);
   const ids = new Set<string>();
   const unique = (id: string) => {
     if (ids.has(id)) throw new Error(`Duplicate ID: ${id}`);
