@@ -1,3 +1,4 @@
+import { verifyCredits } from "./credits-smoke.mjs";
 import { verifyStyleControls } from "./style-controls-smoke.mjs";
 import { verifyStylePresets } from "./style-preset-smoke.mjs";
 import { verifySourceSelections } from "./source-selection-smoke.mjs";
@@ -221,6 +222,7 @@ async function main() {
   await verifySourceSelections(mcpDirectory, send);
   await verifyStylePresets(mcpDirectory, send);
   await verifyStyleControls(send);
+  await verifyCredits(mcpDirectory, send);
   ws.close();
 
   const value = result.result?.result?.value;
