@@ -5,6 +5,7 @@ import type {
 } from "../../electron/shared/ipc-contract";
 import { useSourceReview } from "../hooks/useSourceReview";
 import ActionButton from "./ActionButton";
+import SourceReviewOutput from "./SourceReviewOutput";
 
 type Props = {
   snapshot: ProjectSnapshot;
@@ -69,43 +70,7 @@ export default function SourceReviewPanel({
       {review.result && !review.result.ok && (
         <p role="alert">{review.result.error.message}</p>
       )}
-      {output && "peaks" in output && (
-        <figure>
-          <svg
-            role="img"
-            aria-label="Source waveform"
-            viewBox={`0 0 ${output.peaks.length} 100`}
-            preserveAspectRatio="none"
-            className="source-waveform"
-          >
-            {output.peaks.map(([low, high], index) => (
-              <line
-                key={index}
-                x1={index + 0.5}
-                x2={index + 0.5}
-                y1={50 - high * 48}
-                y2={50 - low * 48}
-              />
-            ))}
-          </svg>
-          <figcaption>
-            {(output.startUs / 1000000).toFixed(3)} to{" "}
-            {(output.endUs / 1000000).toFixed(3)} seconds
-          </figcaption>
-        </figure>
-      )}
-      {output && "mimeType" in output && (
-        <figure>
-          <img
-            src={`data:${output.mimeType};base64,${output.data}`}
-            alt="Source contact sheet"
-          />
-          <figcaption>
-            {(output.startUs / 1000000).toFixed(3)} to{" "}
-            {(output.endUs / 1000000).toFixed(3)} seconds
-          </figcaption>
-        </figure>
-      )}
+      {output && <SourceReviewOutput output={output} />}
     </div>
   );
 }
