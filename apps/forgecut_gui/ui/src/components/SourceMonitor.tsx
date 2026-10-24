@@ -20,6 +20,9 @@ export default function SourceMonitor({ asset, onClose, children }: Props) {
     <section
       className="panel source-monitor"
       onKeyDown={(event) => event.stopPropagation()}
+      onLoadedDataCapture={(event) => {
+        if (event.target !== media.current) media.current?.pause();
+      }}
       onPlayCapture={(event) => {
         event.currentTarget
           .querySelectorAll<HTMLMediaElement>("audio, video")

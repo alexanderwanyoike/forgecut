@@ -1,4 +1,4 @@
-import { AudioLines, Film, Images, X } from "lucide-react";
+import { ArrowLeft, AudioLines, Film, Images, X } from "lucide-react";
 import type {
   Asset,
   ProjectSnapshot,
@@ -70,6 +70,11 @@ export default function SourceReviewPanel({
         >
           Short preview
         </ActionButton>
+        {output && "mimeType" in output && output.mimeType === "video/webm" && (
+          <ActionButton icon={ArrowLeft} onClick={review.clear}>
+            Back to source
+          </ActionButton>
+        )}
         {review.busy && (
           <ActionButton
             icon={X}

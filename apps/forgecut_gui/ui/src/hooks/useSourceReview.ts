@@ -134,13 +134,20 @@ export function useSourceReview(input: Input) {
       if (token === generation.current) setBusy(false);
     }
   }
-  function cancel() {
+  function clear(status: "cancelled" | null) {
     generation.current += 1;
     stop(job.current);
     job.current = null;
     setBusy(false);
-    setStatus("cancelled");
+    setStatus(status);
     setResult(null);
   }
-  return { result, status, busy, start, cancel };
+  return {
+    result,
+    status,
+    busy,
+    start,
+    cancel: () => clear("cancelled"),
+    clear: () => clear(null),
+  };
 }

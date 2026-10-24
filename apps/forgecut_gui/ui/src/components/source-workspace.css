@@ -129,3 +129,14 @@
   max-height: 240px;
   background: var(--bg-primary);
 }
+.source-monitor:has(.source-review video) .source-media-stage,
+.source-monitor:has(.source-review video) .source-monitor-help {
+  display: none;
+}
+.source-monitor:has(.source-review video) .source-review {
+  flex: 1;
+  max-height: none;
+}
+.source-review video {
+  object-fit: contain;
+}
