@@ -1,6 +1,6 @@
 /** @vitest-environment node */
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { tmpdir } from "node:os";
 import { expect, it } from "vitest";
@@ -287,6 +287,87 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
         false,
         false,
       ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);
+
+it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0).each([33333, 66667])(
+  "preserves nonuniform source frames when a cut starts at %ius",
+  async (startUs) => {
+    const dir = await mkdtemp(join(tmpdir(), "forgecut-source-frames-"));
+    try {
+      const raw = join(dir, "source.rgb");
+      const bytes = Buffer.alloc(6 * 16 * 16 * 3);
+      for (let frame = 0; frame < 6; frame += 1)
+        for (let pixel = 0; pixel < 256; pixel += 1)
+          bytes[frame * 768 + pixel * 3 + (frame % 2)] = 255;
+      await writeFile(raw, bytes);
+      const source = join(dir, "source.mkv");
+      ffmpeg([
+        "-f",
+        "rawvideo",
+        "-pixel_format",
+        "rgb24",
+        "-video_size",
+        "16x16",
+        "-framerate",
+        "30",
+        "-i",
+        raw,
+        "-c:v",
+        "ffv1",
+        "-threads",
+        "1",
+        source,
+      ]);
+      const state = new AppState();
+      const editing = new EditingService(state);
+      await editing.execute("update_project", {
+        settings: { width: 16, height: 16, fps: 30 },
+      });
+      await editing.execute("init_default_tracks");
+      await editing.execute("import_assets", { paths: [source] });
+      await editing.execute("add_clip_to_timeline", {
+        assetId: state.project.assets[0].id,
+        trackId: state.project.timeline.tracks[0].id,
+        timelineStartUs: startUs,
+        sourceInUs: 0,
+        sourceOutUs: 100000,
+      });
+      await editing.execute("add_text_overlay", {
+        trackId: "tail",
+        timelineStartUs: 0,
+        durationUs: 333333,
+        text: "x",
+        fontSize: 10,
+        color: "#000000",
+        x: 100,
+        y: 100,
+      });
+      const output = join(dir, "result.mp4");
+      await exportProject(state.project, output);
+      const pixels = ffmpeg([
+        "-i",
+        output,
+        "-an",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "pipe:1",
+      ]);
+      const start = Math.round((startUs * 30) / 1000000);
+      for (let frame = 0; frame < 10; frame += 1) {
+        const offset = frame * 768;
+        if (frame >= start && frame < start + 3) {
+          expect(pixels[offset + ((frame - start) % 2)]).toBeGreaterThan(180);
+        } else
+          expect(Math.max(...pixels.subarray(offset, offset + 3))).toBeLessThan(
+            15,
+          );
+      }
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

@@ -35,7 +35,7 @@ export function compileExportPlan(project: Project): RenderPlan {
     for (const item of track.items) {
       const range = itemFrameRange(item, fps);
       if (range.end <= range.start) continue;
-          const length = (range.end - range.start) / fps;
+      const length = (range.end - range.start) / fps;
       const active = `gte(round(t*${fps}),${range.start})*lt(round(t*${fps}),${range.end})`;
       const data = itemData(item);
       const index = layerIndex;
