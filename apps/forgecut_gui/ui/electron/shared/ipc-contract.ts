@@ -123,6 +123,18 @@ export type ProjectSnapshot = {
   missingMedia: string[];
   changedItemIds?: string[];
 };
+export type SequenceFrame = {
+  frame: number;
+  frameCount: number;
+  durationUs: TimeUs;
+  settings: ProjectSettings;
+  layers: {
+    item: TimelineItem;
+    trackIndex: number;
+    asset: Asset | null;
+    sourceTimeUs?: TimeUs;
+  }[];
+};
 
 export type EditErrorCode =
   | "CANCELLED"
@@ -304,6 +316,7 @@ export type CommandMap = {
     result: Timeline;
   };
   get_snap_points: { args: { excludeItemId?: string }; result: TimeUs[] };
+  get_sequence_frame: { args: { playheadUs: TimeUs }; result: SequenceFrame };
   get_clip_at_playhead: {
     args: { playheadUs: TimeUs };
     result: ClipAtPlayhead | null;
