@@ -60,6 +60,16 @@ export async function compileGraphicSource(
                 `${base}/index.tsx`,
                 `${base}/index.ts`,
               ].find((candidate) => Object.hasOwn(source.files, candidate));
+              if (
+                path &&
+                !executableSource.test(path) &&
+                !path.endsWith(".json")
+              )
+                return {
+                  errors: [
+                    { text: `Unsupported workspace source extension: ${path}` },
+                  ],
+                };
               return path
                 ? { path, namespace: "workspace" }
                 : {
