@@ -133,3 +133,54 @@ it("keeps manual source notes when an agent changes the range and restores them 
     ),
   );
 });
+
+it("appends the saved source range to the chosen sequence track with one-step undo", async () => {
+  const { state, root, service, App } = await sourceFixture();
+  expect(
+    await service.execute("save_source_selection", {
+      assetId: "source-recording",
+      name: "Opening",
+      sourceInUs: 1500000,
+      sourceOutUs: 3000000,
+      notes: "Manual note",
+      rationale: "Opening shot",
+    }),
+  ).toMatchObject({ ok: true });
+  render(<App />);
+  await screen.findByLabelText("Text");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Review source: Recording.mp4" }),
+  );
+  await screen.findByLabelText("Selection name");
+  const before = state.snapshot();
+  fireEvent.click(screen.getByRole("button", { name: "Append selection" }));
+  await waitFor(() =>
+    expect(
+      state.project.timeline.tracks
+        .flatMap((track) => track.items)
+        .some((item) => "VideoClip" in item),
+    ).toBe(true),
+  );
+  const item = state.project.timeline.tracks
+    .flatMap((track) => track.items)
+    .find((value) => "VideoClip" in value);
+  expect(item).toMatchObject({
+    VideoClip: {
+      asset_id: "source-recording",
+      timeline_start_us: 0,
+      source_in_us: 1500000,
+      source_out_us: 3000000,
+    },
+  });
+  expect(state.snapshot().undoSequenceId).toBe(root);
+  expect(state.project.source_selections).toEqual(
+    before.project.source_selections,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  await waitFor(() =>
+    expect(state.project.timeline).toEqual(before.project.timeline),
+  );
+  expect(state.project.source_selections).toEqual(
+    before.project.source_selections,
+  );
+});
