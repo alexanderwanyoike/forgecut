@@ -1,5 +1,6 @@
 import { ZodError } from "zod";
 import { createHash } from "node:crypto";
+import { creditCommands } from "./commands/credits.js";
 import { stylePresetCommands } from "./commands/style-presets.js";
 import { sourceSelectionCommands } from "./commands/source-selections.js";
 import { sourceReviewCommands } from "./commands/source-review.js";
@@ -53,6 +54,7 @@ const handlers: Record<
   CommandHandler
 > = {
   ...projectCommands,
+  ...creditCommands,
   ...stylePresetCommands,
   ...sequenceCommands,
   ...variantCommands,
@@ -328,6 +330,8 @@ export class EditingService {
   ): unknown {
     // Reuse command semantics on an isolated owner; publish only the final batch.
     const globalCommands = new Set<EditOperation["command"]>([
+      "set_asset_license",
+      "set_resource_license",
       "save_style_preset",
       "delete_style_preset",
       "update_source_selection",

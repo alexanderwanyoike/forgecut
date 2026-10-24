@@ -163,6 +163,16 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
     async (args) => call({ action: "select-sequence", ...args }),
   );
   server.registerTool(
+    "read_asset_credit",
+    {
+      description:
+        "Read one recording, music or image asset's complete licence/provenance and attribution. Missing metadata returns null. Asset pages omit licence text; use read_graphic_resource for font/artwork resource details. Update with set_asset_license or set_resource_license through guarded apply_edits.",
+      inputSchema: z.strictObject({ sessionId: idSchema, assetId: idSchema }),
+      annotations: { readOnlyHint: true },
+    },
+    async (request) => call({ action: "asset-credit", ...request }),
+  );
+  server.registerTool(
     "read_style_presets",
     {
       description:

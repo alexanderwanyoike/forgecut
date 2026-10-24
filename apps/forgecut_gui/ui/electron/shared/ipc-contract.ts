@@ -13,6 +13,7 @@ import type {
   GraphicCompilation,
 } from "./graphic-source.js";
 import type {
+  ResourceLicense,
   GraphicResource,
   GraphicResourceImport,
   GraphicResourceSelection,
@@ -55,6 +56,7 @@ export type ProbeResult = {
 };
 
 export type Asset = {
+  license?: ResourceLicense;
   id: string;
   name: string;
   path: string;
@@ -168,7 +170,7 @@ export type ProjectSequence = {
 };
 
 export type Project = {
-  schema_version?: 2 | 3 | 4 | 5 | 6;
+  schema_version?: 2 | 3 | 4 | 5 | 6 | 7;
   style_presets?: StylePreset[];
   source_selections?: SourceSelection[];
   default_sequence?: Pick<ProjectSequence, "id" | "name">;
@@ -305,6 +307,8 @@ export type ItemPatch =
     };
 
 export type EditCommandName =
+  | "set_resource_license"
+  | "set_asset_license"
   | "delete_style_preset"
   | "save_style_preset"
   | "add_graphic_from_preset"
@@ -364,6 +368,14 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  set_resource_license: {
+    args: { resourceId: string; license: ResourceLicense };
+    result: GraphicResource;
+  };
+  set_asset_license: {
+    args: { assetId: string; license: ResourceLicense | null };
+    result: Asset;
+  };
   delete_style_preset: { args: { presetId: string }; result: undefined };
   save_style_preset: { args: StylePresetInput; result: StylePreset };
   add_graphic_from_preset: {

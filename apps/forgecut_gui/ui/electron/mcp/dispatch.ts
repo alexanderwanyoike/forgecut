@@ -51,6 +51,11 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
   ...sequenceActionSchemas,
   sourceCheckRequestSchema.extend({ action: z.literal("source-check") }),
   resourceRequestSchema.extend({ action: z.literal("resource") }),
+  z.strictObject({
+    action: z.literal("asset-credit"),
+    sessionId: idSchema,
+    assetId: idSchema,
+  }),
   z.strictObject({ action: z.literal("resources"), ...resourcePageFields }),
   z.strictObject({
     action: z.literal("resource-details"),
@@ -195,6 +200,25 @@ export async function dispatchLocal(
       request.action === "item"
     )
       return dispatchSequenceAction(state, request);
+    if (request.action === "asset-credit") {
+      const asset = state.project.assets.find(
+        (value) => value.id === request.assetId,
+      );
+      return asset
+        ? {
+            ok: true,
+            value: {
+              sessionId: state.sessionId,
+              revision: state.revision,
+              assetId: asset.id,
+              license: asset.license ?? null,
+            },
+          }
+        : {
+            ok: false,
+            error: { code: "NOT_FOUND", message: "Asset not found" },
+          };
+    }
     if (request.action === "style-preset-values") {
       const preset = state.project.style_presets?.find(
         (value) => value.id === request.presetId,
@@ -383,10 +407,18 @@ export async function dispatchLocal(
       value: {
         sessionId: state.sessionId,
         revision: state.revision,
-        assets: state.project.assets.slice(
-          request.offset,
-          request.offset + request.limit,
-        ),
+        assets: state.project.assets
+          .slice(request.offset, request.offset + request.limit)
+          .map(({ license, ...asset }) => ({
+            ...asset,
+            ...(license
+              ? {
+                  license: {
+                    identifier: license.identifier,
+                  },
+                }
+              : {}),
+          })),
         total: state.project.assets.length,
       },
     };

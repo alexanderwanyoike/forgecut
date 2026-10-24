@@ -19,7 +19,10 @@ import {
   graphicValuesSchema,
   graphicLayerStatesSchema,
 } from "./graphic-schema.js";
-import { graphicResourceSchema } from "./graphic-resource-schema.js";
+import {
+  graphicResourceSchema,
+  resourceLicenseSchema,
+} from "./graphic-resource-schema.js";
 import { validateProjectGraphics } from "./project-graphics.js";
 
 export {
@@ -96,6 +99,7 @@ export const trackKindSchema = z.enum([
   "Graphics",
 ]);
 export const assetSchema = z.strictObject({
+  license: resourceLicenseSchema.optional(),
   id: idSchema,
   name: z.string(),
   path: z.string().min(1),
@@ -171,7 +175,7 @@ export const sourceSelectionSchema = z
   );
 
 const projectSchema = z.strictObject({
-  schema_version: z.literal(6),
+  schema_version: z.literal(7),
   style_presets: z.array(stylePresetSchema).max(100).default([]),
   source_selections: z.array(sourceSelectionSchema).max(1000).default([]),
   default_sequence: z.strictObject({
@@ -209,7 +213,7 @@ export function validateProject(input: unknown): Project {
   if (legacy) {
     migrated = {
       ...previous,
-      schema_version: 6,
+      schema_version: 7,
       default_sequence: previous.default_sequence ?? {
         id: randomUUID(),
         name: "Main",
@@ -218,9 +222,10 @@ export function validateProject(input: unknown): Project {
   } else if (
     previous.schema_version === 3 ||
     previous.schema_version === 4 ||
-    previous.schema_version === 5
+    previous.schema_version === 5 ||
+    previous.schema_version === 6
   ) {
-    migrated = { ...previous, schema_version: 6 };
+    migrated = { ...previous, schema_version: 7 };
   }
   const project = projectSchema.parse(migrated);
   const ids = new Set<string>();

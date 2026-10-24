@@ -221,6 +221,63 @@ export async function verifyMcp(directory, send) {
       resources.structuredContent.value.resources[0]?.sha256?.length !== 64
     )
       throw new Error("Compiled MCP adapter did not discover imported artwork");
+    const creditRevision = await client.callTool({
+      name: "read_project",
+      arguments: {},
+    });
+    const license = {
+      identifier: "Generated fixture",
+      text: "Generated smoke media",
+      attribution: "ForgeCut acceptance fixture",
+    };
+    const credited = await client.callTool({
+      name: "apply_edits",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        expectedRevision: creditRevision.structuredContent.value.revision,
+        requestId: "smoke-credits",
+        label: "Record project credits",
+        operations: [
+          {
+            command: "set_asset_license",
+            args: { assetId: job.result.value.assetIds[0], license },
+          },
+          {
+            command: "set_resource_license",
+            args: {
+              resourceId: resources.structuredContent.value.resources[0].id,
+              license,
+            },
+          },
+        ],
+      },
+    });
+    if (credited.isError) throw new Error(JSON.stringify(credited));
+    const credit = await client.callTool({
+      name: "read_asset_credit",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        assetId: job.result.value.assetIds[0],
+      },
+    });
+    const artworkCredit = await client.callTool({
+      name: "read_graphic_resource",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        resourceId: resources.structuredContent.value.resources[0].id,
+      },
+    });
+    if (
+      credit.isError ||
+      artworkCredit.isError ||
+      JSON.stringify(credit.structuredContent.value.license) !==
+        JSON.stringify(license) ||
+      JSON.stringify(artworkCredit.structuredContent.value.resource.license) !==
+        JSON.stringify(license)
+    )
+      throw new Error(
+        "Packaged project credits did not round trip through MCP",
+      );
   } finally {
     await client.close();
     await transport.close();
