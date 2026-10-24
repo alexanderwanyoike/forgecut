@@ -280,6 +280,7 @@ export type ItemPatch =
     };
 
 export type EditCommandName =
+  | "create_sequence"
   | "add_graphic_item"
   | "set_sequence_end"
   | "add_clip_to_timeline"
@@ -327,6 +328,10 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  create_sequence: {
+    args: { name: string; settings?: Partial<ProjectSettings> };
+    result: ProjectSequence;
+  };
   start_graphic_promotion: {
     args: GraphicPromotionRequest;
     result: JobSnapshot;
