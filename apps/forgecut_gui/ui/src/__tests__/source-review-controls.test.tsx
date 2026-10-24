@@ -9,7 +9,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type {
   CommandMetadata,
   CommandResponse,
@@ -26,11 +26,24 @@ const mediaTest = it.skipIf(
   ),
 );
 
+const createPreviewUrl = vi.fn(() => "blob:source-preview");
+const revokePreviewUrl = vi.fn();
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.stubGlobal(
+    "URL",
+    class extends URL {
+      static createObjectURL = createPreviewUrl;
+      static revokeObjectURL = revokePreviewUrl;
+    },
+  );
+});
 let directory: string | undefined;
 afterEach(async () => {
   await cleanupSequenceWorkspace();
   if (directory) await rm(directory, { recursive: true, force: true });
   directory = undefined;
+  vi.unstubAllGlobals();
 });
 
 async function reviewFixture(durationSeconds = 2) {
@@ -167,7 +180,8 @@ mediaTest(
     fireEvent.click(screen.getByRole("button", { name: "Short preview" }));
     const video = await screen.findByLabelText("Source preview");
     expect(video.tagName.toLowerCase()).toBe("video");
-    expect(video.getAttribute("src")).toMatch(/^data:video\/webm;base64,/);
+    expect(video.getAttribute("src")).toMatch(/^blob:/);
+    expect(createPreviewUrl).toHaveBeenCalled();
     expect((video as HTMLVideoElement).controls).toBe(true);
     expect(screen.getByText("0.000 to 2.000 seconds")).toBeTruthy();
     expect(state.snapshot()).toEqual(before);
@@ -201,6 +215,7 @@ mediaTest(
       expect(screen.queryByLabelText("Source preview")).toBeNull(),
     );
     expect(stopPreview).toHaveBeenCalled();
+    expect(revokePreviewUrl).toHaveBeenCalledWith("blob:source-preview");
   },
 );
 
