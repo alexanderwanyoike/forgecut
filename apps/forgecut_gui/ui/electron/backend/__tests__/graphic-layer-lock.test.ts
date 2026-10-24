@@ -35,6 +35,18 @@ it("rejects changes to locked layer bindings from the shared editing service", a
       patch: {
         kind: "RemotionGraphic",
         changes: {
+          props: { alignment: "center", animation: "none", entrance_frames: 0 },
+        },
+      },
+    }),
+  ).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  expect(state.snapshot()).toEqual(before);
+  expect(
+    await service.execute("update_item", {
+      itemId: item.RemotionGraphic.id,
+      patch: {
+        kind: "RemotionGraphic",
+        changes: {
           props: { title_x: 400 },
           layer_states: { [layerId]: { locked: false } },
         },

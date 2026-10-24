@@ -124,6 +124,13 @@ it("disables locked bindings even when viewing all properties", async () => {
     />,
   );
   expect(
+    (
+      screen
+        .getByLabelText("Alignment")
+        .closest("fieldset") as HTMLFieldSetElement
+    ).disabled,
+  ).toBe(true);
+  expect(
     (screen.getByLabelText("Title").closest("fieldset") as HTMLFieldSetElement)
       .disabled,
   ).toBe(true);
