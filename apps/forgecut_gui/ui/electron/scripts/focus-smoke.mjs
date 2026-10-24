@@ -35,6 +35,18 @@ export async function verifyFocus(send, state) {
       `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
     );
   };
+  const inspectFocus = (selector) =>
+    evaluate(`(() => {
+          const element = document.querySelector(${JSON.stringify(selector)});
+          const style = getComputedStyle(element);
+          const canvas = document.createElement('canvas');
+          canvas.width = canvas.height = 1;
+          const context = canvas.getContext('2d');
+          context.fillStyle = style.outlineColor;
+          context.fillRect(0, 0, 1, 1);
+          const rgb = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3);
+          return { visible: element.matches(':focus-visible'), width: parseFloat(style.outlineWidth), style: style.outlineStyle, rgb };
+        })()`);
   try {
     for (const theme of ["dark", "light"]) {
       for (const accent of ["cobalt", "sage", "copper", "plum", "amber"]) {
@@ -56,17 +68,7 @@ export async function verifyFocus(send, state) {
           code: "Tab",
           windowsVirtualKeyCode: 9,
         });
-        const focus = await evaluate(`(() => {
-          const element = document.activeElement;
-          const style = getComputedStyle(element);
-          const canvas = document.createElement('canvas');
-          canvas.width = canvas.height = 1;
-          const context = canvas.getContext('2d');
-          context.fillStyle = style.outlineColor;
-          context.fillRect(0, 0, 1, 1);
-          const rgb = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3);
-          return { visible: element.matches(':focus-visible'), width: parseFloat(style.outlineWidth), style: style.outlineStyle, rgb };
-        })()`);
+        const focus = await inspectFocus(":focus");
         if (!focus.visible || focus.width < 1 || focus.style === "none")
           throw new Error(
             `${state} ${theme} ${accent}: keyboard focus is not visible`,
@@ -76,6 +78,34 @@ export async function verifyFocus(send, state) {
             `${state} ${theme} ${accent}: focus outline is colored rather than neutral: ${focus.rgb}`,
           );
         await pointerClick("Appearance");
+        if (accent === "cobalt") {
+          await send("Input.dispatchKeyEvent", {
+            type: "keyDown",
+            key: "Tab",
+            code: "Tab",
+            windowsVirtualKeyCode: 9,
+          });
+          await send("Input.dispatchKeyEvent", {
+            type: "keyUp",
+            key: "Tab",
+            code: "Tab",
+            windowsVirtualKeyCode: 9,
+          });
+          await evaluate(
+            `document.querySelector('.appearance-accents input:checked').focus()`,
+          );
+          const swatch = await inspectFocus(
+            ".appearance-accents input:focus-visible + span",
+          );
+          if (
+            swatch.width < 1 ||
+            swatch.style === "none" ||
+            Math.max(...swatch.rgb) - Math.min(...swatch.rgb) > 24
+          )
+            throw new Error(
+              `${theme}: accent picker keyboard focus is not neutral and visible`,
+            );
+        }
         await pointerClick("Close appearance");
         const pointerFocus = await evaluate(`(() => {
           const element = document.querySelector('button[aria-label="Appearance"]');
@@ -86,6 +116,49 @@ export async function verifyFocus(send, state) {
           throw new Error(
             `${state} ${theme} ${accent}: mouse click leaves a focus ring`,
           );
+      }
+      if (state === "code") {
+        await evaluate(
+          `document.querySelector('.monaco-source-editor textarea.inputarea').focus()`,
+        );
+        await send("Input.dispatchKeyEvent", {
+          type: "keyDown",
+          key: "f",
+          code: "KeyF",
+          windowsVirtualKeyCode: 70,
+          modifiers: 2,
+        });
+        await send("Input.dispatchKeyEvent", {
+          type: "keyUp",
+          key: "f",
+          code: "KeyF",
+          windowsVirtualKeyCode: 70,
+          modifiers: 2,
+        });
+        await evaluate(`new Promise(resolve => setTimeout(resolve, 100))`);
+        const find = await inspectFocus(
+          ".find-widget .monaco-inputbox.synthetic-focus",
+        );
+        if (
+          find.width < 1 ||
+          find.style === "none" ||
+          Math.max(...find.rgb) - Math.min(...find.rgb) > 24
+        )
+          throw new Error(
+            `${theme}: Monaco find focus is not neutral and visible`,
+          );
+        await send("Input.dispatchKeyEvent", {
+          type: "keyDown",
+          key: "Escape",
+          code: "Escape",
+          windowsVirtualKeyCode: 27,
+        });
+        await send("Input.dispatchKeyEvent", {
+          type: "keyUp",
+          key: "Escape",
+          code: "Escape",
+          windowsVirtualKeyCode: 27,
+        });
       }
     }
   } finally {
