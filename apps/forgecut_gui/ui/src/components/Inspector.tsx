@@ -137,6 +137,31 @@ export default function Inspector({
           />
         </label>
       )}
+      {project && (
+        <label className="inspector-row">
+          <span className="inspector-label">Sequence end (s)</span>
+          <PropertyInput
+            type="number"
+            className="inspector-input-sm"
+            min="0.001"
+            step="0.1"
+            placeholder="Automatic"
+            value={
+              project.timeline.duration_us === undefined
+                ? ""
+                : project.timeline.duration_us / 1000000
+            }
+            onValueChange={(raw) => {
+              const seconds = Number(raw);
+              if (raw === "" || (Number.isFinite(seconds) && seconds > 0)) {
+                void invokeGrouped(group.current, "set_sequence_end", {
+                  endUs: raw === "" ? null : Math.round(seconds * 1000000),
+                }).catch(() => {});
+              }
+            }}
+          />
+        </label>
+      )}
       {numberField(
         "Width",
         projectSettings.width,
