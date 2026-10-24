@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { verifyGraphicsPreview } from "./graphics-preview-smoke.mjs";
 import { verifyAudio } from "./audio-smoke.mjs";
 import { verifyMcp } from "./mcp-smoke.mjs";
 import { spawn } from "node:child_process";
@@ -172,6 +173,7 @@ async function main() {
   }
   await verifyMcp(mcpDirectory, send);
   await verifyAudio(mcpDirectory, send);
+  await verifyGraphicsPreview(send);
   ws.close();
 
   const value = result.result?.result?.value;
