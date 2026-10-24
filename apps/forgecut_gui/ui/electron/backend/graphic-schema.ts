@@ -46,10 +46,9 @@ const fileName = z
   .string()
   .min(1)
   .max(256)
-  .refine(
-    (path) =>
-      !path.startsWith("/") &&
-      !path.split(/[\\/]/).some((part) => part === ".." || part === ""),
+  .regex(/^[a-z\d_.-]+(?:\/[a-z\d_.-]+)*$/i)
+  .refine((path) =>
+    path.split("/").every((part) => part !== ".." && part !== "."),
   );
 export const graphicComponentSchema = z.strictObject({
   id: z.uuid(),
