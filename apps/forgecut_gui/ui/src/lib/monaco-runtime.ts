@@ -3,6 +3,9 @@ import * as typescript from "monaco-editor/languages/features/typescript/registe
 import "monaco-editor/languages/definitions/typescript/register";
 import "monaco-editor/languages/definitions/javascript/register";
 import "monaco-editor/languages/features/json/register";
+import "monaco-editor/editor/contrib/suggest/browser/suggestController";
+import "monaco-editor/editor/contrib/gotoSymbol/browser/goToCommands";
+import "monaco-editor/editor/contrib/gotoSymbol/browser/link/goToDefinitionAtPosition";
 import EditorWorker from "monaco-editor/editor/editor.worker?worker";
 import TypeScriptWorker from "monaco-editor/languages/features/typescript/ts.worker?worker";
 import JsonWorker from "monaco-editor/languages/features/json/json.worker?worker";
