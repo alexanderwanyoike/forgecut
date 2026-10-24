@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import SourcePreviewPlayer from "./SourcePreviewPlayer";
 import type { SourceReview } from "../../electron/shared/source-review";
 
 export default function SourceReviewOutput({
@@ -6,11 +7,6 @@ export default function SourceReviewOutput({
 }: {
   output: SourceReview;
 }) {
-  const preview = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    const media = preview.current;
-    return () => media?.pause();
-  }, [output]);
   let content: ReactNode;
   if ("peaks" in output) {
     content = (
@@ -33,15 +29,7 @@ export default function SourceReviewOutput({
       </svg>
     );
   } else if (output.mimeType === "video/webm") {
-    content = (
-      <video
-        ref={preview}
-        controls
-        preload="metadata"
-        aria-label="Source preview"
-        src={`data:${output.mimeType};base64,${output.data}`}
-      />
-    );
+    content = <SourcePreviewPlayer output={output} />;
   } else {
     content = (
       <img
