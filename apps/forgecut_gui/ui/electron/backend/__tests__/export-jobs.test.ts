@@ -56,6 +56,12 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       if (!started.ok) throw new Error(started.error.message);
       const job = started.value as JobSnapshot;
       await editing.execute("update_project", { settings: { width: 128 } });
+      expect(
+        await editing.execute("get_media_job", {
+          sessionId: state.sessionId,
+          jobId: job.id,
+        }),
+      ).toMatchObject({ ok: true, value: { id: job.id, status: "queued" } });
       release();
       await vi.waitFor(() =>
         expect(editing.jobs.read(job.id, state.sessionId)).toMatchObject({
