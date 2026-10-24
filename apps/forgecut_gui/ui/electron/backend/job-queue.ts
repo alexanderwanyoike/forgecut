@@ -5,12 +5,14 @@ import type { JobRequest, JobSnapshot } from "../shared/jobs.js";
 type Runner = (
   signal: AbortSignal,
   report: (progress: number) => void,
+  beginCommit: () => boolean,
 ) => Promise<Result<unknown>>;
 type Entry = {
   snapshot: JobSnapshot;
   fingerprint: string;
   controller: AbortController;
   timedOut?: boolean;
+  committing?: boolean;
 };
 
 export class JobQueue {
@@ -116,6 +118,7 @@ export class JobQueue {
         },
       };
     } else if (entry.snapshot.status === "running") {
+      if (entry.committing) return {ok: false, error: {code: "COMMITTING", message: "The completed output is being published. Poll for completion."}};
       entry.snapshot.status = "cancelling";
       entry.controller.abort();
     }
@@ -139,6 +142,7 @@ export class JobQueue {
       const work = this.pending.shift()!;
       work.entry.snapshot.status = "running";
       const timeout = setTimeout(() => {
+        if (work.entry.committing) return;
         work.entry.timedOut = true;
         work.entry.controller.abort();
       }, this.options.timeoutMs ?? 120000);
@@ -155,6 +159,11 @@ export class JobQueue {
                 work.entry.snapshot.progress,
                 Math.min(0.99, Math.max(0, progress)),
               );
+          },
+          () => {
+            if (work.entry.controller.signal.aborted) return false;
+            work.entry.committing = true;
+            return true;
           },
         );
         if (result.ok) work.entry.snapshot.progress = 1;
