@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  MIN_REVIEW_DURATION_US,
+  MAX_REVIEW_DURATION_US,
+} from "../domain/review-range.js";
 import { graphicPropertiesSchema } from "../shared/graphic-property-schema.js";
 import { graphicSourceSchema } from "../shared/graphic-source-schema.js";
 import {
@@ -273,6 +277,14 @@ export const sourceReviewRequestSchema = z
         (request.kind === "preview" ? 5000000 : 30000000),
     "Review 100 milliseconds to 30 seconds; previews are limited to 5 seconds",
   );
+export const reviewRangeSchema = z
+  .strictObject({ startUs: time, endUs: time })
+  .refine(
+    (range) =>
+      range.endUs - range.startUs >= MIN_REVIEW_DURATION_US &&
+      range.endUs - range.startUs <= MAX_REVIEW_DURATION_US,
+    "Choose a review range between 0.1 and 30 seconds",
+  );
 export const commandSchemas = {
   start_source_review: sourceReviewRequestSchema,
   get_graphic_type_libraries: none,
@@ -356,6 +368,7 @@ export const commandSchemas = {
   cancel_media_job: z.strictObject({ sessionId: id, jobId: z.uuid() }),
   get_media_job: z.strictObject({ sessionId: id, jobId: z.uuid() }),
   export_project: z.strictObject({
+    range: reviewRangeSchema.optional(),
     outputPath: z.string().min(1),
     sequenceId: id.optional(),
   }),

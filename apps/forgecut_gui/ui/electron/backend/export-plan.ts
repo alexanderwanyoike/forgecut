@@ -1,3 +1,4 @@
+import type { ReviewWindow } from "../domain/review-range.js";
 import type { Project } from "./state.js";
 import { assetIdOf, itemData } from "./timeline-ops.js";
 import {
@@ -22,7 +23,10 @@ export type RenderPlan = {
   textFiles: { name: string; content: string }[];
 };
 
-export function compileExportPlan(project: Project): RenderPlan {
+export function compileExportPlan(
+  project: Project,
+  window?: ReviewWindow,
+): RenderPlan {
   const { width, height, fps, sample_rate: sampleRate } = project.settings;
   const duration = sequenceDurationUs(project) / 1_000_000;
   const frameCount = frameAtOrAfter(sequenceDurationUs(project), fps);
@@ -119,10 +123,11 @@ export function compileExportPlan(project: Project): RenderPlan {
       "[outv]",
       "-map",
       "[outa]",
+      ...(window ? ["-ss", String(window.startSeconds)] : []),
       "-frames:v",
-      String(frameCount),
+      String(window?.frameCount ?? frameCount),
       "-t",
-      String(duration),
+      String(window?.durationSeconds ?? duration),
       "-c:v",
       "libx264",
       "-threads",

@@ -1,5 +1,7 @@
 import { mkdtemp, rm, writeFile, open, rename } from "node:fs/promises";
 import { join, dirname, resolve as resolvePath } from "node:path";
+import { resolveReviewWindow } from "../domain/review-range.js";
+import type { ReviewRange } from "../shared/ipc-contract.js";
 import type { Result } from "../shared/result.js";
 import { runMediaProcess } from "./media-process.js";
 import type { Project } from "./state.js";
@@ -20,6 +22,7 @@ export type RenderProgress = {
 };
 
 type ExportOptions = {
+  range?: ReviewRange;
   signal?: AbortSignal;
   beginCommit?: () => boolean;
   onProgress?: (progress: RenderProgress) => void;
@@ -37,6 +40,8 @@ export async function exportProject(
       ok: false,
       error: { code: "CANCELLED", message: "Export cancelled." },
     };
+  const window = resolveReviewWindow(project, options.range);
+  if (!window.ok) return window;
   let directory: string | undefined;
   let result: Result<ExportOutcome>;
   try {
@@ -49,14 +54,16 @@ export async function exportProject(
     );
     if (!prepared.ok) result = prepared;
     else {
-      const plan = compileExportPlan(prepared.value);
+      const plan = compileExportPlan(prepared.value, window.value);
       plan.outputPath = join(directory, "render.mp4");
       result = await renderPrepared(
         plan,
         {
           directory,
           destination,
-          totalSeconds: totalTimelineDurationUs(project) / 1_000_000,
+          totalSeconds:
+            window.value?.durationSeconds ??
+            totalTimelineDurationUs(project) / 1_000_000,
         },
         options,
       );
