@@ -26,6 +26,7 @@ export class GraphicPreviewService {
   private epoch = 0;
 
   private closed = false;
+
   private resetting: Promise<void> = Promise.resolve();
 
   async render(

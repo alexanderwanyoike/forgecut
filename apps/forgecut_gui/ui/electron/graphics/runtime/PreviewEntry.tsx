@@ -101,9 +101,12 @@ window.graphicPreview = async (input) => {
   const start = performance.now();
   while (
     waiting ||
+    window.remotion_delayRenderHandles.length > 0 ||
     player?.getCurrentFrame() !== input.frame ||
     [...document.images].some((image) => !image.complete)
   ) {
+    if (window.remotion_cancelledError)
+      throw new Error(window.remotion_cancelledError);
     if (failure) throw new Error(failure);
     if (performance.now() - start > 5000)
       throw new Error("Graphic assets or frame did not become ready");
@@ -112,4 +115,6 @@ window.graphicPreview = async (input) => {
     });
   }
   if (failure) throw new Error(failure);
+  if (window.remotion_cancelledError)
+    throw new Error(window.remotion_cancelledError);
 };

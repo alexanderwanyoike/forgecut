@@ -43,7 +43,9 @@ export class GraphicPreviewHost {
   private closed = false;
 
   private running = false;
+
   private draining: Promise<void> = Promise.resolve();
+
   private generation = 0;
 
   private nextId = 1;
@@ -165,7 +167,7 @@ export class GraphicPreviewHost {
   }
 
   private async start(): Promise<Result<void>> {
-    const generation = this.generation;
+    const { generation } = this;
     await this.stopping;
     const interrupted = () => this.closed || generation !== this.generation;
     const cancelled: Result<void> = {
