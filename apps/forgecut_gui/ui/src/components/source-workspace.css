@@ -109,6 +109,7 @@
 .source-review figure {
   margin: 12px 0 0;
 }
+.source-review video,
 .source-review img {
   display: block;
   width: 100%;
@@ -122,4 +123,9 @@
   background: var(--bg-primary);
   stroke: var(--accent);
   stroke-width: 1;
+}
+
+.source-review video {
+  max-height: 240px;
+  background: var(--bg-primary);
 }

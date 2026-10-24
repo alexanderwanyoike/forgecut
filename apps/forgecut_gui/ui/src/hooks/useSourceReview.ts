@@ -29,7 +29,14 @@ const waveformSchema = z.object({
     .min(1)
     .max(512),
 });
-const sourceReviewSchema = z.union([contactSheetSchema, waveformSchema]);
+const previewSchema = contactSheetSchema
+  .omit({ columns: true, rows: true, timesUs: true })
+  .extend({ mimeType: z.literal("video/webm") });
+const sourceReviewSchema = z.union([
+  contactSheetSchema,
+  waveformSchema,
+  previewSchema,
+]);
 const active = (job: JobSnapshot) =>
   !["completed", "failed", "cancelled"].includes(job.status);
 function stop(job: JobSnapshot | null) {

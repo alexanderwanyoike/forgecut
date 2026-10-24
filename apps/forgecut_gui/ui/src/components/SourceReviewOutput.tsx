@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { SourceReview } from "../../electron/shared/source-review";
 
 export default function SourceReviewOutput({
@@ -5,13 +6,28 @@ export default function SourceReviewOutput({
 }: {
   output: SourceReview;
 }) {
+  const preview = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const media = preview.current;
+    return () => media?.pause();
+  }, [output]);
   return (
     <figure>
       {"mimeType" in output ? (
-        <img
-          src={`data:${output.mimeType};base64,${output.data}`}
-          alt="Source contact sheet"
-        />
+        output.mimeType === "video/webm" ? (
+          <video
+            ref={preview}
+            controls
+            preload="metadata"
+            aria-label="Source preview"
+            src={`data:${output.mimeType};base64,${output.data}`}
+          />
+        ) : (
+          <img
+            src={`data:${output.mimeType};base64,${output.data}`}
+            alt="Source contact sheet"
+          />
+        )
       ) : (
         <svg
           role="img"

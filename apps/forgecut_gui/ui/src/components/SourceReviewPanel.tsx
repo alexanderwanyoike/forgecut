@@ -1,4 +1,4 @@
-import { AudioLines, Images, X } from "lucide-react";
+import { AudioLines, Film, Images, X } from "lucide-react";
 import type {
   Asset,
   ProjectSnapshot,
@@ -54,6 +54,16 @@ export default function SourceReviewPanel({
           }}
         >
           Waveform
+        </ActionButton>
+        <ActionButton
+          icon={Film}
+          disabled={review.busy || !valid || asset.kind !== "Video"}
+          tooltip="Generate a short video preview with available audio"
+          onClick={() => {
+            void review.start("preview");
+          }}
+        >
+          Short preview
         </ActionButton>
         {review.busy && (
           <ActionButton
