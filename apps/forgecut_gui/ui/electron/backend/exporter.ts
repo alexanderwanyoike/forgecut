@@ -108,7 +108,14 @@ async function renderPrepared(
       ok: false,
       error: { code: "CANCELLED", message: "Export cancelled." },
     };
-  if (options.beginCommit && !options.beginCommit()) return {ok: false, error: {code: "CANCELLED", message: "Export cancelled before publication."}};
+  if (options.beginCommit && !options.beginCommit())
+    return {
+      ok: false,
+      error: {
+        code: "CANCELLED",
+        message: "Export cancelled before publication.",
+      },
+    };
   await rename(plan.outputPath, target.destination);
   if (process.platform === "linux") {
     const parent = await open(dirname(target.destination), "r");

@@ -193,9 +193,12 @@ export class JobQueue {
       clearTimeout(timeout);
       if (work.entry.controller.signal.aborted) {
         const outcome = work.entry.snapshot.result;
-        let message = work.entry.timedOut ? "Job deadline exceeded." : "Job cancelled.";
+        let message = work.entry.timedOut
+          ? "Job deadline exceeded."
+          : "Job cancelled.";
         if (outcome && !outcome.ok) {
-          if (!work.entry.timedOut && outcome.error.code === "CANCELLED") message = outcome.error.message;
+          if (!work.entry.timedOut && outcome.error.code === "CANCELLED")
+            message = outcome.error.message;
           else message = `${message} ${outcome.error.message}`;
         }
         work.entry.snapshot.status = work.entry.timedOut
