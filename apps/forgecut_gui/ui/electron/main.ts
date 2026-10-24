@@ -22,12 +22,14 @@ app.on("before-quit", (event) => {
   if (quitting) return;
   event.preventDefault();
   quitting = true;
-  void Promise.allSettled([editing.jobs.close(), localBridge?.close()]).then((results) => {
-    for (const result of results) {
-      if (result.status === "rejected") console.error(result.reason);
-    }
-    app.quit();
-  });
+  void Promise.allSettled([editing.jobs.close(), localBridge?.close()]).then(
+    (results) => {
+      for (const result of results) {
+        if (result.status === "rejected") console.error(result.reason);
+      }
+      app.quit();
+    },
+  );
 });
 const broadcast: EventSink = (event, payload) => {
   for (const win of BrowserWindow.getAllWindows()) {
