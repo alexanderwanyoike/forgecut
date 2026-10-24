@@ -2,7 +2,10 @@ import { createHash, randomUUID } from "node:crypto";
 import type { Result } from "../shared/result.js";
 import type { JobRequest, JobSnapshot } from "../shared/jobs.js";
 
-type Runner = (signal: AbortSignal) => Promise<Result<unknown>>;
+type Runner = (
+  signal: AbortSignal,
+  report: (progress: number) => void,
+) => Promise<Result<unknown>>;
 type Entry = {
   snapshot: JobSnapshot;
   fingerprint: string;
@@ -67,6 +70,7 @@ export class JobQueue {
       kind: request.kind,
       label: request.label,
       status: "queued",
+      progress: 0,
       result: null,
     };
     const entry = { snapshot, fingerprint, controller: new AbortController() };
@@ -140,7 +144,20 @@ export class JobQueue {
       }, this.options.timeoutMs ?? 120000);
       timeout.unref();
       try {
-        const result = await work.run(work.entry.controller.signal);
+        const result = await work.run(
+          work.entry.controller.signal,
+          (progress) => {
+            if (
+              Number.isFinite(progress) &&
+              !work.entry.controller.signal.aborted
+            )
+              work.entry.snapshot.progress = Math.max(
+                work.entry.snapshot.progress,
+                Math.min(0.99, Math.max(0, progress)),
+              );
+          },
+        );
+        if (result.ok) work.entry.snapshot.progress = 1;
         work.entry.snapshot.result = result;
         work.entry.snapshot.status = result.ok ? "completed" : "failed";
       } catch (error) {

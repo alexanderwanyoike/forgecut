@@ -19,5 +19,6 @@ export type JobSnapshot = {
   kind: JobKind;
   label: string;
   status: JobStatus;
+  progress: number;
   result: Result<unknown> | null;
 };
