@@ -101,6 +101,46 @@ it("pages project style identities and instantiates them through guarded MCP edi
       ok: true,
       value: { total: 2, presets: [{ name: "Project ending" }] },
     });
+    const values: Record<string, unknown> = {};
+    for (
+      let offset = 0;
+      offset < Object.keys(preset.props).length;
+      offset += 5
+    ) {
+      const detail = await client.callTool({
+        name: "read_style_preset",
+        arguments: {
+          sessionId: state.sessionId,
+          presetId: preset.id,
+          offset,
+          limit: 5,
+        },
+      });
+      expect(detail.structuredContent).toMatchObject({
+        ok: true,
+        value: { presetId: preset.id, total: Object.keys(preset.props).length },
+      });
+      const pageValues = (
+        detail.structuredContent as {
+          value: { props: Record<string, unknown> };
+        }
+      ).value.props;
+      expect(Object.keys(pageValues).length).toBeLessThanOrEqual(5);
+      Object.assign(values, pageValues);
+    }
+    expect(values).toEqual(preset.props);
+    expect(
+      (
+        await client.callTool({
+          name: "read_style_preset",
+          arguments: {
+            sessionId: state.sessionId,
+            presetId: preset.id,
+            limit: 6,
+          },
+        })
+      ).isError,
+    ).toBe(true);
     await service.execute("update_item", {
       itemId: source.RemotionGraphic.id,
       patch: {
