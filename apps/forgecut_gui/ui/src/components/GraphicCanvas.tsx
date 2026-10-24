@@ -93,6 +93,26 @@ export default function GraphicCanvas(props: Props) {
                   gesture.begin(layer, event, scale());
                 }}
                 onKeyDown={(event) => gesture.nudge(layer, event)}
+                onDragOver={(event) => {
+                  if (
+                    layer.kind === "image" &&
+                    event.dataTransfer.types.includes(
+                      "application/forgecut-resource",
+                    )
+                  )
+                    event.preventDefault();
+                }}
+                onDrop={(event) => {
+                  if (layer.kind !== "image") return;
+                  const id = event.dataTransfer.getData(
+                    "application/forgecut-resource",
+                  );
+                  if (id) {
+                    event.preventDefault();
+                    props.onSelect?.(item.id, layer.id);
+                    void gesture.change({ [layer.bindings.image]: id });
+                  }
+                }}
                 onDoubleClick={() => {
                   props.onSelect?.(item.id, layer.id);
                   document

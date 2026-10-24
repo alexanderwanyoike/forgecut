@@ -921,3 +921,40 @@ body,
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
+
+.graphic-layer-list {
+  margin: 12px 0;
+}
+.graphic-layer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 0;
+  font-size: 11px;
+}
+.graphic-layer-row > button:first-child {
+  flex: 1;
+  text-align: left;
+}
+.graphic-layer-row button[aria-pressed="true"] {
+  outline: 1px solid #98b9a8;
+}
+.graphic-layer-row label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.graphic-properties {
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.graphic-property {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.graphic-property:disabled {
+  opacity: 0.55;
+}

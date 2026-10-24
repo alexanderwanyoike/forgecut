@@ -1,4 +1,5 @@
 import { basename } from "node:path";
+import { lockedGraphicProperties } from "../../domain/graphic-layer-locks.js";
 import type { CommandMap } from "../../shared/ipc-contract.js";
 import { readResourceFile } from "../graphic-resource-store.js";
 import { importGraphicResource } from "../graphic-resource-import.js";
@@ -85,6 +86,16 @@ export const graphicResourceCommands = {
         )
           throw new Error(
             "The selected property does not accept this resource kind",
+          );
+        if (
+          component &&
+          lockedGraphicProperties(component, item.RemotionGraphic).has(
+            input.target.property,
+          )
+        )
+          throw new EditingError(
+            "CONFLICT",
+            "Unlock this layer before replacing its resource",
           );
         item.RemotionGraphic.props[input.target.property] = imported.value.id;
       }

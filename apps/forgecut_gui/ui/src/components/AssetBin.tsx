@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke, open } from "../lib/bridge";
+import type { GraphicResource } from "../../electron/shared/graphic-resources";
 import type { Asset as ProjectAsset } from "../../electron/shared/ipc-contract";
 
 interface Asset {
@@ -20,12 +21,14 @@ interface AssetBinProps {
   projectVersion: number;
   projectAssets?: ProjectAsset[];
   missingMedia?: string[];
+  resources?: GraphicResource[];
 }
 
 export default function AssetBin({
   projectVersion,
   projectAssets,
   missingMedia = [],
+  resources = [],
 }: AssetBinProps) {
   const [localAssets, setAssets] = useState<Asset[]>([]);
   const assets = projectAssets ?? localAssets;
@@ -119,6 +122,33 @@ export default function AssetBin({
         Import Media
       </button>
       <div className="asset-list">
+        {resources
+          .filter((resource) => resource.kind === "Image")
+          .map((resource) => (
+            <div
+              className="asset-item"
+              key={resource.id}
+              draggable
+              onDragStart={(event) =>
+                event.dataTransfer.setData(
+                  "application/forgecut-resource",
+                  resource.id,
+                )
+              }
+            >
+              <img
+                alt=""
+                width={48}
+                height={32}
+                style={{ objectFit: "contain" }}
+                src={`forgecut-resource://resource/${resource.sha256}`}
+              />
+              <div className="asset-info">
+                <div className="asset-name">{resource.name}</div>
+                <div className="asset-meta">Graphic artwork</div>
+              </div>
+            </div>
+          ))}
         {assets.map((asset) => (
           <div
             key={asset.id}

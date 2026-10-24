@@ -187,6 +187,7 @@ export default function App() {
       <AssetBin
         projectVersion={projectVersion}
         projectAssets={snapshot?.project.assets}
+        resources={snapshot?.project.resources}
         missingMedia={snapshot?.missingMedia}
       />
 
@@ -207,6 +208,8 @@ export default function App() {
       />
 
       <Inspector
+        selectedLayerId={selectedLayerId}
+        onSelectedLayerChange={setSelectedLayerId}
         sessionId={snapshot?.sessionId}
         selectedClipId={selectedClipId}
         project={snapshot?.project}

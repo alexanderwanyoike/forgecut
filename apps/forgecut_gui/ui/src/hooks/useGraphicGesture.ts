@@ -179,5 +179,5 @@ export function useGraphicGesture({
       [layer.bindings.y]: bounds.y + delta[1] * step,
     });
   };
-  return { draft, error, begin, nudge };
+  return { draft, error, begin, nudge, change: commit };
 }
