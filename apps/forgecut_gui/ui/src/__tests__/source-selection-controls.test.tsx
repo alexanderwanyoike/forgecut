@@ -184,3 +184,40 @@ it("appends the saved source range to the chosen sequence track with one-step un
     before.project.source_selections,
   );
 });
+
+it("starts another source range without overwriting a previously saved selection", async () => {
+  const { state, service, App } = await sourceFixture();
+  await service.execute("save_source_selection", {
+    assetId: "source-recording",
+    name: "Opening",
+    sourceInUs: 1000000,
+    sourceOutUs: 3000000,
+    notes: "Keep this opening",
+    rationale: "",
+  });
+  const original = structuredClone(state.project.source_selections![0]);
+  render(<App />);
+  await screen.findByLabelText("Text");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Review source: Recording.mp4" }),
+  );
+  await screen.findByLabelText("Selection name");
+  fireEvent.click(screen.getByRole("button", { name: "New range" }));
+  fireEvent.focus(screen.getByLabelText("Source in (s)"));
+  fireEvent.change(screen.getByLabelText("Source in (s)"), {
+    target: { value: "5" },
+  });
+  fireEvent.blur(screen.getByLabelText("Source in (s)"));
+  fireEvent.focus(screen.getByLabelText("Source out (s)"));
+  fireEvent.change(screen.getByLabelText("Source out (s)"), {
+    target: { value: "7" },
+  });
+  fireEvent.blur(screen.getByLabelText("Source out (s)"));
+  fireEvent.click(screen.getByRole("button", { name: "New selection" }));
+  await waitFor(() => expect(state.project.source_selections).toHaveLength(2));
+  expect(state.project.source_selections![0]).toEqual(original);
+  expect(state.project.source_selections![1]).toMatchObject({
+    source_in_us: 5000000,
+    source_out_us: 7000000,
+  });
+});
