@@ -6,6 +6,7 @@ import type { GraphicDiagnostic } from "../shared/graphic-source.js";
 export function checkTypes(
   source: GraphicComponent["source"],
   libraries: Record<string, string>,
+  extraRootNames: string[] = [],
 ): GraphicDiagnostic[] {
   const root = "/forgecut/component/";
   const files = {
@@ -62,9 +63,12 @@ export function checkTypes(
     getNewLine: () => "\n",
   };
   const program = ts.createProgram(
-    Object.keys(source.files)
-      .filter((name) => executableSource.test(name))
-      .map((name) => root + name),
+    [
+      ...Object.keys(source.files)
+        .filter((name) => executableSource.test(name))
+        .map((name) => root + name),
+      ...extraRootNames,
+    ],
     options,
     host,
   );

@@ -84,7 +84,7 @@ it.skipIf(!available)(
       }
       expect(
         await apply(
-          'export default function Card(){return <div style={{position:"absolute",inset:0,backgroundColor:"#00ff00"}}/>}',
+          'export default function Card({values}:ForgeCut.Props){return <div style={{position:"absolute",inset:0,backgroundColor:values.color}}/>}',
         ),
       ).toMatchObject({ ok: true });
       const approved = state.snapshot();

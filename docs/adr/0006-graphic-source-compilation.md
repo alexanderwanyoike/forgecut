@@ -71,3 +71,9 @@ Compilation does not hold the draft lease or block manual editing. At publicatio
 The packaged UI loads from the secure standard `forgecut-app://editor/` origin selected in ADR 0001. Electron serves only built UI assets beneath its real resolved distribution directory, with a MIME allowlist, a 32 MiB asset limit and symlink/traversal checks. The CSP allows same-origin workers and required project image/font/media protocols while denying frames, objects, forms and arbitrary script evaluation. Development retains its explicit Vite URL.
 
 Long recordings keep their separate streaming `forgecut-media` handler and Range responses. Static UI loading does not read media into memory. The Linux unpacked/ASAR smoke test asserts the application origin and checks the existing UI, MCP, audio, graphics export and canvas workflow.
+
+## Component property types
+
+Custom source can annotate its input with the ambient `ForgeCut.Props` interface. Its `values` fields follow the component property schema, including literal unions for select options, with resource and layer-state contracts alongside them. Generate declarations from validated metadata and supply them as a virtual compiler library. Do not add generated files to the project's source or change its content hash merely to check types.
+
+Preview, export and promotion all pass the component schema into the same compiler. Standalone native/MCP source checks accept optional `properties` for the same API. The pure declaration generator is also available to the forthcoming Monaco integration. Existing source with its own props declarations remains supported. Runtime execution still receives ordinary values and the same restricted resource map; ambient types grant no runtime capabilities.

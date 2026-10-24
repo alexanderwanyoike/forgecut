@@ -57,7 +57,11 @@ export async function prepareGraphicInputs(
       if (
         !templates.some((template) => template.version === component.version)
       ) {
-        const checked = await checkGraphicSource(component.source, signal);
+        const checked = await checkGraphicSource(
+          component.source,
+          signal,
+          component.properties,
+        );
         if (!checked.ok) return checked;
         if (!checked.value.ok)
           return {

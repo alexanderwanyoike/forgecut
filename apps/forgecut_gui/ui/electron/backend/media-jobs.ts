@@ -13,7 +13,11 @@ type MediaJobRequest = {
   expectedRevision: number;
   requestId: string;
 } & (
-  | { action: "source-check"; source: GraphicComponent["source"] }
+  | {
+      action: "source-check";
+      source: GraphicComponent["source"];
+      properties?: GraphicComponent["properties"];
+    }
   | { action: "import"; paths: string[] }
   | { action: "frame"; assetId: string; timeUs: number }
   | {
@@ -70,7 +74,7 @@ export function startMediaJob(
       if (request.action === "source-check") {
         const checked = await service.execute(
           "check_graphic_source",
-          { source: request.source },
+          { source: request.source, properties: request.properties },
           { sessionId: request.sessionId },
           { signal },
         );

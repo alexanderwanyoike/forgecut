@@ -332,7 +332,10 @@ export type CommandMap = {
     result: GraphicPreviewFrame;
   };
   check_graphic_source: {
-    args: { source: GraphicComponent["source"] };
+    args: {
+      source: GraphicComponent["source"];
+      properties?: GraphicComponent["properties"];
+    };
     result: GraphicCompilation;
   };
   // Project
