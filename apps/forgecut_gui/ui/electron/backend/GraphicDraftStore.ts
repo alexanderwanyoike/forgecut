@@ -10,7 +10,15 @@ import { graphicDraftSchema } from "./graphic-draft-schema.js";
 
 type DraftResult = Result<
   GraphicDraft,
-  { code: "IO_ERROR" | "CONFLICT" | "INVALID_INPUT"; message: string }
+  {
+    code:
+      | "IO_ERROR"
+      | "CONFLICT"
+      | "INVALID_INPUT"
+      | "PROJECT_CHANGED"
+      | "CANCELLED";
+    message: string;
+  }
 >;
 
 export class GraphicDraftStore {
@@ -22,6 +30,34 @@ export class GraphicDraftStore {
   async read(initial: GraphicDraft): Promise<DraftResult> {
     await this.pending;
     return this.load(initial);
+  }
+
+  commit(
+    initial: GraphicDraft,
+    expectedRevision: number,
+    publish: () => Result<
+      void,
+      { code: "CONFLICT" | "PROJECT_CHANGED" | "CANCELLED"; message: string }
+    >,
+  ): Promise<DraftResult> {
+    const operation = this.pending.then(() =>
+      this.locked(initial, async () => {
+        const current = await this.load(initial);
+        if (!current.ok) return current;
+        if (current.value.revision !== expectedRevision)
+          return {
+            ok: false as const,
+            error: {
+              code: "CONFLICT" as const,
+              message: "The source draft changed during validation",
+            },
+          };
+        const published = publish();
+        return published.ok ? current : published;
+      }),
+    );
+    this.pending = operation;
+    return operation;
   }
 
   save(

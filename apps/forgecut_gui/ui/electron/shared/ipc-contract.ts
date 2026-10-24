@@ -1,3 +1,4 @@
+import type { GraphicPromotionRequest } from "./graphic-promotion.js";
 import type { GraphicDraft } from "./graphic-draft.js";
 import type { GraphicPreviewFrame } from "./graphic-preview.js";
 import type { GraphicCompilation } from "./graphic-source.js";
@@ -307,6 +308,10 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  start_graphic_promotion: {
+    args: GraphicPromotionRequest;
+    result: JobSnapshot;
+  };
   get_graphic_draft: { args: { itemId: string }; result: GraphicDraft };
   save_graphic_draft: {
     args: {

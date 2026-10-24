@@ -1,3 +1,4 @@
+import type { JobQueue } from "../job-queue.js";
 import type { GraphicDraftStore } from "../GraphicDraftStore.js";
 import type { GraphicPreviewService } from "../GraphicPreviewService.js";
 import type { AppState } from "../state.js";
@@ -7,6 +8,7 @@ export type CommandContext = {
   state: AppState;
   preview?: GraphicPreviewService;
   drafts?: GraphicDraftStore;
+  jobs?: JobQueue;
   signal?: AbortSignal;
   beginCommit?: () => boolean;
   onProgress?: (progress: number) => void;

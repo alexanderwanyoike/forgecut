@@ -2,7 +2,7 @@
 
 Date: 24 October 2026.
 
-Status: source checking, isolated custom rendering and preview implemented. Promotion and the code tab follow in Phase 6.
+Status: source checking, isolated rendering/preview, recoverable drafts and guarded promotion implemented. The code tab follows in Phase 6.
 
 ## Decision
 
@@ -57,3 +57,11 @@ All budgeted compiler, preview and media scopes run under `forgecut-media.slice`
 Store source drafts separately under the user's private ForgeCut draft directory, keyed by project and graphic instance. Native read/save/revert commands do not change active source or project history. Save compares a separate draft revision; Revert writes the active component through a newer revision rather than deleting the counter. Invalid TSX remains recoverable. An active component-version mismatch requires reconciliation or Revert.
 
 Use [proper-lockfile 4.1.2](https://github.com/moxystudio/node-proper-lockfile), MIT licensed, for the filesystem lease around reading, comparing and atomically writing a draft. This extends the existing atomic-write/revision pattern across application instances without implementing a new lock protocol. All writers use the same ten-second stale threshold and five-second heartbeat. Contention returns a conflict; abandoned leases become recoverable. Lease and cleanup failures return typed errors, and cleanup diagnostics retain an existing failure. Files are bounded to 4 MiB and created with private permissions.
+
+## Guarded source promotion
+
+Apply runs through the serial cancellable job queue. Build a candidate project without changing active state, validate its dependency and schema contracts, then check each affected instance's first and last frame in the isolated runtime. This samples runtime behaviour; it cannot prove arbitrary code works at every frame. A syntax/type or runtime failure preserves active source and history.
+
+Default to a new project-local component identity for the selected instance. A shared update explicitly targets instances pinned to the selected component version. Preserve values by stable property IDs, including renamed property keys, and retain compatible layer states. Removed/replaced IDs and changed property types require explicit mappings or discards; a null mapping requests the new default or removes the old layer state. Reject collisions and invalid migrated values. Declared image/font dependencies must exist and are supplied alongside property resources, without granting unrelated project files.
+
+Compilation does not hold the draft lease or block manual editing. At publication, briefly take the lease and recheck the draft revision, session and project revision. Enter the job's commit barrier and publish one project/history change. Undo restores the previous component versions and instance data; draft undo remains separate. An error releasing the lease after a successful project commit is reported as a warning on the successful job rather than claiming the source was not applied.
