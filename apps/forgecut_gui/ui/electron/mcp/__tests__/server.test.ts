@@ -135,6 +135,18 @@ it("requires explicit attachment and edits the live owner through the official M
         })
       ).isError,
     ).toBe(true);
+    const missing = await client.callTool({
+      name: "open_project",
+      arguments: {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        path: join(directory, "missing.forgecut"),
+      },
+    });
+    expect(missing.structuredContent).toMatchObject({
+      ok: false,
+      error: { code: "IO_ERROR" },
+    });
     expect(state.snapshot()).toEqual(unchanged);
   } finally {
     await client.close();
