@@ -72,13 +72,11 @@ it("keeps the bin, timeline, Inspector and paused preview in sync with edits and
       Window["forgecut"]
     >["invoke"],
     mcp: {
-      status: vi
-        .fn()
-        .mockResolvedValue({
-          available: true,
-          statusRevision: 1,
-          lastAction: null,
-        }),
+      status: vi.fn().mockResolvedValue({
+        available: true,
+        statusRevision: 1,
+        lastAction: null,
+      }),
     },
     dialog: { open: vi.fn(), save: vi.fn() },
     events: {

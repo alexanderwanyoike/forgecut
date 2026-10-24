@@ -2,7 +2,9 @@ import { access, mkdir, readFile, readdir, rm } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash, randomUUID } from "node:crypto";
-import type { EditingContext, CommandMap ,
+import type {
+  EditingContext,
+  CommandMap,
   ProjectSnapshot,
   ClipItem,
   ImageOverlayItem,

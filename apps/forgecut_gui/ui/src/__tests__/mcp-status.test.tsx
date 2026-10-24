@@ -14,13 +14,11 @@ it("shows bridge availability and live activity without treating it as creative 
     invoke: vi.fn(),
     dialog: { open: vi.fn(), save: vi.fn() },
     mcp: {
-      status: vi
-        .fn()
-        .mockResolvedValue({
-          available: true,
-          statusRevision: 1,
-          lastAction: null,
-        }),
+      status: vi.fn().mockResolvedValue({
+        available: true,
+        statusRevision: 1,
+        lastAction: null,
+      }),
     },
     events: {
       listen: ((event: string, callback: typeof notify) => {
