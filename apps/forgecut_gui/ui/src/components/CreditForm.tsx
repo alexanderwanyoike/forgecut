@@ -56,7 +56,10 @@ export default function CreditForm({
       const saved = await invokeInContext(
         {
           sessionId: snapshot.sessionId,
-          sequenceId: snapshot.activeSequenceId,
+          sequenceId:
+            snapshot.activeSequenceId ??
+            snapshot.project.default_sequence?.id ??
+            snapshot.project.id,
         },
         "apply_edits",
         {

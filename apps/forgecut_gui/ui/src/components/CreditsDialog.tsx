@@ -29,7 +29,9 @@ export default function CreditsDialog({
       type: "resource" as const,
     })),
   ];
-  const [selected, setSelected] = useState(entries[0]);
+  const [selected, setSelected] = useState<
+    (typeof entries)[number] | undefined
+  >(entries[0]);
   const target = entries.find((value) => value.id === selected?.id);
   useEffect(() => {
     dialog.current?.showModal();
