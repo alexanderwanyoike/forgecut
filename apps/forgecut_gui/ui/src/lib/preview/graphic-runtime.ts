@@ -1,15 +1,11 @@
 import titleSource from "../../../electron/graphics/TitleCard?raw";
 import type { GraphicComponent } from "../../../electron/shared/graphics";
+import { graphicTemplateDefinitions } from "../../../electron/domain/graphic-templates";
+import { graphicComponentContent } from "../../../electron/domain/graphic-component";
 
+const packaged = graphicTemplateDefinitions(titleSource).map(
+  graphicComponentContent,
+);
 export function isPackagedGraphic(component: GraphicComponent): boolean {
-  return (
-    component.source.files[component.source.entry] === titleSource &&
-    Object.keys(component.source.files).length === 1 &&
-    component.dependencies.packages.remotion === "4.0.537" &&
-    component.dependencies.packages.react === "18.3.1" &&
-    component.dependencies.packages["@remotion/fonts"] === "4.0.537" &&
-    Object.keys(component.dependencies.packages).length === 3 &&
-    component.dependencies.assets.length === 0 &&
-    component.dependencies.fonts.length === 0
-  );
+  return packaged.includes(graphicComponentContent(component));
 }
