@@ -151,3 +151,30 @@ it("rejects a declared dependency version that the runtime cannot provide", asyn
     await rm(directory, { recursive: true, force: true });
   }
 }, 20000);
+
+it.skipIf(!available)(
+  "terminates nonterminating component code and retains the previous render",
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), "forgecut-custom-loop-"));
+    try {
+      const { state } = await fixture(
+        "export default function Card(){while(true){}return null;}",
+      );
+      const output = join(directory, "previous.mp4");
+      await writeFile(output, "previous approved render");
+      const started = Date.now();
+      const result = await exportProject(state.project, output, {
+        signal: AbortSignal.timeout(20000),
+      });
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: "RENDER_FAILED" },
+      });
+      expect(Date.now() - started).toBeLessThan(19000);
+      expect(await readFile(output, "utf8")).toBe("previous approved render");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+  30000,
+);

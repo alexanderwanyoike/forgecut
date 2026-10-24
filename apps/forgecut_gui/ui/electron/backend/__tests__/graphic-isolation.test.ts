@@ -63,3 +63,40 @@ it.skipIf(
   },
   15000,
 );
+
+it.skipIf(
+  process.platform !== "linux" ||
+    spawnSync("bwrap", ["--version"]).status !== 0,
+)(
+  "refuses project code when a CPU and memory scope is unavailable",
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), "forgecut-budget-"));
+    const tools = join(directory, "tools");
+    await mkdir(tools);
+    const { symlink } = await import("node:fs/promises");
+    await symlink("/usr/bin/bwrap", join(tools, "bwrap"));
+    const marker = join(directory, "executed");
+    await writeFile(
+      join(directory, "worker.cjs"),
+      `require('node:fs').writeFileSync(${JSON.stringify(marker)},'executed')`,
+    );
+    const job = join(directory, "job.json");
+    await writeFile(job, "{}");
+    vi.stubEnv("PATH", tools);
+    try {
+      expect(
+        await runGraphicWorker(directory, job, undefined, true),
+      ).toMatchObject({
+        ok: false,
+        error: {
+          code: "UNAVAILABLE",
+          message: expect.stringContaining("CPU and memory"),
+        },
+      });
+      await expect(readFile(marker)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      vi.unstubAllEnvs();
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
