@@ -151,6 +151,7 @@ export async function dispatchLocal(
     if (request.action === "templates") {
       const result = await service.execute("get_graphic_components");
       if (!result.ok) return result;
+      state.assertSession(request.sessionId);
       return {
         ok: true,
         value: {
