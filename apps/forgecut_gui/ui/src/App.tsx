@@ -192,6 +192,7 @@ export default function App() {
           <SequenceControls
             key={snapshot.sessionId}
             snapshot={snapshot}
+            selectedItemId={selectedClipId}
             beforeChange={async () => {
               if (sourceClose.current && !(await sourceClose.current()))
                 return false;

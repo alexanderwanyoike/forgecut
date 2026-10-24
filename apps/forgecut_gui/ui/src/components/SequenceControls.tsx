@@ -1,4 +1,4 @@
-import { Copy, Layers3, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, Layers3, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import ActionButton from "./ActionButton";
 import { projectSequences } from "../../electron/domain/project-sequences";
@@ -32,9 +32,14 @@ const submitLabels = {
 type Props = {
   snapshot: ProjectSnapshot;
   beforeChange: () => Promise<boolean>;
+  selectedItemId: string | null;
 };
 
-export default function SequenceControls({ snapshot, beforeChange }: Props) {
+export default function SequenceControls({
+  snapshot,
+  beforeChange,
+  selectedItemId,
+}: Props) {
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState<NameEdit | null>(null);
   const sequences = projectSequences(snapshot.project);
@@ -189,6 +194,26 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
           void remove().catch(() => {});
         }}
       ></ActionButton>
+      {selected.variant_source && (
+        <ActionButton
+          icon={RefreshCw}
+          tooltip="Copy selected item timing from the source sequence, keeping local content and crop"
+          disabled={busy || form !== null || !selectedItemId}
+          onClick={() => {
+            if (!selectedItemId) return;
+            setBusy(true);
+            void invokeInContext(
+              { sessionId: snapshot.sessionId, sequenceId: selected.id },
+              "sync_variant_timing",
+              { itemIds: [selectedItemId] },
+            )
+              .catch(() => {})
+              .finally(() => setBusy(false));
+          }}
+        >
+          Sync timing
+        </ActionButton>
+      )}
       {form && (
         <form
           className="sequence-name-form"
