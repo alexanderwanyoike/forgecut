@@ -2,7 +2,7 @@
 
 Date: 24 October 2026.
 
-Status: source checking implemented. Isolated custom preview, promotion and the code tab follow in Phase 6.
+Status: source checking, isolated custom rendering and preview implemented. Promotion and the code tab follow in Phase 6.
 
 ## Decision
 
@@ -39,3 +39,11 @@ Unrecognised component versions are content-hash checked and compiled before ren
 Project code additionally requires the existing Linux systemd user scope with CPU and memory limits. If that scope cannot be established, execution returns unavailable; there is no unbounded fallback. Existing built-in rendering retains its supported process-ownership fallback. Custom frames use Remotion's supported minimum timeout of seven seconds, with the outer owned-process deadline and cancellation remaining in force. These are Linux execution guarantees; other platforms remain disabled until an equivalent boundary is validated.
 
 Maintained real-render checks cover custom source at exact frames, changed instance values, save/reopen, absence of Node capabilities and the editor bridge, runtime errors, nonterminating code, dependency mismatches and preservation of the previously approved destination. A separate boundary test verifies that project code is refused without its resource scope. Browser compatibility shims such as Remotion's `window.process.env` are distinguished from Node capabilities.
+
+## Isolated interactive preview
+
+Reuse the prepared headless Chromium browser for custom preview rather than granting a separate Electron renderer access to the desktop display socket. The browser stays inside the same filesystem, network, PID and resource boundary as export. It has no application preload. A private loopback server serves only the prepared preview bundle; its CSP denies connections, frames and workers, and allows supplied image/font data URLs. Chromium executes the same checked component and Remotion Player used by rendering.
+
+A persistent owned worker accepts bounded frame requests. Four prepared component contexts and four pending contexts are retained; a newer queued frame replaces the old one for the same context. Startup is limited to 15 seconds and a frame to seven seconds. Project switches abort preparation and terminate the worker. Application shutdown awaits worker cleanup. Preview results are PNGs bounded to 960 pixels per side and 518400 pixels total; project code never executes in the editor renderer.
+
+The maintained Linux test checks two exact frames, changed preview-only properties, unchanged project/history, and a warm frame update below one second. This uses Remotion's existing browser/CDP interfaces and avoids a second renderer runtime or desktop-socket exception.

@@ -7,7 +7,9 @@
     "electron/mcp/stdio.ts",
     "electron/graphics/*.tsx",
     "electron/source/worker.ts",
-    "electron/graphics/runtime/RenderEntry.tsx"
+    "electron/graphics/runtime/RenderEntry.tsx",
+    "electron/graphics/runtime/PreviewEntry.tsx",
+    "electron/backend/graphic-preview-worker.ts"
   ],
   "ignorePatterns": ["dist-installers/**"],
   "health": {

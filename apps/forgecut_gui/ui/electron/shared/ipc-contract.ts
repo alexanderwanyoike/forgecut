@@ -1,3 +1,4 @@
+import type { GraphicPreviewFrame } from "./graphic-preview.js";
 import type { GraphicCompilation } from "./graphic-source.js";
 import type {
   GraphicResource,
@@ -194,6 +195,9 @@ export type SequenceFrame = {
 };
 
 export type EditErrorCode =
+  | "UNAVAILABLE"
+  | "RENDER_FAILED"
+  | "TIMEOUT"
   | "COMMITTING"
   | "CANCELLED"
   | "INVALID_INPUT"
@@ -302,6 +306,10 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  get_graphic_preview: {
+    args: { itemId: string; frame: number; props?: GraphicValues };
+    result: GraphicPreviewFrame;
+  };
   check_graphic_source: {
     args: { source: GraphicComponent["source"] };
     result: GraphicCompilation;

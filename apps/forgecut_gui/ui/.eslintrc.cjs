@@ -54,6 +54,7 @@ module.exports = {
           "electron/mcp/stdio.ts",
           "electron/graphics/**",
           "electron/backend/graphic-worker.ts",
+          "electron/backend/graphic-preview-worker.ts",
           "electron/source/**",
           "src/components/GraphicPreview.tsx",
         ],
