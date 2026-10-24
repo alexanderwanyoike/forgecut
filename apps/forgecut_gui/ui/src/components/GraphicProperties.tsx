@@ -36,14 +36,7 @@ export default function GraphicProperties({
   const selected = component.layers.find(
     (layer) => layer.id === selectedLayerId,
   );
-  const keys = selected
-    ? new Set([
-        ...Object.values(selected.bindings),
-        ...(selected.kind === "text"
-          ? ["alignment", "animation", "entrance_frames"]
-          : []),
-      ])
-    : null;
+  const keys = selected ? new Set(Object.values(selected.bindings)) : null;
   const locked = lockedGraphicProperties(component, item);
   const renderProperty = (key: string, property: GraphicProperty) => {
     const value = item.props[key] ?? property.default;

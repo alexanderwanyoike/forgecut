@@ -30,6 +30,9 @@ export type GraphicLayer = { id: string; name: string; label: string } & (
         color: string;
         font_size: string;
         font?: string;
+        alignment?: string;
+        animation?: string;
+        entrance_frames?: string;
       };
     }
   | {

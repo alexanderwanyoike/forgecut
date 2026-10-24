@@ -113,6 +113,9 @@ export const graphicComponentSchema = z.strictObject({
             color: key,
             font_size: key,
             font: key.optional(),
+            alignment: key.optional(),
+            animation: key.optional(),
+            entrance_frames: key.optional(),
           }),
         }),
         z.strictObject({

@@ -38,7 +38,8 @@ export function validateProjectGraphics(project: Project): void {
         if (binding === "color") expected = "color";
         if (binding === "font") expected = "font";
         if (binding === "image") expected = "image";
-        if (binding === "fit") expected = "select";
+        if (["fit", "alignment", "animation"].includes(binding))
+          expected = "select";
         if (property?.type !== expected)
           throw new Error(`Invalid layer property binding: ${name}`);
       }
