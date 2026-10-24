@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const fileName = z
+export const graphicSourceFileNameSchema = z
   .string()
   .min(1)
   .max(256)
@@ -10,10 +10,10 @@ const fileName = z
   );
 
 export const graphicSourceSchema = z.strictObject({
-  entry: fileName,
+  entry: graphicSourceFileNameSchema,
   files: z
     .record(
-      fileName,
+      graphicSourceFileNameSchema,
       z
         .string()
         .max(131072)

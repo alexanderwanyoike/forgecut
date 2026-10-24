@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { registerSourceTools } from "./source-tools.js";
 import { sourceCheckRequestSchema } from "./source-schema.js";
 import {
   resourceRequestSchema,
@@ -85,6 +86,7 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
             },
           },
     );
+  registerSourceTools(server, call);
   server.registerTool(
     "list_sessions",
     {
