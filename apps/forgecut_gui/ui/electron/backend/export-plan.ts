@@ -76,7 +76,7 @@ export function compileExportPlan(project: Project): RenderPlan {
             ? `trim=start=${item.VideoClip.source_in_us / 1_000_000}:end=${item.VideoClip.source_out_us / 1_000_000},`
             : "";
         filters.push(
-          `[${input.index}:v]${trim}setpts=PTS-STARTPTS,fps=${fps},scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2:color=black@0,format=rgba,colorchannelmixer=aa=${image?.opacity ?? 1},setpts=PTS+${start}/TB[visual${index}]`,
+          `[${input.index}:v]${trim}setpts=PTS-STARTPTS,${image ? "" : `fps=${fps},`}scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2:color=black@0,format=rgba,colorchannelmixer=aa=${image?.opacity ?? 1},setpts=PTS+${start}/TB[visual${index}]`,
         );
         filters.push(
           `[${videoLabel}][visual${index}]overlay=x=${x}:y=${y}:eof_action=${image ? "repeat" : "pass"}:repeatlast=${image ? 1 : 0}:enable='${active}'[video${index}]`,
