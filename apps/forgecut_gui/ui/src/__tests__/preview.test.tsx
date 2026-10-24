@@ -199,6 +199,16 @@ describe("Preview component", () => {
     });
     expect(screen.queryByRole("alert")).toBeNull();
   });
+  it("clears a failed source warning when a new project snapshot replaces it", () => {
+    const project = videoProject();
+    const { rerender } = render(<Preview {...idle} project={project} />);
+    fireEvent.error(document.querySelector("video")!);
+    expect(screen.getByRole("alert").textContent).toContain("Unable to play");
+    const next = videoProject();
+    next.assets[0].path = "/working.mp4";
+    rerender(<Preview {...idle} project={next} projectVersion={1} />);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
   it("replaces a removed item immediately when the owner publishes another snapshot", () => {
     const project = videoProject();
     const { rerender } = render(<Preview {...idle} project={project} />);
