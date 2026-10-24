@@ -62,3 +62,30 @@ it("keeps the project identity from before the font dialogs opened", async () =>
     ),
   );
 });
+
+it("offers supported image files when importing artwork", async () => {
+  vi.mocked(open).mockResolvedValueOnce("/artwork.png");
+  render(
+    <ResourceProperty
+      kind="Image"
+      itemId="graphic"
+      property="image"
+      label="Artwork"
+      value=""
+      resources={[]}
+      origin={{ sessionId: "project", revision: 1 }}
+      onValueChange={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Import artwork" }));
+  await waitFor(() => expect(invoke).toHaveBeenCalled());
+  expect(open).toHaveBeenCalledExactlyOnceWith({
+    multiple: false,
+    title: "Choose artwork",
+    filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] }],
+  });
+  expect(invoke).toHaveBeenCalledWith(
+    "import_graphic_resource",
+    expect.objectContaining({ path: "/artwork.png", kind: "Image" }),
+  );
+});
