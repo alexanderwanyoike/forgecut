@@ -50,7 +50,8 @@ let activeSession: string | undefined;
 let activeRevision = -1;
 let activeSequenceId: string | undefined;
 let activeSequenceRevision = -1;
-let displayedContext: { sessionId: string; sequenceId: string } | undefined;
+export type CommandTarget = { sessionId: string; sequenceId: string };
+let displayedContext: CommandTarget | undefined;
 
 export function bindEditorContext(
   sessionId: string,
@@ -109,10 +110,19 @@ export function invokeGrouped<K extends CommandName>(
   return request(command, args[0] as InvokeArgs | undefined, group);
 }
 
+export function invokeInContext<K extends CommandName>(
+  target: CommandTarget,
+  command: K,
+  ...args: CommandArgsOf<K> extends undefined ? [] : [CommandArgsOf<K>]
+): Promise<CommandResultOf<K>> {
+  return request(command, args[0] as InvokeArgs | undefined, undefined, target);
+}
+
 function request<K extends CommandName>(
   command: K,
   args?: InvokeArgs,
   editGroup?: string,
+  target = displayedContext,
 ): Promise<CommandResultOf<K>> {
   const jobControl =
     command === "get_media_job" || command === "cancel_media_job";
@@ -121,11 +131,11 @@ function request<K extends CommandName>(
       sessionId:
         command === "get_project_snapshot" || jobControl
           ? undefined
-          : (displayedContext?.sessionId ?? activeSession),
+          : (target?.sessionId ?? activeSession),
       editGroup,
       sequenceId: jobControl
         ? undefined
-        : (displayedContext?.sequenceId ?? activeSequenceId),
+        : (target?.sequenceId ?? activeSequenceId),
     })
     .then((response) => {
       if (!response.ok)

@@ -4,7 +4,7 @@ import { useSequenceEditor } from "./hooks/useSequenceEditor";
 import SequenceControls from "./components/SequenceControls";
 import { invoke, open, save } from "./lib/bridge";
 import AssetBin from "./components/AssetBin";
-import ExportDialog from "./components/ExportDialog";
+import ExportDialog, { type ExportTarget } from "./components/ExportDialog";
 import Inspector from "./components/Inspector";
 import Preview from "./components/Preview";
 import Timeline from "./components/Timeline";
@@ -14,6 +14,7 @@ const CodeWorkspace = lazy(() => import("./components/CodeWorkspace"));
 
 export default function App() {
   const [showExport, setShowExport] = useState(false);
+  const [exportTarget, setExportTarget] = useState<ExportTarget | undefined>();
   const [sourceItemId, setSourceItemId] = useState<string | null>(null);
   const sourceClose = useRef<(() => Promise<boolean>) | null>(null);
   const { snapshot, error, setError } = useProject();
@@ -147,7 +148,18 @@ export default function App() {
           >
             Redo
           </button>
-          <span className="menu-label" onClick={() => setShowExport(true)}>
+          <span
+            className="menu-label"
+            onClick={() => {
+              if (!snapshot || !project?.default_sequence) return;
+              setExportTarget({
+                sessionId: snapshot.sessionId,
+                sequenceId: project.default_sequence.id,
+                name: project.default_sequence.name,
+              });
+              setShowExport(true);
+            }}
+          >
             Export
           </span>
         </div>
@@ -287,7 +299,11 @@ export default function App() {
         />
       )}
 
-      <ExportDialog open={showExport} onClose={() => setShowExport(false)} />
+      <ExportDialog
+        open={showExport}
+        target={exportTarget}
+        onClose={() => setShowExport(false)}
+      />
     </div>
   );
 }

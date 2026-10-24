@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import type { JobSnapshot } from "../../electron/shared/jobs";
-import { invoke, save } from "../lib/bridge";
+import {
+  invoke,
+  invokeInContext,
+  save,
+  type CommandTarget,
+} from "../lib/bridge";
+
+export type ExportTarget = CommandTarget & { name: string };
 
 const active = (job: JobSnapshot | null) =>
   !!job &&
@@ -24,9 +31,11 @@ function acceptJob(
 export default function ExportDialog(props: {
   onClose: () => void;
   open: boolean;
+  target?: ExportTarget;
 }) {
   const [job, setJob] = useState<JobSnapshot | null>(null);
   const [starting, setStarting] = useState(false);
+  const [jobTarget, setJobTarget] = useState<ExportTarget | undefined>();
   const [error, setError] = useState<string | null>(null);
   const exporting = active(job);
   useEffect(() => {
@@ -68,7 +77,9 @@ export default function ExportDialog(props: {
   }, [job?.id, job?.status]);
 
   const handleExport = async () => {
+    const target = props.target;
     setStarting(true);
+    setJobTarget(target);
     setError(null);
     setJob(null);
     try {
@@ -76,7 +87,15 @@ export default function ExportDialog(props: {
         filters: [{ name: "MP4 Video", extensions: ["mp4"] }],
         defaultPath: "export.mp4",
       });
-      if (outputPath) setJob(await invoke("export_project", { outputPath }));
+      if (outputPath) {
+        const started = target
+          ? await invokeInContext(target, "export_project", {
+              outputPath,
+              sequenceId: target.sequenceId,
+            })
+          : await invoke("export_project", { outputPath });
+        setJob(started);
+      }
     } catch (cause) {
       setError(String(cause));
     } finally {
@@ -137,6 +156,18 @@ export default function ExportDialog(props: {
         </div>
         <div className="export-body">
           <div className="export-info">
+            {props.target && (
+              <div className="info-row">
+                <span>Next export</span>
+                <span>{props.target.name}</span>
+              </div>
+            )}
+            {job && jobTarget && (
+              <div className="info-row">
+                <span>{exporting ? "Current job" : "Last export"}</span>
+                <span>{jobTarget.name}</span>
+              </div>
+            )}
             <div className="info-row">
               <span>Format</span>
               <span>MP4 / H.264 + AAC</span>
