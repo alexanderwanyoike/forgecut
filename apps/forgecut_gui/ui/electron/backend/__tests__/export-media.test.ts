@@ -59,7 +59,11 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       ).toBe(true);
       await editing.execute("init_default_tracks");
       expect(
-        (await editing.execute("import_assets", { paths: [relative(process.cwd(), source), music] })).ok,
+        (
+          await editing.execute("import_assets", {
+            paths: [relative(process.cwd(), source), music],
+          })
+        ).ok,
       ).toBe(true);
       const [video, audio] = state.project.assets;
       const [picture, sound] = state.project.timeline.tracks;
@@ -216,6 +220,73 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       expect(pixels[0]).toBeGreaterThan(100);
       expect(pixels[0]).toBeLessThan(150);
       expect(pixels[30]).toBeLessThan(10);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);
+
+it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
+  "uses exact frame intervals after microsecond boundary rounding",
+  async () => {
+    const dir = await mkdtemp(join(tmpdir(), "forgecut-frame-boundaries-"));
+    try {
+      const state = new AppState();
+      const editing = new EditingService(state);
+      await editing.execute("update_project", {
+        settings: { width: 64, height: 36, fps: 30 },
+      });
+      await editing.execute("add_text_overlay", {
+        trackId: "background",
+        timelineStartUs: 0,
+        durationUs: 333333,
+        text: "Background",
+        fontSize: 14,
+        color: "#000000",
+        x: 0,
+        y: 0,
+      });
+      await editing.execute("add_text_overlay", {
+        trackId: "titles",
+        timelineStartUs: 66667,
+        durationUs: 100000,
+        text: "X",
+        fontSize: 14,
+        color: "#ffffff",
+        x: 0,
+        y: 0,
+      });
+      const output = join(dir, "frames.mp4");
+      await exportProject(state.project, output);
+      const pixels = ffmpeg([
+        "-i",
+        output,
+        "-an",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "pipe:1",
+      ]);
+      const stride = 64 * 36 * 3;
+      const active = Array.from(
+        { length: 10 },
+        (_, frame) =>
+          Math.max(...pixels.subarray(frame * stride, (frame + 1) * stride)) >
+          150,
+      );
+      expect(active).toEqual([
+        false,
+        false,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+      ]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
