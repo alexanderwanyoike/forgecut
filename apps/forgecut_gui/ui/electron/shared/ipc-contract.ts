@@ -1,3 +1,4 @@
+import type { StylePreset, StylePresetInput } from "./style-presets.js";
 import type {
   SourceSelection,
   SourceSelectionInput,
@@ -167,7 +168,8 @@ export type ProjectSequence = {
 };
 
 export type Project = {
-  schema_version?: 2 | 3 | 4 | 5;
+  schema_version?: 2 | 3 | 4 | 5 | 6;
+  style_presets?: StylePreset[];
   source_selections?: SourceSelection[];
   default_sequence?: Pick<ProjectSequence, "id" | "name">;
   sequences?: ProjectSequence[];
@@ -303,6 +305,9 @@ export type ItemPatch =
     };
 
 export type EditCommandName =
+  | "delete_style_preset"
+  | "save_style_preset"
+  | "add_graphic_from_preset"
   | "update_source_selection"
   | "create_sequence_variant"
   | "sync_variant_timing"
@@ -359,6 +364,18 @@ export type WaveformData = {
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  delete_style_preset: { args: { presetId: string }; result: undefined };
+  save_style_preset: { args: StylePresetInput; result: StylePreset };
+  add_graphic_from_preset: {
+    args: {
+      presetId: string;
+      trackId: string;
+      timelineStartUs: TimeUs;
+      durationUs: TimeUs;
+      overrides?: GraphicValues;
+    };
+    result: Timeline;
+  };
   update_source_selection: {
     args: { selectionId: string; patch: SourceSelectionPatch };
     result: SourceSelection;

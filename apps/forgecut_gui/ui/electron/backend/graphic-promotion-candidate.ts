@@ -94,6 +94,8 @@ export function prepareGraphicPromotion(
       ),
     ),
   );
+  for (const preset of candidate.style_presets ?? [])
+    references.add(`${preset.component_id}:${preset.component_version}`);
   candidate.components = candidate.components.filter((value) =>
     references.has(`${value.id}:${value.version}`),
   );

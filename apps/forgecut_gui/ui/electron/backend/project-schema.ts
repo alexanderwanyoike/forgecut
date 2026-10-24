@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import {
+  fitSchema,
+  visualPlacementSchema,
+} from "../shared/visual-placement-schema.js";
+import { stylePresetSchema } from "./style-preset-schema.js";
 import type { Project } from "../shared/ipc-contract.js";
 import {
   durationUs,
@@ -16,6 +21,11 @@ import {
 } from "./graphic-schema.js";
 import { graphicResourceSchema } from "./graphic-resource-schema.js";
 import { validateProjectGraphics } from "./project-graphics.js";
+
+export {
+  fitSchema,
+  visualPlacementSchema,
+} from "../shared/visual-placement-schema.js";
 
 export const idSchema = z
   .string()
@@ -42,14 +52,6 @@ export const audioSettingsShape = {
   fade_out_us: timeSchema.optional(),
 };
 export const layerOrderSchema = z.number().int();
-export const fitSchema = z.enum(["contain", "cover"]);
-export const visualPlacementSchema = z.strictObject({
-  ...position,
-  width: positive,
-  height: positive,
-  opacity: z.number().min(0).max(1),
-  fit: fitSchema,
-});
 const clip = z.strictObject({
   origin_item_id: idSchema.optional(),
   id: idSchema,
@@ -169,7 +171,8 @@ export const sourceSelectionSchema = z
   );
 
 const projectSchema = z.strictObject({
-  schema_version: z.literal(5),
+  schema_version: z.literal(6),
+  style_presets: z.array(stylePresetSchema).max(100).default([]),
   source_selections: z.array(sourceSelectionSchema).max(1000).default([]),
   default_sequence: z.strictObject({
     id: idSchema,
@@ -206,14 +209,18 @@ export function validateProject(input: unknown): Project {
   if (legacy) {
     migrated = {
       ...previous,
-      schema_version: 5,
+      schema_version: 6,
       default_sequence: previous.default_sequence ?? {
         id: randomUUID(),
         name: "Main",
       },
     };
-  } else if (previous.schema_version === 3 || previous.schema_version === 4) {
-    migrated = { ...previous, schema_version: 5 };
+  } else if (
+    previous.schema_version === 3 ||
+    previous.schema_version === 4 ||
+    previous.schema_version === 5
+  ) {
+    migrated = { ...previous, schema_version: 6 };
   }
   const project = projectSchema.parse(migrated);
   const ids = new Set<string>();
@@ -226,6 +233,7 @@ export function validateProject(input: unknown): Project {
   project.sequences.forEach((sequence) => unique(sequence.id));
   project.assets.forEach((asset) => unique(asset.id));
   project.resources.forEach((resource) => unique(resource.id));
+  project.style_presets.forEach((preset) => unique(preset.id));
   const assets = new Map(project.assets.map((asset) => [asset.id, asset]));
   for (const selection of project.source_selections) {
     unique(selection.id);

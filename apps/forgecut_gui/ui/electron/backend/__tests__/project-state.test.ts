@@ -158,11 +158,11 @@ describe("versioned project persistence", () => {
     });
     await writeFile(path, JSON.stringify(legacy));
     await state.loadProject(path);
-    expect(state.project.schema_version).toBe(5);
+    expect(state.project.schema_version).toBe(6);
     expect(state.snapshot().missingMedia).toEqual(["missing"]);
     await writeFile(path, JSON.stringify({ ...legacy, schema_version: 1 }));
     await state.loadProject(path);
-    expect(state.project.schema_version).toBe(5);
+    expect(state.project.schema_version).toBe(6);
     const migrated = join(dir, "migrated.forgecut");
     await state.saveProject(migrated);
     const reopened = new AppState();
@@ -209,6 +209,6 @@ describe("versioned project persistence", () => {
     expect(state.project.name).toBe("Untitled");
     vi.mocked(rename).mockImplementation(actual.rename);
     await state.saveProject(path);
-    expect(JSON.parse(await readFile(path, "utf8")).schema_version).toBe(5);
+    expect(JSON.parse(await readFile(path, "utf8")).schema_version).toBe(6);
   });
 });
