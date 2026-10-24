@@ -2,7 +2,7 @@
 
 Date: 24 October 2026.
 
-Status: shared timing, continuous playback, audio envelopes and queued timeline exports implemented. Editable geometry remains in progress.
+Status: Phase 3 sequence timing, continuous playback, audio, framing, explicit ends and queued exports are implemented with automated acceptance on Linux. Human visual/listening acceptance remains for stack review.
 
 The saved project retains integer microseconds. Resolve media at the project frame rate, using half-open frame ranges. Item start and end map to the first frame at or after the stored time; converting a frame boundary back to integer microseconds has a half-microsecond tolerance. Derive every source time from its frame offset, rather than adding rounded frame durations repeatedly. Source frame rates are sampled independently from the project frame rate. Track order supplies compositing order.
 
@@ -10,13 +10,13 @@ The saved project retains integer microseconds. Resolve media at the project fra
 
 The export integration follows FFmpeg's established [timeline filter and framesync patterns](https://www.ffmpeg.org/ffmpeg-filters.html): a bounded black/silent sequence base, trimmed and timestamped visual layers, half-open overlay enables, and independent delayed audio contributions. FFmpeg's [overlay implementation](https://github.com/FFmpeg/FFmpeg/blob/master/libavfilter/vf_overlay.c) informs explicit EOF behavior. System FFmpeg remains an external process under its applicable upstream licence; no upstream implementation is copied into ForgeCut. Preview and export consume the same frame boundaries rather than separately deciding clip durations.
 
-The sections below record the completed playback, audio and export slices. Geometry remains to be integrated.
+The sections below record the completed playback, audio and export slices. The visual placement section records the remaining framing integration.
 
 ## Timeline export slice
 
 The export compiler now uses the shared frame ranges, a bounded black/silent base, track-ordered overlays and sample-delayed independent audio. It does not require a primary video or audio stream. Still images retain their single source frame for their half-open interval. Text is written to private temporary files with expansion disabled, so punctuation and line breaks are literal data. System FFmpeg decoder, encoder and filter threads are limited to one. Legacy music defaults retain 100 ms entrance/exit fades; explicit item envelopes now override them.
 
-Maintained generated-media checks verify the exported leading gap, silent picture cuts, continuous music samples, frame count, title-only ending, still-image opacity and literal punctuation. Prior concat/filter-label assertions were removed because they fixed the obsolete implementation rather than establishing rendered behavior. Export job snapshots, process-tree budgets, cancellation and atomic output remain the next slice.
+Maintained generated-media checks verify the exported leading gap, silent picture cuts, continuous music samples, frame count, title-only ending, still-image opacity and literal punctuation. Prior concat/filter-label assertions were removed because they fixed the obsolete implementation rather than establishing rendered behavior. Export job snapshots, process-tree budgets, cancellation and atomic output are covered below.
 
 Review found two export integration regressions, now covered by real rendered fixtures. Activation compares the rounded project-frame index derived from FFmpeg time, rather than converting frame boundaries back to rounded microsecond timestamps. Source timestamps shift by an exact frame/rate expression; secondary frames are retained only within the explicit interval. Input paths become absolute before the child changes into its private text directory, preserving supported relative source paths. Distinct colour frames check cuts at upward- and downward-rounded boundaries.
 
@@ -45,3 +45,13 @@ The same envelope settings compile to FFmpeg volume/afade filters. Maintained ge
 An optional `timeline.duration_us` sets the sequence end without trimming its items. The typed `set_sequence_end` operation accepts a positive integer time or `null` to follow content again. It participates in the same history, persistence and UI/MCP revision guards as other edits. The resolver rounds the requested end to the first project frame at or after it, matching item end semantics, and returns no active layers after that resolved end.
 
 The Inspector accepts seconds, with a blank value selecting automatic duration. The timeline shows an explicit end marker and includes long tails in its scroll/fit bounds. Export keeps exactly the resolved number of frames, fills an extended tail with black/silence, and does not open source files whose items start wholly after the end. Item envelopes retain their own durations when the sequence cuts them short. Real FFmpeg fixtures verify frame counts, a black tail and an unavailable source outside the export interval.
+
+## Shared visual placement
+
+Video clips may store a complete `transform` (X/Y, width/height, `contain` or `cover`, opacity). Legacy primary and secondary clips resolve to their previous full-frame and quarter-frame PiP defaults until changed. Images expose the same fit rules while retaining their existing serialized geometry. Video, image and text items accept an optional integer `layer_order`; its default is the track index, with stable item order breaking ties. Changing visual stacking does not move tracks or change legacy PiP defaults.
+
+The pure domain resolver supplies both ordering and placement to preview and export. Stored coordinates retain their precision; both renderers round rectangle positions and dimensions to composition pixels, with dimensions at least one pixel. Editing another property preserves the original stored transform values. Inspector controls use shared numeric validation, and all edits use the existing history/revision boundary exposed to MCP.
+
+FFmpeg follows its documented [scale, crop, pad and overlay filters](https://www.ffmpeg.org/ffmpeg-filters.html). `contain` keeps transparent padding; `cover` crops centrally. Composite layers in RGB before the final YUV420 conversion, so subsampling cannot round odd overlay coordinates down. The preview uses the matching CSS object-fit and transparent letterboxing. No upstream implementation is copied.
+
+Maintained rendered fixtures compare crop, fit, alpha, placement and layer order, including video and image rectangles at odd X/Y coordinates. Renderer checks use the same resolved composition coordinates, and shared-service checks cover legacy defaults, undo and invalid-input rollback. These complete the Phase 3 automated checks; manual motion and listening review remain part of desktop acceptance.
