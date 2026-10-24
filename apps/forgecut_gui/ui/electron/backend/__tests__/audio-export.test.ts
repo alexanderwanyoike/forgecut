@@ -69,7 +69,7 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       const state = new AppState();
       const service = new EditingService(state);
       await service.execute("update_project", {
-        settings: { width: 24, height: 24, fps: 20 },
+        settings: { width: 24, height: 24, fps: 1 },
       });
       await service.execute("init_default_tracks");
       await service.execute("import_assets", { paths: [source] });

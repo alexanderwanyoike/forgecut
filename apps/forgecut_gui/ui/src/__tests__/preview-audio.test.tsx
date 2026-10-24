@@ -156,6 +156,9 @@ it("keeps the music source across picture cuts and seeks, pauses and mixes every
   expect(music.currentTime).toBe(1.5);
   expect(outputs.get(first)?.disconnected).toBe(true);
   expect(outputs.get(document.querySelector("video")!)?.value).toBe(0);
+  rerender(<Preview {...props} playheadUs={1250000} playing={false} />);
+  expect(music.currentTime).toBe(1.25);
+  expect(document.querySelector("video")?.currentTime).toBe(1);
   pause.mockClear();
   rerender(<Preview {...props} playheadUs={2000000} playing={false} />);
   expect(music.currentTime).toBe(2);
