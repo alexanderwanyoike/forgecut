@@ -15,6 +15,7 @@ import {
 } from "../backend/timeline-ops.js";
 import { EditingError } from "../backend/editing-error.js";
 import type { BridgeResult } from "./contract.js";
+import { importRequestSchema, jobRequestSchema } from "./job-schema.js";
 
 export const pageFields = {
   sessionId: idSchema,
@@ -31,6 +32,9 @@ export const projectFileRequestSchema = z.strictObject({
     .refine(isAbsolute, "Use an absolute project path"),
 });
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
+  importRequestSchema.extend({ action: z.literal("import") }),
+  jobRequestSchema.extend({ action: z.literal("job") }),
+  jobRequestSchema.extend({ action: z.literal("cancel") }),
   z.strictObject({ action: z.literal("summary") }),
   z.strictObject({ action: z.literal("context"), sessionId: idSchema }),
   projectFileRequestSchema.extend({ action: z.literal("save") }),
@@ -94,6 +98,51 @@ export async function dispatchLocal(
   const request = parsed.data;
   const { state } = service;
   try {
+    if (request.action === "job")
+      return service.jobs.read(request.jobId, request.sessionId);
+    if (request.action === "cancel")
+      return service.jobs.cancel(request.jobId, request.sessionId);
+    if (request.action === "import") {
+      state.assertSession(request.sessionId);
+      return service.jobs.start(
+        {
+          sessionId: request.sessionId,
+          projectRevision: request.expectedRevision,
+          requestId: request.requestId,
+          kind: "import",
+          label: "Import media",
+          input: request.paths,
+        },
+        async (signal, onProgress) => {
+          state.assertSession(request.sessionId);
+          if (state.revision !== request.expectedRevision)
+            return {
+              ok: false,
+              error: {
+                code: "CONFLICT",
+                message:
+                  "The project changed before the import started. Read it again and retry.",
+              },
+            };
+          const imported = await service.execute(
+            "import_assets",
+            { paths: request.paths },
+            { sessionId: request.sessionId },
+            undefined,
+            { signal, onProgress },
+          );
+          if (!imported.ok) return imported;
+          return {
+            ok: true,
+            value: {
+              assetIds: (imported.value as { id: string }[]).map(
+                (asset) => asset.id,
+              ),
+            },
+          };
+        },
+      );
+    }
     if (request.action === "summary")
       return { ok: true, value: summary(state) };
     if (request.action === "apply" || request.action === "history") {
