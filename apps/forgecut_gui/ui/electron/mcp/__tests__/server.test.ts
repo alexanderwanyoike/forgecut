@@ -100,7 +100,7 @@ it("requires explicit attachment and edits the live owner through the official M
     });
     expect(wrongFrame.structuredContent).toMatchObject({
       ok: false,
-      error: { code: "SESSION_MISMATCH" },
+      error: { code: "PROJECT_CHANGED" },
     });
     const history = await client.callTool({
       name: "apply_history",
