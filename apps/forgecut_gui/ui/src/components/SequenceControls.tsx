@@ -45,9 +45,7 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
           name: form.name,
         });
       } else {
-        if (!(await beforeChange())) return;
-        const current = await invoke("get_project_snapshot");
-        if (current.sessionId !== snapshot.sessionId) return;
+        if (!(await canChangeProject())) return;
         const sequence = await invoke("create_sequence", {
           name: form.name,
           settings: form.settings,
@@ -58,6 +56,23 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
         });
       }
       setForm(null);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function canChangeProject(): Promise<boolean> {
+    if (!(await beforeChange())) return false;
+    return (
+      (await invoke("get_project_snapshot")).sessionId === snapshot.sessionId
+    );
+  }
+  async function remove() {
+    if (busy) return;
+    const sequenceId = selected.id;
+    setBusy(true);
+    try {
+      if (await canChangeProject())
+        await invoke("delete_sequence", { sequenceId });
     } finally {
       setBusy(false);
     }
@@ -106,6 +121,15 @@ export default function SequenceControls({ snapshot, beforeChange }: Props) {
         }
       >
         Rename sequence
+      </button>
+      <button
+        className="sequence-action"
+        disabled={busy || form !== null || selected.id === sequences[0].id}
+        onClick={() => {
+          void remove().catch(() => {});
+        }}
+      >
+        Delete sequence
       </button>
       {form && (
         <form
