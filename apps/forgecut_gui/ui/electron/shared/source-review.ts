@@ -5,7 +5,7 @@ export type SourceReviewRequest = {
   assetId: string;
   startUs: number;
   endUs: number;
-  kind: "contact-sheet" | "waveform";
+  kind: "contact-sheet" | "waveform" | "preview";
 };
 export type SourceReviewMetadata = Pick<
   SourceReviewRequest,
@@ -23,4 +23,8 @@ export type SourceWaveform = SourceReviewMetadata & {
   samplesPerPeak: number;
   peaks: [number, number][];
 };
-export type SourceReview = ContactSheet | SourceWaveform;
+export type SourcePreview = SourceReviewMetadata & {
+  mimeType: "video/webm";
+  data: string;
+};
+export type SourceReview = ContactSheet | SourceWaveform | SourcePreview;

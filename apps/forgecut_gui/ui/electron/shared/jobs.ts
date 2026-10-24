@@ -1,7 +1,13 @@
 import type { Result } from "./result.js";
 
 export type JobKind =
-  "import" | "frame" | "export" | "compile" | "contact-sheet" | "waveform";
+  | "import"
+  | "frame"
+  | "export"
+  | "compile"
+  | "contact-sheet"
+  | "waveform"
+  | "source-preview";
 export type JobStatus =
   | "queued"
   | "running"

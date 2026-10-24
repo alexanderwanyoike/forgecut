@@ -54,6 +54,44 @@ async function renderSourceReview(
       "mjpeg",
       "pipe:1",
     );
+  } else if (request.kind === "preview") {
+    args.push(
+      "-map",
+      "0:v:0",
+      "-map",
+      "0:a:0?",
+      "-vf",
+      "fps=15,scale='min(640,iw)':'min(360,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1",
+      "-c:v",
+      "libvpx",
+      "-threads",
+      "1",
+      "-deadline",
+      "realtime",
+      "-cpu-used",
+      "8",
+      "-lag-in-frames",
+      "0",
+      "-b:v",
+      "180k",
+      "-maxrate",
+      "230k",
+      "-bufsize",
+      "460k",
+      "-pix_fmt",
+      "yuv420p",
+      "-c:a",
+      "libopus",
+      "-b:a",
+      "24k",
+      "-ac",
+      "1",
+      "-ar",
+      "24000",
+      "-f",
+      "webm",
+      "pipe:1",
+    );
   } else
     args.push(
       "-vn",
@@ -92,6 +130,15 @@ async function renderSourceReview(
         ),
       },
     };
+  if (request.kind === "preview")
+    return {
+      ok: true,
+      value: {
+        ...metadata,
+        mimeType: "video/webm",
+        data: rendered.value.toString("base64"),
+      },
+    };
   const samplesPerPeak = Math.max(
     1,
     Math.ceil(rendered.value.length / 2 / 512),
@@ -115,7 +162,8 @@ export async function sourceReview(
   if (
     !asset.probe ||
     request.endUs > asset.probe.duration_us ||
-    (request.kind === "contact-sheet" && asset.kind !== "Video") ||
+    ((request.kind === "contact-sheet" || request.kind === "preview") &&
+      asset.kind !== "Video") ||
     (request.kind === "waveform" && asset.probe.audio_channels < 1)
   )
     return {

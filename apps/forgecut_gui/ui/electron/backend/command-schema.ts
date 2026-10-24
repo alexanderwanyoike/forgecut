@@ -264,13 +264,14 @@ export const sourceReviewRequestSchema = z
     assetId: id,
     startUs: time,
     endUs: time,
-    kind: z.enum(["contact-sheet", "waveform"]),
+    kind: z.enum(["contact-sheet", "waveform", "preview"]),
   })
   .refine(
     (request) =>
       request.endUs - request.startUs >= 100000 &&
-      request.endUs - request.startUs <= 30000000,
-    "Review a source range between 100 milliseconds and 30 seconds",
+      request.endUs - request.startUs <=
+        (request.kind === "preview" ? 5000000 : 30000000),
+    "Review 100 milliseconds to 30 seconds; previews are limited to 5 seconds",
   );
 export const commandSchemas = {
   start_source_review: sourceReviewRequestSchema,
