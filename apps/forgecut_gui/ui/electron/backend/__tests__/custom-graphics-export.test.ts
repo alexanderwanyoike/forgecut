@@ -178,3 +178,49 @@ it.skipIf(!available)(
   },
   30000,
 );
+
+it.skipIf(!available)(
+  "resolves approved literal dynamic imports inside the isolated package map",
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), "forgecut-dynamic-module-"));
+    try {
+      const { state } =
+        await fixture(`import {useState,useEffect,useMemo} from "react";
+    import {delayRender,continueRender} from "remotion";
+    export default function Card(){
+      const [color,setColor]=useState("#ff0000");
+      const handle=useMemo(()=>delayRender("approved dynamic import"),[]);
+      useEffect(()=>{void import("remotion").then(module=>{
+        setColor(module.interpolate(1,[0,1],[0,1])===1?"#00ff00":"#ff0000");continueRender(handle);
+      });},[handle]);
+      return <div style={{position:"absolute",inset:0,backgroundColor:color}}/>;
+    }`);
+      const output = join(directory, "dynamic.mp4");
+      const result = await exportProject(state.project, output);
+      expect(result, JSON.stringify(result)).toMatchObject({ ok: true });
+      const pixels = spawnSync("ffmpeg", [
+        "-v",
+        "error",
+        "-threads",
+        "1",
+        "-i",
+        output,
+        "-frames:v",
+        "1",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "-threads",
+        "1",
+        "pipe:1",
+      ]);
+      expect(pixels.status).toBe(0);
+      expect(pixels.stdout[1]).toBeGreaterThan(240);
+      expect(pixels.stdout[0]).toBeLessThan(10);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+  30000,
+);
