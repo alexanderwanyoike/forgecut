@@ -7,6 +7,7 @@ const result = spawnSync(
   [
     resolve(root, "node_modules/vitest/vitest.mjs"),
     "run",
+    "--no-file-parallelism",
     "electron/backend/__tests__/graphics-export.test.ts",
     "electron/backend/__tests__/graphics-worker-process.test.ts",
     "electron/backend/__tests__/graphic-isolation.test.ts",
