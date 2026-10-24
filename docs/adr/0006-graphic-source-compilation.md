@@ -29,3 +29,13 @@ All graphics jobs now use an explicit system/runtime view rather than binding th
 A maintained real worker probe attempts to read a host sentinel outside its grants, connect to a host loopback service, read an inherited environment secret and overwrite its runtime. All four are denied while its job output is writable. Existing detached-child cancellation/crash checks and real font/artwork renders remain passing. The namespace policy applies to the existing renderer now; enabling custom components still requires its own runtime and promotion checks.
 
 Per-file source limits are measured in UTF-8 bytes as documented, rather than JavaScript string length. A Unicode regression covers a file below the character limit but above 128 KiB.
+
+## Project component rendering
+
+The prepared rendering composition can now load a checked project component through an explicit CommonJS package map for React, its JSX runtimes, Remotion and the font loader. Evaluation happens only in the graphics execution zone inside the restricted browser worker. Fallow prevents the editor renderer from importing that zone. The Function constructor is enabled only in this loader's lint override because evaluating a compiled project module is its current responsibility; application code retains the normal rule.
+
+Unrecognised component versions are content-hash checked and compiled before rendering. Declared dependency versions must match the prepared runtime. Source remains separate from instance properties, so a property edit does not rewrite source. Built-in components retain their prepared-source digest check.
+
+Project code additionally requires the existing Linux systemd user scope with CPU and memory limits. If that scope cannot be established, execution returns unavailable; there is no unbounded fallback. Existing built-in rendering retains its supported process-ownership fallback. Custom frames use Remotion's supported minimum timeout of seven seconds, with the outer owned-process deadline and cancellation remaining in force. These are Linux execution guarantees; other platforms remain disabled until an equivalent boundary is validated.
+
+Maintained real-render checks cover custom source at exact frames, changed instance values, save/reopen, absence of Node capabilities and the editor bridge, runtime errors, nonterminating code, dependency mismatches and preservation of the previously approved destination. A separate boundary test verifies that project code is refused without its resource scope. Browser compatibility shims such as Remotion's `window.process.env` are distinguished from Node capabilities.
