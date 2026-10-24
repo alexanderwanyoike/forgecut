@@ -1,6 +1,6 @@
 /** @vitest-environment node */
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
@@ -167,6 +167,21 @@ it("reads bounded source, detects manual draft conflicts and applies through the
     expect(active.structuredContent).toMatchObject({
       ok: true,
       value: { file: { content: patch.content } },
+    });
+    await writeFile(
+      join(directory, "drafts", `${state.project.id}-${itemId}.json`),
+      "corrupt draft",
+    );
+    expect(
+      (
+        await client.callTool({
+          name: "read_graphic_source",
+          arguments: { ...target, view: "active", file },
+        })
+      ).structuredContent,
+    ).toMatchObject({
+      ok: true,
+      value: { draftRevision: null, file: { content: patch.content } },
     });
     expect(
       (
