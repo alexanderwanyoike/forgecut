@@ -88,3 +88,7 @@ Source and music gain, mute and fades are exposed through the typed `update_item
 `set_sequence_end` is also available inside `apply_edits`: supply `endUs` as a positive integer or `null` to follow the content duration. Read `read_sequence_frame` for the resolved duration and frame count. This changes the sequence boundary without trimming any timeline item.
 
 Visual `update_item` patches support a complete video `transform`, image `fit` and integer `layer_order` on video/image/text items. Read `read_sequence_frame` for the resolved placement and compositing order. The `get_capabilities` schemas list every supported field. Full video transforms retain explicit fit and opacity alongside position/size; changes remain guarded by the expected project revision.
+
+## Graphics state
+
+`list_graphic_templates` returns the packaged component schema and editable layer metadata. Create an instance with `add_graphic_item` in `apply_edits`, then use `read_graphic_component` for its exact stored version. `update_item` with a `RemotionGraphic` property patch merges only the supplied keys. The standard identity, revision, retry and history rules apply. Source bodies remain project data until the isolated code execution phase.
