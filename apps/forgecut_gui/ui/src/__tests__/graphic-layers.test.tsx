@@ -142,3 +142,55 @@ it("disables locked bindings even when viewing all properties", async () => {
     ).disabled,
   ).toBe(false);
 });
+
+it("preserves a newer change to another layer when a stale panel toggles visibility", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  await service.execute("add_graphic_item", {
+    templateId: "title-card",
+    trackId: "graphics",
+    timelineStartUs: 0,
+    durationUs: 1000000,
+  });
+  const item = state.project.timeline.tracks[0].items[0];
+  if (!("RemotionGraphic" in item)) throw new Error("Missing graphic");
+  const artwork = state.project.components![0].layers[0].id;
+  await service.execute("update_item", {
+    itemId: item.RemotionGraphic.id,
+    patch: {
+      kind: "RemotionGraphic",
+      changes: { layer_states: { [artwork]: { hidden: false } } },
+    },
+  });
+  render(
+    <Inspector
+      project={state.project}
+      selectedClipId={item.RemotionGraphic.id}
+    />,
+  );
+  await service.execute("update_item", {
+    itemId: item.RemotionGraphic.id,
+    patch: {
+      kind: "RemotionGraphic",
+      changes: { layer_states: { [artwork]: { hidden: true } } },
+    },
+  });
+  vi.mocked(invokeGrouped).mockImplementationOnce(
+    async (_group, command, args) => {
+      const result = await service.execute(command, args);
+      if (!result.ok) throw new Error(result.error.message);
+      return result.value as never;
+    },
+  );
+  fireEvent.click(screen.getByLabelText("Show Title"));
+  await waitFor(() => {
+    const current = state.project.timeline.tracks[0].items[0];
+    if (!("RemotionGraphic" in current)) throw new Error("Missing graphic");
+    expect(current.RemotionGraphic.layer_states?.[artwork].hidden).toBe(true);
+    expect(
+      current.RemotionGraphic.layer_states?.[
+        state.project.components![0].layers[1].id
+      ].hidden,
+    ).toBe(true);
+  });
+});
