@@ -23,7 +23,7 @@ export async function verifyGraphicsPreview(directory, send) {
       if (${JSON.stringify(checkFont)}) {
         const snapshot = await invoke('get_project_snapshot');
         const graphic = snapshot.project.timeline.tracks.flatMap(track => track.items).find(item => item.RemotionGraphic).RemotionGraphic;
-        const imported = await invoke('import_graphic_resource', { path: ${JSON.stringify(font)}, kind: 'Font', licensePath: ${JSON.stringify(fontLicense)}, target: { itemId: graphic.id, property: 'font' } });
+        const imported = await invoke('import_graphic_resource', { path: ${JSON.stringify(font)}, kind: 'Font', licensePath: ${JSON.stringify(fontLicense)}, target: { itemId: graphic.id, property: 'font', sessionId: snapshot.sessionId, expectedRevision: snapshot.revision } });
         for (let attempt = 0; attempt < 200; attempt++) {
           const layer = document.querySelector('[data-graphic-layer]');
           if (layer && getComputedStyle(layer).fontFamily.includes(imported.sha256) && document.fonts.check('700 40px "ForgeCut_' + imported.sha256 + '"')) break;

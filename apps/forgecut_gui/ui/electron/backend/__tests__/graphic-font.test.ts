@@ -30,7 +30,12 @@ it("imports and selects a font atomically without changing component source", as
       path: font,
       kind: "Font",
       licensePath: license,
-      target: { itemId: item.RemotionGraphic.id, property: "font" },
+      target: {
+        itemId: item.RemotionGraphic.id,
+        property: "font",
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+      },
     });
     expect(selected).toMatchObject({ ok: true });
     const resource = state.project.resources![0];
