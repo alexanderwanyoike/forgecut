@@ -158,3 +158,18 @@ mediaTest(
     expect(state.project.assets[0].path).toBe(replacement);
   },
 );
+
+mediaTest(
+  "plays a bounded source preview without changing the project",
+  async () => {
+    const { state } = await reviewFixture();
+    const before = state.snapshot();
+    fireEvent.click(screen.getByRole("button", { name: "Short preview" }));
+    const video = await screen.findByLabelText("Source preview");
+    expect(video.tagName.toLowerCase()).toBe("video");
+    expect(video.getAttribute("src")).toMatch(/^data:video\/webm;base64,/);
+    expect((video as HTMLVideoElement).controls).toBe(true);
+    expect(screen.getByText("0.000 to 2.000 seconds")).toBeTruthy();
+    expect(state.snapshot()).toEqual(before);
+  },
+);
