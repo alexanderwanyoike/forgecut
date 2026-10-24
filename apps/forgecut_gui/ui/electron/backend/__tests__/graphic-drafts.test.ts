@@ -112,3 +112,33 @@ it("reverts through a new draft revision without accepting an old writer or chan
     }),
   ).toMatchObject({ ok: false });
 });
+
+it("rejects a competing editor instance at the same durable draft revision", async () => {
+  const { state, service, itemId } = await fixture();
+  const secondState = new AppState({ count: 0 }, state.project);
+  const second = new EditingService(secondState);
+  const initial = await read(service, itemId);
+  const component = structuredClone(initial.component);
+  component.source.files[component.source.entry] += "\n// competing writer";
+  const args = {
+    itemId,
+    expectedDraftRevision: 0,
+    baseVersion: initial.baseVersion,
+    component,
+  };
+  const results = await Promise.all([
+    service.execute("save_graphic_draft", {
+      ...args,
+      sessionId: state.sessionId,
+    }),
+    second.execute("save_graphic_draft", {
+      ...args,
+      sessionId: secondState.sessionId,
+    }),
+  ]);
+  expect(results.filter((result) => result.ok)).toHaveLength(1);
+  expect(results.find((result) => !result.ok)).toMatchObject({
+    ok: false,
+    error: { code: "CONFLICT" },
+  });
+});
