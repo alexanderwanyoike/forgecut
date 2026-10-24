@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { verifyGraphicsPreview } from "./graphics-preview-smoke.mjs";
 import { verifyCode } from "./code-smoke.mjs";
+import { verifySequences } from "./sequence-smoke.mjs";
 import { verifyCanvas } from "./canvas-smoke.mjs";
 import { verifyAudio } from "./audio-smoke.mjs";
 import { verifyMcp } from "./mcp-smoke.mjs";
@@ -207,6 +208,7 @@ async function main() {
   await verifyGraphicsPreview(mcpDirectory, send);
   await verifyCanvas(send);
   await verifyCode(send);
+  await verifySequences(send);
   ws.close();
 
   const value = result.result?.result?.value;

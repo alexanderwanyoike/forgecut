@@ -126,7 +126,11 @@ export class AppState {
   }
 
   getEditingContext(): EditingContext {
-    return { sessionId: this.sessionId, ...this.context.snapshot() };
+    return {
+      sessionId: this.sessionId,
+      sequenceRevision: this.context.sequenceRevision,
+      ...this.context.snapshot(),
+    };
   }
 
   setEditingContext(
@@ -134,6 +138,14 @@ export class AppState {
     sequenceId?: string,
   ): EditingContext {
     this.assertSession(input.sessionId);
+    if (
+      input.sequenceRevision !== undefined &&
+      input.sequenceRevision !== this.context.sequenceRevision
+    )
+      throw new EditingError(
+        "CONFLICT",
+        "The sequence activation changed before this context update",
+      );
     const requested = input.sequenceId ?? sequenceId;
     if (
       (input.sequenceId && sequenceId && input.sequenceId !== sequenceId) ||

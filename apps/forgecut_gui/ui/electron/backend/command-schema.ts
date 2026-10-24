@@ -254,6 +254,7 @@ export const commandSchemas = {
   select_sequence: z.strictObject({ sessionId: id, sequenceId: id }),
   get_editing_context: none,
   set_editing_context: z.strictObject({
+    sequenceRevision: time.optional(),
     sequenceId: id.optional(),
     sessionId: id,
     selectedItemIds: z.array(id).max(100),

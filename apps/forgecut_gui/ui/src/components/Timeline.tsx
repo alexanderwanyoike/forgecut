@@ -53,6 +53,7 @@ export default function Timeline(props: TimelineProps) {
   const [scrollLeft, setScrollLeft] = useState(0);
   const [viewWidth, setViewWidth] = useState(0);
   const [graphicPreset, setGraphicPreset] = useState("title-card");
+  const [newTrackKind, setNewTrackKind] = useState<"Video" | "Audio">("Video");
   const [snapping, setSnapping] = useState(true);
 
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -232,9 +233,9 @@ export default function Timeline(props: TimelineProps) {
     }
   };
 
-  const handleAddPipTrack = async () => {
+  const handleAddTrack = async () => {
     try {
-      setTimeline(await invoke("add_track", { kind: "Video" }));
+      setTimeline(await invoke("add_track", { kind: newTrackKind }));
     } catch (err) {
       console.error("add_track failed:", err);
     }
@@ -313,8 +314,20 @@ export default function Timeline(props: TimelineProps) {
           <button className="add-text-btn" onClick={handleAddText}>
             + Text
           </button>
-          <button className="add-text-btn" onClick={handleAddPipTrack}>
-            + PiP
+          <select
+            aria-label="New track type"
+            value={newTrackKind}
+            onChange={(event) =>
+              setNewTrackKind(
+                event.currentTarget.value === "Audio" ? "Audio" : "Video",
+              )
+            }
+          >
+            <option value="Video">Video</option>
+            <option value="Audio">Audio</option>
+          </select>
+          <button className="add-text-btn" onClick={handleAddTrack}>
+            + Track
           </button>
         </div>
         <div className="control-group">

@@ -222,6 +222,10 @@ body,
   background: #000;
 }
 
+.preview-composition {
+  outline: 1px solid var(--border-color);
+}
+
 .preview-controls {
   display: flex;
   align-items: center;

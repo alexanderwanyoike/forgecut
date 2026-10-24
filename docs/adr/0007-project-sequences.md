@@ -2,7 +2,7 @@
 
 Date: 24 October 2026.
 
-Status: persistence, native lifecycle and explicit sequence targeting implemented. Visual sequence navigation and MCP sequence tools follow separately.
+Status: persistence, native lifecycle, explicit targeting, export selection and visual sequence navigation implemented. MCP sequence reads and context selection follow separately.
 
 ## Decision
 
@@ -36,7 +36,17 @@ History remains chronological across the project, with an optional owning sequen
 
 Source Apply migrates the selected instance in its owning sequence, or every pinned instance across sequences for an explicit shared update. Validate each affected graphic using its own frame rate. Instance promotion and targeted artwork imports own one sequence history action; shared source updates remain global. Retain every referenced component version across all timelines. The Code tab uses the owning sequence's frame range and counts shared instances across the canonical project.
 
-Maintained service and renderer workflows cover context restoration, unchanged creative state on switches, explicit agent edits, delayed snapshots, stale context rejection, portrait geometry, scoped history and deletion rollback. Source Apply tests retain the edited draft, preserve other instances by default and verify explicit shared updates across sequences. Artwork assignment and the Code tab have public regressions for additional sequences. A real isolated preview regression verifies the owning sequence's dimensions and frame bounds. Sequence navigation UI and MCP sequence tools remain subsequent integration slices.
+Maintained service and renderer workflows cover context restoration, unchanged creative state on switches, explicit agent edits, delayed snapshots, stale context rejection, portrait geometry, scoped history and deletion rollback. Source Apply tests retain the edited draft, preserve other instances by default and verify explicit shared updates across sequences. Artwork assignment and the Code tab have public regressions for additional sequences. A real isolated preview regression verifies the owning sequence's dimensions and frame bounds. MCP sequence tools remain a subsequent integration slice.
+
+## Visual sequence workspace
+
+The sequence selector drives the existing native context command. Hydrate selection, graphic-layer selection and playhead before enabling that sequence's editing surfaces. Identify each activation by session, sequence ID and sequence revision, so a batched A-to-B-to-A round trip also invalidates delayed context replies. Renderer context writes carry that activation revision; the native owner rejects a stale revision before updating cached state. The optional field preserves existing caller compatibility. Preview, timeline and Inspector receive a single-sequence view; the bin, Code tab and persistence retain the canonical project. Remount playback and gesture owners across sequence activations.
+
+Bind renderer command metadata to the controls currently displayed. A native context event can arrive before React paints the replacement view; an input event from the outgoing controls must retain its original sequence target. Release that binding when the view changes or unmounts. Commands that await a destination dialog can retain an explicit session/sequence target across that asynchronous boundary.
+
+Named creation, rename and deletion use the existing guarded native lifecycle commands. Capture settings and rename identity when a form opens, and reset forms when project sessions change. Flush the Code workspace before direct UI context changes. Protect the default sequence from deletion and retain whole-action undo for additional sequences. Empty sequences can add video or audio tracks through the existing track command.
+
+Renderer integration tests use the real editing service to cover all surfaces, cached context, delayed replies, outgoing input events, form targeting, deletion undo, audio tracks and export destination dialogs. Packaged acceptance exercises named sequence controls, portrait dimensions, manual text edits, context restoration and deletion undo through the real Electron bridge.
 
 ## Export targets
 
