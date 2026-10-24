@@ -31,6 +31,7 @@ export async function compileGraphicSource(
       format: "cjs",
       platform: "browser",
       target: "es2022",
+      supported: { "dynamic-import": false },
       jsx: "automatic",
       logLevel: "silent",
       plugins: [
