@@ -167,53 +167,26 @@ export class EditingService {
       ...operation,
       args: editSchemas[operation.command].parse(operation.args),
     }));
-    this.state.assertSession(request.sessionId);
-    const key = `${request.sessionId}:${request.requestId}`;
-    const fingerprint = createHash("sha256")
-      .update(JSON.stringify(request))
-      .digest("hex");
-    const cached = this.requests.get(key);
-    if (cached) {
-      if (cached.fingerprint !== fingerprint)
-        throw new EditingError(
-          "REQUEST_REUSED",
-          "This request ID was already used for a different edit.",
-        );
-      return structuredClone(cached.snapshot);
-    }
-    if (request.expectedRevision !== this.state.revision)
-      throw new EditingError(
-        "CONFLICT",
-        "The project has changed. Read its latest revision and retry.",
-      );
-    const before = this.state.project;
-    this.applyOperations(
-      request.operations as EditOperation[],
-      request.editGroup,
+    return this.executeGuarded(request, () =>
+      this.applyOperations(
+        request.operations as EditOperation[],
+        request.editGroup,
+      ),
     );
-    const snapshot = {
-      ...this.state.snapshot(),
-      changedItemIds: changedItemIds(before, this.state.project),
-    };
-    this.requests.set(key, {
-      fingerprint,
-      snapshot,
-      bytes: Buffer.byteLength(JSON.stringify(snapshot)),
-    });
-    let bytes = [...this.requests.values()].reduce(
-      (sum, entry) => sum + entry.bytes,
-      0,
-    );
-    while (this.requests.size > 128 || bytes > 8 * 1024 * 1024) {
-      const oldest = this.requests.keys().next().value!;
-      bytes -= this.requests.get(oldest)!.bytes;
-      this.requests.delete(oldest);
-    }
-    return structuredClone(snapshot);
   }
 
   private applyHistory(input: unknown): ProjectSnapshot {
     const request = historyRequestSchema.parse(input);
+    return this.executeGuarded(request, () => {
+      if (request.direction === "undo") this.state.undo();
+      else this.state.redo();
+    });
+  }
+
+  private executeGuarded(
+    request: { sessionId: string; expectedRevision: number; requestId: string },
+    change: () => void,
+  ): ProjectSnapshot {
     this.state.assertSession(request.sessionId);
     const key = `${request.sessionId}:${request.requestId}`;
     const fingerprint = createHash("sha256")
@@ -234,8 +207,7 @@ export class EditingService {
         "The project has changed. Read its latest revision and retry.",
       );
     const before = this.state.project;
-    if (request.direction === "undo") this.state.undo();
-    else this.state.redo();
+    change();
     const snapshot = {
       ...this.state.snapshot(),
       changedItemIds: changedItemIds(before, this.state.project),
