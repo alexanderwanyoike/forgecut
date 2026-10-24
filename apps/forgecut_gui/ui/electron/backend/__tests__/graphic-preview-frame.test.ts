@@ -101,6 +101,15 @@ it.skipIf(!available)(
       expect(pixels(changed)[0]).toBeGreaterThan(240);
       expect(pixels(changed)[1]).toBeGreaterThan(240);
       expect(state.snapshot()).toEqual(before);
+      source(
+        state,
+        'import {useState,useEffect} from "react"; import {delayRender,continueRender} from "remotion"; export default function Card(){const [ready,setReady]=useState(false);const [handle]=useState(()=>delayRender());useEffect(()=>{const timer=setTimeout(()=>{setReady(true);continueRender(handle)},500);return ()=>clearTimeout(timer)},[handle]);return <div style={{position:"absolute",inset:0,backgroundColor:ready?"#00ff00":"#ff0000"}}/>}',
+      );
+      const delayed = await service.execute("get_graphic_preview", {
+        itemId: item.RemotionGraphic.id,
+        frame: 0,
+      });
+      expect(pixels(delayed)[1]).toBeGreaterThan(240);
     } finally {
       await service.closeGraphicsPreview?.();
       await service.jobs.close();
