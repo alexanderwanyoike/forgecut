@@ -32,7 +32,7 @@ export function sequenceDurationUs(project: Project): number {
     0,
   );
   return frameTimeUs(
-    frameAtOrAfter(end, project.settings.fps),
+    frameAtOrAfter(project.timeline.duration_us ?? end, project.settings.fps),
     project.settings.fps,
   );
 }
@@ -54,7 +54,12 @@ export function resolveSequenceFrame(
   const layers = project.timeline.tracks.flatMap((track, trackIndex) =>
     track.items.flatMap((item) => {
       const range = itemFrameRange(item, fps);
-      if (frame < range.start || frame >= range.end) return [];
+      if (
+        frame >= frameAtOrAfter(durationUs, fps) ||
+        frame < range.start ||
+        frame >= range.end
+      )
+        return [];
       const data = itemData(item);
       const elapsedUs = Math.max(0, playheadUs - frameTimeUs(range.start, fps));
       const sourceTimeUs = sourceTimeAt(

@@ -51,6 +51,7 @@ const patch = z.discriminatedUnion("kind", [
 ]);
 const none = z.strictObject({}).optional();
 export const editSchemas = {
+  set_sequence_end: z.strictObject({ endUs: time.positive().nullable() }),
   add_clip_to_timeline: z.strictObject({
     assetId: id,
     trackId: id,

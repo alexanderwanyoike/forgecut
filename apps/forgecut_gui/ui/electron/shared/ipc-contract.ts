@@ -102,6 +102,7 @@ export type Track = {
 };
 
 export type Timeline = {
+  duration_us?: TimeUs;
   tracks: Track[];
   markers: unknown[];
 };
@@ -191,6 +192,7 @@ export type ItemPatch =
     };
 
 export type EditCommandName =
+  | "set_sequence_end"
   | "add_clip_to_timeline"
   | "trim_clip"
   | "split_clip"
@@ -257,6 +259,7 @@ export type CommandMap = {
   autosave: { args: undefined; result: void };
 
   // Timeline
+  set_sequence_end: { args: { endUs: TimeUs | null }; result: Timeline };
   get_timeline: { args: undefined; result: Timeline };
   init_default_tracks: { args: undefined; result: Timeline };
   add_clip_to_timeline: {

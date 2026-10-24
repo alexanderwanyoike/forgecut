@@ -23,6 +23,11 @@ import {
 } from "./types.js";
 
 export const timelineCommands = {
+  set_sequence_end: (args, { state }) =>
+    state.executeTimelineChange((timeline) => {
+      if (args?.endUs === null) delete timeline.duration_us;
+      else timeline.duration_us = requiredNumber(args, "endUs");
+    }),
   get_timeline: (_args, { state }) => state.project.timeline,
   init_default_tracks: (_args, { state }) => state.initDefaultTracks(),
   add_clip_to_timeline: (args, { state }) =>
