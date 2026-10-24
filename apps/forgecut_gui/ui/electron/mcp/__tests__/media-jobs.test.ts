@@ -5,10 +5,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { createMcpServer } from "../server";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { AppState } from "../../backend/state";
 import { EditingService } from "../../backend/editing-service";
 import { startLocalBridge } from "../local-bridge";
+import { dispatchLocal } from "../dispatch";
 import { callBridge } from "../sessions";
 import type { JobSnapshot } from "../../shared/jobs";
 
@@ -151,3 +152,61 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
     }
   },
 );
+
+it("rejects queued work after a project switch while keeping jobs scoped to their original session", async () => {
+  const state = new AppState();
+  const service = new EditingService(state);
+  const sessionId = state.sessionId;
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  service.jobs.start(
+    {
+      sessionId,
+      projectRevision: 0,
+      requestId: "held",
+      kind: "frame",
+      label: "Held",
+      input: null,
+    },
+    async () => {
+      await held;
+      return { ok: true, value: null };
+    },
+  );
+  try {
+    const result = await dispatchLocal(service, {
+      action: "import",
+      sessionId,
+      expectedRevision: 0,
+      requestId: "queued-import",
+      paths: [join(tmpdir(), "unused.png")],
+    });
+    if (!result.ok) throw new Error(result.error.message);
+    const job = result.value as JobSnapshot;
+    state.createProject();
+    const replacement = state.snapshot();
+    release();
+    await vi.waitFor(() =>
+      expect(service.jobs.read(job.id, sessionId)).toMatchObject({
+        ok: true,
+        value: {
+          status: "failed",
+          result: { ok: false, error: { code: "PROJECT_CHANGED" } },
+        },
+      }),
+    );
+    expect(
+      await dispatchLocal(service, {
+        action: "cancel",
+        sessionId: state.sessionId,
+        jobId: job.id,
+      }),
+    ).toMatchObject({ ok: false, error: { code: "PROJECT_CHANGED" } });
+    expect(state.snapshot()).toEqual(replacement);
+  } finally {
+    release();
+    await service.jobs.close();
+  }
+});
