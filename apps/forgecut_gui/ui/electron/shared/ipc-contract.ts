@@ -149,8 +149,17 @@ export type Timeline = {
   markers: unknown[];
 };
 
+export type ProjectSequence = {
+  id: string;
+  name: string;
+  settings: ProjectSettings;
+  timeline: Timeline;
+};
+
 export type Project = {
-  schema_version?: 2;
+  schema_version?: 2 | 3;
+  default_sequence?: Pick<ProjectSequence, "id" | "name">;
+  sequences?: ProjectSequence[];
   components?: GraphicComponent[];
   resources?: GraphicResource[];
   id: string;

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Project } from "../shared/ipc-contract.js";
 import {
@@ -106,68 +107,100 @@ export const assetSchema = z.strictObject({
     })
     .nullable(),
 });
+const timelineSchema = z.strictObject({
+  duration_us: timeSchema.positive().optional(),
+  tracks: z.array(
+    z.strictObject({
+      id: idSchema,
+      kind: trackKindSchema,
+      items: z.array(
+        z.union([
+          z.strictObject({
+            VideoClip: clip.extend({
+              transform: visualPlacementSchema.optional(),
+              layer_order: layerOrderSchema.optional(),
+            }),
+          }),
+          z.strictObject({
+            AudioClip: clip.extend({
+              volume: z.number().nonnegative().max(4),
+            }),
+          }),
+          z.strictObject({ ImageOverlay: image }),
+          z.strictObject({ TextOverlay: text }),
+          z.strictObject({
+            RemotionGraphic: z.strictObject({
+              id: idSchema,
+              track_id: idSchema,
+              timeline_start_us: timeSchema,
+              duration_us: timeSchema.positive(),
+              component_id: idSchema,
+              component_version: z.string().regex(/^[a-f0-9]{64}$/),
+              props: graphicValuesSchema,
+              layer_states: graphicLayerStatesSchema.optional(),
+              transform: visualPlacementSchema.optional(),
+              layer_order: layerOrderSchema.optional(),
+            }),
+          }),
+        ]),
+      ),
+    }),
+  ),
+  markers: z.array(z.object({ time_us: timeSchema }).passthrough()),
+});
+
 const projectSchema = z.strictObject({
-  schema_version: z
-    .union([z.literal(1), z.literal(2)])
-    .default(1)
-    .transform(() => 2 as const),
+  schema_version: z.literal(3),
+  default_sequence: z.strictObject({
+    id: idSchema,
+    name: z.string().trim().min(1).max(200),
+  }),
+  sequences: z
+    .array(
+      z.strictObject({
+        id: idSchema,
+        name: z.string().trim().min(1).max(200),
+        settings: settingsSchema,
+        timeline: timelineSchema,
+      }),
+    )
+    .max(31)
+    .default([]),
   resources: z.array(graphicResourceSchema).max(100).default([]),
   components: z.array(graphicComponentSchema).max(100).default([]),
   id: idSchema,
   name: z.string(),
   settings: settingsSchema,
   assets: z.array(assetSchema),
-  timeline: z.strictObject({
-    duration_us: timeSchema.positive().optional(),
-    tracks: z.array(
-      z.strictObject({
-        id: idSchema,
-        kind: trackKindSchema,
-        items: z.array(
-          z.union([
-            z.strictObject({
-              VideoClip: clip.extend({
-                transform: visualPlacementSchema.optional(),
-                layer_order: layerOrderSchema.optional(),
-              }),
-            }),
-            z.strictObject({
-              AudioClip: clip.extend({
-                volume: z.number().nonnegative().max(4),
-              }),
-            }),
-            z.strictObject({ ImageOverlay: image }),
-            z.strictObject({ TextOverlay: text }),
-            z.strictObject({
-              RemotionGraphic: z.strictObject({
-                id: idSchema,
-                track_id: idSchema,
-                timeline_start_us: timeSchema,
-                duration_us: timeSchema.positive(),
-                component_id: idSchema,
-                component_version: z.string().regex(/^[a-f0-9]{64}$/),
-                props: graphicValuesSchema,
-                layer_states: graphicLayerStatesSchema.optional(),
-                transform: visualPlacementSchema.optional(),
-                layer_order: layerOrderSchema.optional(),
-              }),
-            }),
-          ]),
-        ),
-      }),
-    ),
-    markers: z.array(z.object({ time_us: timeSchema }).passthrough()),
-  }),
+  timeline: timelineSchema,
 });
 
 export function validateProject(input: unknown): Project {
-  const project = projectSchema.parse(input);
+  const previous = z.record(z.string(), z.unknown()).parse(input);
+  const legacy =
+    previous.schema_version === undefined ||
+    previous.schema_version === 1 ||
+    previous.schema_version === 2;
+  const project = projectSchema.parse(
+    legacy
+      ? {
+          ...previous,
+          schema_version: 3,
+          default_sequence: previous.default_sequence ?? {
+            id: randomUUID(),
+            name: "Main",
+          },
+        }
+      : previous,
+  );
   const ids = new Set<string>();
   const unique = (id: string) => {
     if (ids.has(id)) throw new Error(`Duplicate ID: ${id}`);
     ids.add(id);
   };
   unique(project.id);
+  unique(project.default_sequence.id);
+  project.sequences.forEach((sequence) => unique(sequence.id));
   project.assets.forEach((asset) => unique(asset.id));
   project.resources.forEach((resource) => unique(resource.id));
   const assets = new Map(project.assets.map((asset) => [asset.id, asset]));
@@ -178,47 +211,59 @@ export function validateProject(input: unknown): Project {
     TextOverlay: "OverlayText",
     RemotionGraphic: "Graphics",
   };
-  for (const track of project.timeline.tracks) {
-    unique(track.id);
-    for (const item of track.items) {
-      const data = itemData(item);
-      unique(data.id);
-      if (
-        data.track_id !== track.id ||
-        kinds[itemVariant(item)] !== track.kind
-      ) {
-        throw new Error(`Item ${data.id} is incompatible with its track`);
-      }
-      if (durationUs(item) <= 0 || !Number.isSafeInteger(timelineEndUs(item))) {
-        throw new Error(`Invalid duration for item ${data.id}`);
-      }
-      if ("asset_id" in data) {
-        const asset = assets.get(data.asset_id);
-        if (!asset)
-          throw new Error(`Missing asset reference: ${data.asset_id}`);
-        let expected = "Video";
-        if ("ImageOverlay" in item) expected = "Image";
-        else if ("AudioClip" in item) expected = "Audio";
-        if (asset.kind !== expected)
-          throw new Error(`Incompatible asset for item ${data.id}`);
+  for (const sequence of [
+    { settings: project.settings, timeline: project.timeline },
+    ...project.sequences,
+  ]) {
+    for (const track of sequence.timeline.tracks) {
+      unique(track.id);
+      for (const item of track.items) {
+        const data = itemData(item);
+        unique(data.id);
         if (
-          "source_out_us" in data &&
-          asset.probe &&
-          asset.probe.duration_us > 0 &&
-          data.source_out_us > asset.probe.duration_us
+          data.track_id !== track.id ||
+          kinds[itemVariant(item)] !== track.kind
         ) {
-          throw new Error(`Item ${data.id} exceeds the source duration`);
+          throw new Error(`Item ${data.id} is incompatible with its track`);
+        }
+        if (
+          durationUs(item) <= 0 ||
+          !Number.isSafeInteger(timelineEndUs(item))
+        ) {
+          throw new Error(`Invalid duration for item ${data.id}`);
+        }
+        if ("asset_id" in data) {
+          const asset = assets.get(data.asset_id);
+          if (!asset)
+            throw new Error(`Missing asset reference: ${data.asset_id}`);
+          let expected = "Video";
+          if ("ImageOverlay" in item) expected = "Image";
+          else if ("AudioClip" in item) expected = "Audio";
+          if (asset.kind !== expected)
+            throw new Error(`Incompatible asset for item ${data.id}`);
+          if (
+            "source_out_us" in data &&
+            asset.probe &&
+            asset.probe.duration_us > 0 &&
+            data.source_out_us > asset.probe.duration_us
+          ) {
+            throw new Error(`Item ${data.id} exceeds the source duration`);
+          }
         }
       }
+      const sorted = [...track.items].sort(
+        (a, b) => timelineStartUs(a) - timelineStartUs(b),
+      );
+      for (let i = 1; i < sorted.length; i += 1) {
+        if (timelineStartUs(sorted[i]) < timelineEndUs(sorted[i - 1]))
+          throw new Error("Overlap detected");
+      }
     }
-    const sorted = [...track.items].sort(
-      (a, b) => timelineStartUs(a) - timelineStartUs(b),
-    );
-    for (let i = 1; i < sorted.length; i += 1) {
-      if (timelineStartUs(sorted[i]) < timelineEndUs(sorted[i - 1]))
-        throw new Error("Overlap detected");
-    }
+    validateProjectGraphics({
+      ...project,
+      settings: sequence.settings,
+      timeline: sequence.timeline,
+    });
   }
-  validateProjectGraphics(project);
   return project;
 }
