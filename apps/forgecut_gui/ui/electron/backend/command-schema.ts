@@ -14,6 +14,7 @@ import {
 } from "./project-schema.js";
 
 import {
+  graphicComponentSchema,
   graphicValuesSchema,
   graphicLayerStatesSchema,
 } from "./graphic-schema.js";
@@ -168,6 +169,27 @@ export const metadataSchema = z
   .strictObject({ sessionId: id.optional(), editGroup: id.optional() })
   .optional();
 export const commandSchemas = {
+  get_graphic_draft: z.strictObject({ itemId: id }),
+  save_graphic_draft: z.strictObject({
+    itemId: id,
+    sessionId: z.uuid(),
+    expectedDraftRevision: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(Number.MAX_SAFE_INTEGER - 2),
+    baseVersion: z.string().regex(/^[a-f0-9]{64}$/),
+    component: graphicComponentSchema,
+  }),
+  revert_graphic_draft: z.strictObject({
+    itemId: id,
+    sessionId: z.uuid(),
+    expectedDraftRevision: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(Number.MAX_SAFE_INTEGER - 2),
+  }),
   get_graphic_preview: z.strictObject({
     itemId: id,
     frame: time,

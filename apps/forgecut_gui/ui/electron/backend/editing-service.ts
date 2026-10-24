@@ -1,5 +1,7 @@
 import { ZodError } from "zod";
 import { createHash } from "node:crypto";
+import { GraphicDraftStore } from "./GraphicDraftStore.js";
+import { graphicDraftCommands } from "./commands/graphic-drafts.js";
 import { GraphicPreviewService } from "./GraphicPreviewService.js";
 import { graphicPreviewCommands } from "./commands/graphic-preview.js";
 import { changedItemIds } from "./project-diff.js";
@@ -46,6 +48,7 @@ const handlers: Record<
   ...timelineCommands,
   ...graphicsCommands,
   ...graphicSourceCommands,
+  ...graphicDraftCommands,
   ...graphicPreviewCommands,
   ...graphicResourceCommands,
   ...mediaCommands,
@@ -61,6 +64,8 @@ export class EditingService {
   readonly jobs = new JobQueue();
 
   private readonly preview = new GraphicPreviewService();
+
+  private readonly drafts = new GraphicDraftStore();
 
   closeGraphicsPreview(): Promise<void> {
     return this.preview.close();
@@ -146,6 +151,7 @@ export class EditingService {
         ](args, {
           state: this.state,
           preview: this.preview,
+          drafts: this.drafts,
           ...options,
         });
         if (

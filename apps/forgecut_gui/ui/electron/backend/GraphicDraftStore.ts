@@ -1,0 +1,131 @@
+import { mkdir, open } from "node:fs/promises";
+import { join } from "node:path";
+import { homedir } from "node:os";
+import type { GraphicDraft } from "../shared/graphic-draft.js";
+import type { GraphicComponent } from "../shared/graphics.js";
+import type { Result } from "../shared/result.js";
+import { atomicWrite } from "./atomic-file.js";
+import { graphicDraftSchema } from "./graphic-draft-schema.js";
+
+type DraftResult = Result<
+  GraphicDraft,
+  { code: "IO_ERROR" | "CONFLICT" | "INVALID_INPUT"; message: string }
+>;
+
+export class GraphicDraftStore {
+  private pending: Promise<unknown> = Promise.resolve();
+
+  private readonly directory =
+    process.env.FORGECUT_DRAFT_DIR ?? join(homedir(), ".forgecut", "drafts");
+
+  async read(initial: GraphicDraft): Promise<DraftResult> {
+    await this.pending;
+    return this.load(initial);
+  }
+
+  save(
+    initial: GraphicDraft,
+    expectedRevision: number,
+    component: GraphicComponent,
+    baseVersion: string,
+  ): Promise<DraftResult> {
+    const operation = this.pending.then(async (): Promise<DraftResult> => {
+      const current = await this.load(initial);
+      if (!current.ok) return current;
+      if (current.value.revision !== expectedRevision)
+        return {
+          ok: false,
+          error: {
+            code: "CONFLICT",
+            message:
+              "The source draft changed. Keep your buffer and reload or reconcile the latest draft.",
+          },
+        };
+      try {
+        const draft = graphicDraftSchema.parse({
+          ...initial,
+          revision: expectedRevision + 1,
+          component,
+          baseVersion,
+        });
+        const data = JSON.stringify(draft);
+        if (Buffer.byteLength(data) > 4 * 1024 * 1024)
+          return {
+            ok: false,
+            error: {
+              code: "INVALID_INPUT",
+              message: "The source draft exceeds 4 MiB",
+            },
+          };
+        await mkdir(this.directory, { recursive: true, mode: 0o700 });
+        await atomicWrite(this.path(draft), data);
+        return { ok: true, value: draft };
+      } catch (failure) {
+        return {
+          ok: false,
+          error: {
+            code: "IO_ERROR",
+            message:
+              failure instanceof Error ? failure.message : String(failure),
+          },
+        };
+      }
+    });
+    this.pending = operation;
+    return operation;
+  }
+
+  private path(draft: GraphicDraft): string {
+    const identity = graphicDraftSchema
+      .pick({ projectId: true, itemId: true })
+      .parse({ projectId: draft.projectId, itemId: draft.itemId });
+    return join(
+      this.directory,
+      `${identity.projectId}-${identity.itemId}.json`,
+    );
+  }
+
+  private async load(initial: GraphicDraft): Promise<DraftResult> {
+    try {
+      const file = await open(this.path(initial), "r");
+      try {
+        const stat = await file.stat();
+        if (!stat.isFile() || stat.size > 4 * 1024 * 1024)
+          return {
+            ok: false,
+            error: {
+              code: "INVALID_INPUT",
+              message: "The stored source draft is invalid or too large",
+            },
+          };
+        const draft = graphicDraftSchema.parse(
+          JSON.parse(await file.readFile("utf8")),
+        );
+        if (
+          draft.projectId !== initial.projectId ||
+          draft.itemId !== initial.itemId
+        )
+          return {
+            ok: false,
+            error: {
+              code: "INVALID_INPUT",
+              message: "The stored draft belongs to a different graphic",
+            },
+          };
+        return { ok: true, value: draft };
+      } finally {
+        await file.close();
+      }
+    } catch (failure) {
+      if ((failure as NodeJS.ErrnoException).code === "ENOENT")
+        return { ok: true, value: structuredClone(initial) };
+      return {
+        ok: false,
+        error: {
+          code: "IO_ERROR",
+          message: failure instanceof Error ? failure.message : String(failure),
+        },
+      };
+    }
+  }
+}

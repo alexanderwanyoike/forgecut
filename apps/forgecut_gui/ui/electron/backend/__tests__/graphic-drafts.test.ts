@@ -30,7 +30,7 @@ async function fixture() {
 }
 async function read(service: EditingService, itemId: string) {
   const result = await service.execute("get_graphic_draft", { itemId });
-  expect(result).toMatchObject({ ok: true });
+  expect(result, JSON.stringify(result)).toMatchObject({ ok: true });
   if (!result.ok) throw new Error(result.error.message);
   return result.value as GraphicDraft;
 }
