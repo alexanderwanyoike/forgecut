@@ -1,5 +1,10 @@
 import { useEffect, useRef } from "react";
-import { monaco, typescript, loadMonacoLibraries } from "../lib/monaco-runtime";
+import {
+  monaco,
+  typescript,
+  loadMonacoLibraries,
+  readyTypeScriptWorker,
+} from "../lib/monaco-runtime";
 import { graphicTypeDeclarations } from "../../electron/shared/graphic-type-declarations";
 import type { GraphicComponent } from "../../electron/shared/graphics";
 import type { GraphicDiagnostic } from "../../electron/shared/graphic-source";
@@ -60,7 +65,7 @@ export default function MonacoSourceEditor(props: Props) {
     if (packageTypes.current) {
       const extra = [
         ...Object.entries(packageTypes.current).map(([path, content]) => ({
-          filePath: monaco.Uri.file(path).toString(),
+          filePath: monaco.Uri.file(path).toString(true),
           content,
         })),
         { filePath: uri("@contract").toString(), content: files["@contract"] },
@@ -80,6 +85,7 @@ export default function MonacoSourceEditor(props: Props) {
           ? "vs"
           : "vs-dark",
       automaticLayout: true,
+      editContext: false,
       fontSize: 13,
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
       minimap: { enabled: false },
@@ -160,7 +166,7 @@ export default function MonacoSourceEditor(props: Props) {
         if (disposed) return;
         packageTypes.current = libraries;
         sync();
-        const factory = await typescript.getTypeScriptWorker();
+        const factory = await readyTypeScriptWorker();
         await factory(
           ...[...models.current.values()].map((model) => model.uri),
         );

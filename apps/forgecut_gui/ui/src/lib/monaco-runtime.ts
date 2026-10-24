@@ -45,3 +45,18 @@ export function loadMonacoLibraries(): Promise<Record<string, string>> {
   return libraries;
 }
 export { monaco, typescript };
+
+export async function readyTypeScriptWorker() {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      return await typescript.getTypeScriptWorker();
+    } catch (failure) {
+      // Monaco activates language services asynchronously after model creation.
+      if (failure !== "TypeScript not registered!") throw failure;
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 50);
+      });
+    }
+  }
+  throw new Error("The TypeScript language service did not start");
+}
