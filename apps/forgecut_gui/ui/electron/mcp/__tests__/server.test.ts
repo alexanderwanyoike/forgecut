@@ -97,6 +97,45 @@ it("requires explicit attachment and edits the live owner through the official M
       ok: true,
       value: { name: "From Codex", revision: state.revision },
     });
+    const path = join(directory, "saved.forgecut");
+    const saved = await client.callTool({
+      name: "save_project",
+      arguments: {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        path,
+      },
+    });
+    expect(saved.isError).toBe(false);
+    state.executeProjectChange((project) => {
+      project.name = "Unsaved change";
+    });
+    const previousSession = state.sessionId;
+    const reopened = await client.callTool({
+      name: "open_project",
+      arguments: {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        path,
+      },
+    });
+    expect(reopened.isError).toBe(false);
+    expect(state.project.name).toBe("From Codex");
+    expect(state.sessionId).not.toBe(previousSession);
+    const unchanged = state.snapshot();
+    expect(
+      (
+        await client.callTool({
+          name: "open_project",
+          arguments: {
+            sessionId: state.sessionId,
+            expectedRevision: state.revision,
+            path: join(directory, "missing.forgecut"),
+          },
+        })
+      ).isError,
+    ).toBe(true);
+    expect(state.snapshot()).toEqual(unchanged);
   } finally {
     await client.close();
     await server.close();
