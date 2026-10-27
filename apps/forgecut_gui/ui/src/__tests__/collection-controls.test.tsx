@@ -103,6 +103,7 @@ it("collects chosen media from the file menu while preserving the editable proje
     "chosen media",
   );
   expect(project.assets[1].path).toBe(external);
+  fireEvent.keyDown(dialog, { key: "Delete" });
   expect(state.project).toEqual(before);
 }, 15000);
 
@@ -147,7 +148,6 @@ it("keeps an accepted collection accessible after closing and switching projects
   };
   render(<App />);
   await screen.findByLabelText("Text");
-  let before = structuredClone(state.project);
   fireEvent.click(screen.getByRole("button", { name: "File" }));
   fireEvent.click(
     await screen.findByRole("button", { name: "Collect project" }),
@@ -163,7 +163,7 @@ it("keeps an accepted collection accessible after closing and switching projects
   await act(async () => {
     expect(await service.execute("create_project")).toMatchObject({ ok: true });
   });
-  before = structuredClone(state.project);
+  const before = structuredClone(state.project);
   await act(async () => {
     finishReply();
     await reply;
