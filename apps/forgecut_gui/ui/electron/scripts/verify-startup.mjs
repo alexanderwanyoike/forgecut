@@ -1,3 +1,4 @@
+import { verifyPortableMedia } from "./portable-media-smoke.mjs";
 import { verifyExportBatches } from "./export-batch-smoke.mjs";
 import { verifyReviewExports } from "./review-export-smoke.mjs";
 import { verifyCredits } from "./credits-smoke.mjs";
@@ -227,6 +228,7 @@ async function main() {
   await verifyCredits(mcpDirectory, send);
   await verifyReviewExports(mcpDirectory, send);
   await verifyExportBatches(mcpDirectory, send);
+  await verifyPortableMedia(mcpDirectory, send);
   ws.close();
 
   const value = result.result?.result?.value;
