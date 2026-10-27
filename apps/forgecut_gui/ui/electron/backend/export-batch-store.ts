@@ -27,14 +27,14 @@ export async function readBatchFile(path: string): Promise<Buffer> {
     const stat = await file.stat();
     if (!stat.isFile() || stat.size > MAX_BATCH_BYTES)
       throw new Error("Batch files must be regular files no larger than 8 MiB");
-    const bytes = Buffer.alloc(MAX_BATCH_BYTES + 1);
+    const bytes = Buffer.alloc(stat.size + 1);
     let count = 0;
     while (count < bytes.length) {
       const next = await file.read(bytes, count, bytes.length - count, count);
       if (!next.bytesRead) break;
       count += next.bytesRead;
     }
-    if (count > MAX_BATCH_BYTES) throw new Error("Batch file exceeds 8 MiB");
+    if (count > stat.size) throw new Error("Batch file changed while reading");
     return bytes.subarray(0, count);
   } finally {
     await file.close();
