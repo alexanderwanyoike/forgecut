@@ -106,7 +106,7 @@ it("collects chosen media from the file menu while preserving the editable proje
   expect(state.project).toEqual(before);
 }, 15000);
 
-it("keeps an accepted collection accessible after closing during its response and can cancel the queued copy", async () => {
+it("keeps an accepted collection accessible after closing and switching projects during its response", async () => {
   const { state, service, App } = await sequenceWorkspaceFixture();
   owner = service;
   directory = await mkdtemp(join(tmpdir(), "forgecut-collection-close-"));
@@ -147,7 +147,7 @@ it("keeps an accepted collection accessible after closing during its response an
   };
   render(<App />);
   await screen.findByLabelText("Text");
-  const before = structuredClone(state.project);
+  let before = structuredClone(state.project);
   fireEvent.click(screen.getByRole("button", { name: "File" }));
   fireEvent.click(
     await screen.findByRole("button", { name: "Collect project" }),
@@ -160,6 +160,10 @@ it("keeps an accepted collection accessible after closing during its response an
   fireEvent.click(
     screen.getByRole("button", { name: "Close project collection" }),
   );
+  await act(async () => {
+    expect(await service.execute("create_project")).toMatchObject({ ok: true });
+  });
+  before = structuredClone(state.project);
   await act(async () => {
     finishReply();
     await reply;
