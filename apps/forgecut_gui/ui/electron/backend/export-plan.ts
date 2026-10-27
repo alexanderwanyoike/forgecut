@@ -71,12 +71,7 @@ export function compileExportPlan(
       (candidate) => candidate.id === assetIdOf(item),
     );
     if (!asset) throw new Error(`Missing source asset for ${data.id}`);
-    const sourceClip =
-      "VideoClip" in item
-        ? item.VideoClip
-        : "AudioClip" in item
-          ? item.AudioClip
-          : undefined;
+    const sourceClip = "source_in_us" in data ? data : undefined;
     // Independent seeks avoid buffering intervening footage for reordered cuts.
     const input: RenderInput = {
       path: asset.path,
@@ -116,7 +111,6 @@ export function compileExportPlan(
       "AudioClip" in item ||
       ("VideoClip" in item && (asset.probe?.audio_channels ?? 0) > 0)
     ) {
-      const clip = "AudioClip" in item ? item.AudioClip : item.VideoClip;
       const envelope = audioEnvelope(item, length * 1_000_000);
       const delay = Math.round((range.start / fps) * sampleRate);
       const fades = [
