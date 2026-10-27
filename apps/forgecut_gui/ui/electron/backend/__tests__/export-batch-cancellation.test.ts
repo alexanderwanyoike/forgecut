@@ -149,3 +149,70 @@ it("does not begin rendering if shutdown starts while a batch is being resumed",
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it("finishes shutdown during entry preparation without waiting for another media job", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forgecut-batch-preparing-"));
+  const directory = join(root, "outputs");
+  const state = new AppState();
+  const service = new EditingService(state);
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const created = await service.execute("create_export_batch", {
+      sessionId: state.sessionId,
+      expectedRevision: state.revision,
+      directory,
+      sequenceIds: [state.project.default_sequence!.id],
+    });
+    if (!created.ok) throw new Error(created.error.message);
+    const batch = created.value as ExportBatchSnapshot;
+    service.jobs.start(
+      {
+        sessionId: state.sessionId,
+        projectRevision: state.revision,
+        requestId: "other-media",
+        kind: "frame",
+        label: "Other media job",
+        input: null,
+      },
+      async () => {
+        await held;
+        return { ok: true, value: null };
+      },
+    );
+    expect(
+      await service.execute("resume_export_batch", {
+        directory,
+        batchId: batch.id,
+      }),
+    ).toMatchObject({ ok: true });
+    await Promise.race([
+      service.batches.close(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error("Shutdown queued a render after the stop request"),
+            ),
+          2000,
+        );
+      }),
+    ]);
+    expect(
+      await service.execute("get_export_batch", { directory }),
+    ).toMatchObject({
+      ok: true,
+      value: { active: false, entries: [{ status: "cancelled" }] },
+    });
+  } finally {
+    clearTimeout(timer);
+    release();
+    await service.batches.close();
+    await service.jobs.close();
+    await service.closeGraphicsPreview();
+    await rm(root, { recursive: true, force: true });
+  }
+});
