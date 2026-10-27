@@ -1,7 +1,14 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  within,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import type { EditingService } from "../../electron/backend/editing-service";
 import type { Project } from "../../electron/shared/ipc-contract";
@@ -12,6 +19,8 @@ import {
 
 let owner: EditingService | undefined;
 let directory: string | undefined;
+let release = () => {};
+let finishReply = () => {};
 const showModal = Object.getOwnPropertyDescriptor(
   HTMLDialogElement.prototype,
   "showModal",
@@ -25,6 +34,8 @@ beforeEach(() => {
   });
 });
 afterEach(async () => {
+  finishReply();
+  release();
   await owner?.batches.close();
   await cleanupSequenceWorkspace();
   if (directory)
@@ -93,4 +104,85 @@ it("collects chosen media from the file menu while preserving the editable proje
   );
   expect(project.assets[1].path).toBe(external);
   expect(state.project).toEqual(before);
+}, 15000);
+
+it("keeps an accepted collection accessible after closing during its response and can cancel the queued copy", async () => {
+  const { state, service, App } = await sequenceWorkspaceFixture();
+  owner = service;
+  directory = await mkdtemp(join(tmpdir(), "forgecut-collection-close-"));
+  const output = join(directory, "collection");
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  service.jobs.start(
+    {
+      sessionId: state.sessionId,
+      projectRevision: state.revision,
+      requestId: "hold-collection",
+      kind: "frame",
+      label: "Held media job",
+      input: null,
+    },
+    async () => {
+      await held;
+      return { ok: true, value: null };
+    },
+  );
+  let captured = () => {};
+  const created = new Promise<void>((resolve) => {
+    captured = resolve;
+  });
+  const reply = new Promise<void>((resolve) => {
+    finishReply = resolve;
+  });
+  const api = window.forgecut!;
+  const original = api.invoke;
+  api.invoke = async <T,>(...args: Parameters<typeof original>) => {
+    const result = await original<T>(...args);
+    if (args[0] === "collect_project") {
+      captured();
+      await reply;
+    }
+    return result;
+  };
+  render(<App />);
+  await screen.findByLabelText("Text");
+  const before = structuredClone(state.project);
+  fireEvent.click(screen.getByRole("button", { name: "File" }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Collect project" }),
+  );
+  fireEvent.change(screen.getByLabelText("Collection folder"), {
+    target: { value: output },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Collect project" }));
+  await created;
+  fireEvent.click(
+    screen.getByRole("button", { name: "Close project collection" }),
+  );
+  await act(async () => {
+    finishReply();
+    await reply;
+  });
+  fireEvent.click(screen.getByRole("button", { name: "File" }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Collect project" }),
+  );
+  await screen.findByText("Queued");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel collection" }));
+  await screen.findByText("Collection cancelled");
+  expect(await stat(output).catch(() => null)).toBeNull();
+  expect(state.project).toEqual(before);
+  fireEvent.keyDown(screen.getByRole("dialog", { name: "Collect project" }), {
+    key: "Delete",
+  });
+  expect(state.project).toEqual(before);
+  fireEvent.keyDown(screen.getByRole("dialog", { name: "Collect project" }), {
+    key: "Escape",
+  });
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("dialog", { name: "Collect project" }),
+    ).toBeNull(),
+  );
 }, 15000);
