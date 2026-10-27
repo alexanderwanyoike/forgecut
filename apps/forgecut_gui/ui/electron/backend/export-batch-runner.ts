@@ -68,18 +68,17 @@ export async function runExportBatch(
     while (
       ["queued", "running", "cancelling", "committing"].includes(job.status)
     ) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 50);
+      });
       const next = jobs.read(job.id, job.sessionId);
       if (!next.ok) throw new Error(next.error.message);
       job = next.value;
     }
     active.job = undefined;
-    entry.status =
-      job.status === "completed"
-        ? "completed"
-        : job.status === "cancelled"
-          ? "cancelled"
-          : "failed";
+    entry.status = "failed";
+    if (job.status === "completed") entry.status = "completed";
+    if (job.status === "cancelled") entry.status = "cancelled";
     if (job.result && !job.result.ok)
       entry.error = job.result.error.message.slice(0, 4096);
     await writeBatchRecord(active.directory, active.record);

@@ -1,6 +1,6 @@
-import { registerBatchTools } from "./batch-tools.js";
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { registerBatchTools } from "./batch-tools.js";
 import { stylePropertyPageFields } from "./style-schema.js";
 import { registerSourceTools } from "./source-tools.js";
 import { sourceCheckRequestSchema } from "./source-schema.js";

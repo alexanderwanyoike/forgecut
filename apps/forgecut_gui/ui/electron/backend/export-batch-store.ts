@@ -67,13 +67,11 @@ export function batchSnapshot(
   };
 }
 export function batchFailure(cause: unknown): ExportBatchResult<never> {
-  const code =
-    cause instanceof z.ZodError || cause instanceof SyntaxError
-      ? "INVALID_INPUT"
-      : (cause as NodeJS.ErrnoException)?.code === "EEXIST" ||
-          (cause as NodeJS.ErrnoException)?.code === "ELOCKED"
-        ? "CONFLICT"
-        : "IO_ERROR";
+  let code: "INVALID_INPUT" | "CONFLICT" | "IO_ERROR" = "IO_ERROR";
+  if (cause instanceof z.ZodError || cause instanceof SyntaxError)
+    code = "INVALID_INPUT";
+  const fileCode = (cause as NodeJS.ErrnoException)?.code;
+  if (fileCode === "EEXIST" || fileCode === "ELOCKED") code = "CONFLICT";
   return {
     ok: false,
     error: {
@@ -137,7 +135,7 @@ export async function createExportBatch(
         message: "Read the current project revision before creating a batch",
       },
     };
-  const project = state.project;
+  const { project } = state;
   const directory = resolve(request.directory);
   const preset = request.preset ?? "mp4";
   const sequences = projectSequences(project);

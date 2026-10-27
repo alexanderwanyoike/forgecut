@@ -1,7 +1,7 @@
-import { runExportBatch, type ActiveBatch } from "./export-batch-runner.js";
 import { realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { lock } from "proper-lockfile";
+import { runExportBatch, type ActiveBatch } from "./export-batch-runner.js";
 import type { ExportBatchResult } from "../shared/export-batches.js";
 import { loadGraphicResources } from "./graphic-resource-persistence.js";
 import { validateProject } from "./project-schema.js";
@@ -28,7 +28,7 @@ export class ExportBatchService {
   async read(directory: string): Promise<ExportBatchResult> {
     try {
       const path = await realpath(directory);
-      const active = this.active;
+      const { active } = this;
       if (!active || active.directory !== path) return readExportBatch(path);
       const snapshot = batchSnapshot(active.record, path, true);
       if (active.job) {
