@@ -32,6 +32,7 @@ import {
   metadataSchema,
 } from "./command-schema.js";
 import { autosaveCommands } from "./commands/autosave.js";
+import { exportBatchCommands } from "./commands/export-batches.js";
 import { exportCommands } from "./commands/export.js";
 import { mediaCommands } from "./commands/media.js";
 import { projectCommands } from "./commands/project.js";
@@ -54,6 +55,7 @@ const handlers: Record<
   CommandHandler
 > = {
   ...projectCommands,
+  ...exportBatchCommands,
   ...creditCommands,
   ...stylePresetCommands,
   ...sequenceCommands,
@@ -118,7 +120,9 @@ export class EditingService {
       if (!Object.prototype.hasOwnProperty.call(commandSchemas, command))
         throw new EditingError("NOT_FOUND", `Unknown command: ${command}`);
       const jobControl =
-        command === "get_media_job" || command === "cancel_media_job";
+        command === "get_media_job" ||
+        command === "cancel_media_job" ||
+        command === "get_export_batch";
       const meta = metadataSchema.parse(metadata);
       if (meta?.sessionId && !jobControl)
         this.state.assertSession(meta.sessionId);
@@ -182,6 +186,7 @@ export class EditingService {
         if (
           !jobControl &&
           command !== "export_project" &&
+          command !== "create_export_batch" &&
           !["create_project", "load_project", "recover_project"].includes(
             command,
           )

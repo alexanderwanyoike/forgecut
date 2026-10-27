@@ -1,3 +1,7 @@
+import type {
+  CreateExportBatch,
+  ExportBatchSnapshot,
+} from "./export-batches.js";
 import type { ExportPresetId } from "./export-presets.js";
 import type { StylePreset, StylePresetInput } from "./style-presets.js";
 import type {
@@ -599,6 +603,11 @@ export type CommandMap = {
   get_media_job: {
     args: { sessionId: string; jobId: string };
     result: JobSnapshot;
+  };
+  create_export_batch: { args: CreateExportBatch; result: ExportBatchSnapshot };
+  get_export_batch: {
+    args: { directory: string };
+    result: ExportBatchSnapshot;
   };
   export_project: {
     args: {
