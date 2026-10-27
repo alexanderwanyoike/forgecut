@@ -33,6 +33,12 @@ export async function runExportBatch(
       recursive: true,
       force: true,
     });
+    if (active.stopping) {
+      entry.status = "cancelled";
+      entry.error = "Batch paused before rendering";
+      await writeBatchRecord(active.directory, active.record);
+      break;
+    }
     const selected = projectForSequence(project, entry.sequenceId);
     if (!selected.ok) throw new Error(selected.error.message);
     const started = jobs.start(
