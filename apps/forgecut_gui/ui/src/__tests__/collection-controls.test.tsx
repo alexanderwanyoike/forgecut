@@ -186,3 +186,39 @@ it("keeps an accepted collection accessible after closing during its response an
     ).toBeNull(),
   );
 }, 15000);
+
+it("keeps the typed destination while an agent edits the project and captures the visible revision", async () => {
+  const { state, service, App, root } = await sequenceWorkspaceFixture();
+  owner = service;
+  directory = await mkdtemp(join(tmpdir(), "forgecut-collection-draft-"));
+  const output = join(directory, "collection");
+  render(<App />);
+  await screen.findByLabelText("Text");
+  fireEvent.click(screen.getByRole("button", { name: "File" }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Collect project" }),
+  );
+  fireEvent.change(screen.getByLabelText("Collection folder"), {
+    target: { value: output },
+  });
+  await act(async () => {
+    expect(
+      await service.execute(
+        "update_project",
+        { name: "Updated by agent" },
+        { sequenceId: root },
+      ),
+    ).toMatchObject({ ok: true });
+  });
+  expect(screen.getByLabelText("Collection folder")).toHaveProperty(
+    "value",
+    output,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Collect project" }));
+  await screen.findByText("Collection ready", {}, { timeout: 10000 });
+  const project: Project = JSON.parse(
+    await readFile(join(output, "project.forgecut"), "utf8"),
+  );
+  expect(project.name).toBe("Updated by agent");
+  expect(state.project.name).toBe("Updated by agent");
+}, 15000);
