@@ -151,8 +151,13 @@ export async function dispatchLocal(
   const { state } = service;
   try {
     if (request.action === "collect") {
-      const { action: _action, ...args } = request;
-      const response = await service.execute("collect_project", args);
+      const response = await service.execute("collect_project", {
+        sessionId: request.sessionId,
+        expectedRevision: request.expectedRevision,
+        requestId: request.requestId,
+        directory: request.directory,
+        assetIds: request.assetIds,
+      });
       return response.ok ? { ok: true, value: response.value } : response;
     }
     if (
