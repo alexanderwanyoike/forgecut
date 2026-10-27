@@ -1,0 +1,198 @@
+.batch-dialog {
+  width: min(640px, calc(100vw - 48px));
+  max-height: calc(100vh - 64px);
+  margin: auto;
+  padding: 0;
+  color: var(--text-primary);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: var(--popover-shadow);
+}
+.batch-dialog::backdrop {
+  background: rgb(0 0 0 / 50%);
+}
+.batch-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.batch-header,
+.batch-header > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.batch-header {
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+.batch-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.batch-header svg {
+  color: var(--text-secondary);
+}
+.batch-body {
+  overflow: auto;
+  min-height: 0;
+  padding: 20px 24px;
+}
+.batch-intro,
+.batch-note {
+  margin: 0 0 18px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.batch-selection {
+  border: 0;
+  padding: 0;
+  margin: 0 0 20px;
+  min-width: 0;
+}
+.batch-selection legend {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.batch-selection label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+}
+.batch-selection input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+.batch-selection label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.batch-selection small {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.batch-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-top: 16px;
+}
+.batch-field input,
+.batch-field select {
+  width: 100%;
+  min-width: 0;
+}
+.batch-location {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+.batch-location .action-button {
+  min-height: 32px;
+}
+.batch-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+}
+.batch-footer > .action-button:first-child {
+  margin-right: auto;
+}
+.batch-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+}
+.batch-summary > span {
+  color: var(--text-secondary);
+}
+.batch-folder {
+  margin: 10px 0 16px;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.batch-progress {
+  width: 100%;
+  height: 7px;
+  accent-color: var(--accent);
+  margin-bottom: 16px;
+}
+.batch-entries {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+}
+.batch-entries li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.batch-entry-icon {
+  display: flex;
+  padding-top: 2px;
+  color: var(--text-secondary);
+}
+.batch-entries strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+.batch-entries small,
+.batch-status {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.batch-entries small {
+  display: block;
+  margin-top: 5px;
+}
+.batch-error,
+.batch-entry-error {
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.batch-error {
+  padding: 12px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border-radius: 6px;
+}
+.batch-entry-error {
+  margin: 8px 0 0;
+}
+.batch-refresh {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+.batch-refresh p {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0 0 10px;
+}

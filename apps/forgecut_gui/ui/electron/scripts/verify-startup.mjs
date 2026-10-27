@@ -1,3 +1,4 @@
+import { verifyBatchControls } from "./batch-controls-smoke.mjs";
 import { verifyPortableMedia } from "./portable-media-smoke.mjs";
 import { verifyExportBatches } from "./export-batch-smoke.mjs";
 import { verifyReviewExports } from "./review-export-smoke.mjs";
@@ -228,6 +229,7 @@ async function main() {
   await verifyCredits(mcpDirectory, send);
   await verifyReviewExports(mcpDirectory, send);
   await verifyExportBatches(mcpDirectory, send);
+  await verifyBatchControls(mcpDirectory, send);
   await verifyPortableMedia(mcpDirectory, send);
   ws.close();
 

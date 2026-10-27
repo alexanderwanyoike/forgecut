@@ -8,7 +8,15 @@ import {
   Save,
   Undo2,
 } from "lucide-react";
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import {
+  useCallback,
+  useState,
+  useEffect,
+  useRef,
+  lazy,
+  Suspense,
+} from "react";
+import BatchExportDialog from "./components/BatchExportDialog";
 import CreditsDialog from "./components/CreditsDialog";
 import { sequenceDurationUs } from "../electron/domain/sequence";
 import ActionButton from "./components/ActionButton";
@@ -28,6 +36,16 @@ import { useProject } from "./hooks/useProject";
 const CodeWorkspace = lazy(() => import("./components/CodeWorkspace"));
 
 export default function App() {
+  const [showBatches, setShowBatches] = useState(false);
+  const [batchDirectory, setBatchDirectory] = useState<string | null>(() =>
+    localStorage.getItem("forgecut.exportBatchDirectory"),
+  );
+  const rememberBatch = useCallback((directory: string) => {
+    setBatchDirectory(directory);
+    try {
+      localStorage.setItem("forgecut.exportBatchDirectory", directory);
+    } catch {}
+  }, []);
   const [showCredits, setShowCredits] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [exportTarget, setExportTarget] = useState<ExportTarget | undefined>();
@@ -149,6 +167,17 @@ export default function App() {
                   onClick={handleSave}
                 >
                   Save Project...
+                </ActionButton>
+                <ActionButton
+                  icon={Download}
+                  className="quiet-action"
+                  onClick={() => {
+                    setShowFileMenu(false);
+                    setPlaying(false);
+                    setShowBatches(true);
+                  }}
+                >
+                  Batch exports
                 </ActionButton>
                 <ActionButton
                   icon={FileBadge}
@@ -366,6 +395,14 @@ export default function App() {
           key={snapshot.sessionId}
           snapshot={snapshot}
           onClose={() => setShowCredits(false)}
+        />
+      )}
+      {showBatches && (
+        <BatchExportDialog
+          snapshot={snapshot}
+          initialDirectory={batchDirectory}
+          remember={rememberBatch}
+          onClose={() => setShowBatches(false)}
         />
       )}
       <ExportDialog
