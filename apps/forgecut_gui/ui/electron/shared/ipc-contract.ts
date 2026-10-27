@@ -35,6 +35,7 @@ import type { JobSnapshot } from "./jobs.js";
  */
 
 export type TimeUs = number;
+export type ReviewRange = { startUs: TimeUs; endUs: TimeUs };
 
 export type ProjectSettings = {
   width: number;
@@ -599,7 +600,7 @@ export type CommandMap = {
     result: JobSnapshot;
   };
   export_project: {
-    args: { outputPath: string; sequenceId?: string };
+    args: { outputPath: string; sequenceId?: string; range?: ReviewRange };
     result: JobSnapshot;
   };
 };

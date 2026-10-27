@@ -1,3 +1,4 @@
+import type { ReviewRange } from "../shared/ipc-contract.js";
 import type { AppState } from "./state.js";
 import type { JobQueue } from "./job-queue.js";
 import { exportProject } from "./exporter.js";
@@ -11,6 +12,7 @@ type ExportRequest = {
   requestId: string;
   outputPath: string;
   sequenceId?: string;
+  range?: ReviewRange;
 };
 
 export function startExportJob(
@@ -30,13 +32,15 @@ export function startExportJob(
     request.sequenceId ??
     state.project.default_sequence?.id ??
     state.project.id;
+  const range = request.range ? { ...request.range } : undefined;
+  const { outputPath } = request;
   const job: JobRequest = {
     sessionId: request.sessionId,
     projectRevision: request.expectedRevision,
     requestId: request.requestId,
     kind: "export",
     label: "Export project",
-    input: { outputPath: request.outputPath, sequenceId },
+    input: { outputPath, sequenceId, ...(range ? { range } : {}) },
   };
   const replayed = jobs.replay(job);
   if (!replayed.ok) return replayed;
@@ -64,7 +68,8 @@ export function startExportJob(
           message: "Read the current project revision before exporting.",
         },
       };
-    return exportProject(snapshot, request.outputPath, {
+    return exportProject(snapshot, outputPath, {
+      range,
       signal,
       beginCommit,
       onProgress: (progress) => {

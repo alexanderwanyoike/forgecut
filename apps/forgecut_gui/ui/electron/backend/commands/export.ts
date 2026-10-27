@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { CommandMap } from "../../shared/ipc-contract.js";
 import { startExportJob } from "../export-jobs.js";
 import type { JobQueue } from "../job-queue.js";
 import { EditingError } from "../editing-error.js";
@@ -37,11 +38,13 @@ export function exportCommands(jobs: JobQueue) {
       return result.value;
     },
     export_project: (args, { state, sequenceId }) => {
+      const input = args as CommandMap["export_project"]["args"];
       const result = startExportJob(state, jobs, {
         sessionId: state.sessionId,
         expectedRevision: state.revision,
         requestId: randomUUID(),
         outputPath: requiredString(args, "outputPath"),
+        range: input.range,
         sequenceId:
           typeof args?.sequenceId === "string" ? args.sequenceId : sequenceId,
       });

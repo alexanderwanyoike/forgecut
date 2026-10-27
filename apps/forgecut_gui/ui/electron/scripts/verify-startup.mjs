@@ -1,3 +1,4 @@
+import { verifyReviewExports } from "./review-export-smoke.mjs";
 import { verifyCredits } from "./credits-smoke.mjs";
 import { verifyStyleControls } from "./style-controls-smoke.mjs";
 import { verifyStylePresets } from "./style-preset-smoke.mjs";
@@ -223,6 +224,7 @@ async function main() {
   await verifyStylePresets(mcpDirectory, send);
   await verifyStyleControls(send);
   await verifyCredits(mcpDirectory, send);
+  await verifyReviewExports(mcpDirectory, send);
   ws.close();
 
   const value = result.result?.result?.value;

@@ -1,5 +1,8 @@
 import { ArrowLeft, Download, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import type { ReviewRange } from "../../electron/shared/ipc-contract";
+import type { Result } from "../../electron/shared/result";
+import ReviewExportControls from "./ReviewExportControls";
 import ActionButton from "./ActionButton";
 import type { JobSnapshot } from "../../electron/shared/jobs";
 import {
@@ -9,7 +12,11 @@ import {
   type CommandTarget,
 } from "../lib/bridge";
 
-export type ExportTarget = CommandTarget & { name: string };
+export type ExportTarget = CommandTarget & {
+  name: string;
+  durationUs?: number;
+  playheadUs?: number;
+};
 
 const active = (job: JobSnapshot | null) =>
   !!job &&
@@ -36,10 +43,18 @@ export default function ExportDialog(props: {
   target?: ExportTarget;
 }) {
   const [job, setJob] = useState<JobSnapshot | null>(null);
+  const [range, setRange] = useState<Result<ReviewRange | undefined>>({
+    ok: true,
+    value: undefined,
+  });
+  const [jobRange, setJobRange] = useState<ReviewRange>();
   const [starting, setStarting] = useState(false);
   const [jobTarget, setJobTarget] = useState<ExportTarget | undefined>();
   const [error, setError] = useState<string | null>(null);
   const exporting = active(job);
+  useEffect(() => {
+    if (props.open) setRange({ ok: true, value: undefined });
+  }, [props.open, props.target?.sessionId, props.target?.sequenceId]);
   useEffect(() => {
     if (!job || !active(job)) return undefined;
     let disposed = false;
@@ -79,6 +94,9 @@ export default function ExportDialog(props: {
   }, [job?.id, job?.status]);
 
   const handleExport = async () => {
+    if (!range.ok) return;
+    const reviewRange = range.value;
+    setJobRange(reviewRange);
     const { target } = props;
     setStarting(true);
     setJobTarget(target);
@@ -94,8 +112,12 @@ export default function ExportDialog(props: {
           ? await invokeInContext(target, "export_project", {
               outputPath,
               sequenceId: target.sequenceId,
+              ...(reviewRange ? { range: reviewRange } : {}),
             })
-          : await invoke("export_project", { outputPath });
+          : await invoke("export_project", {
+              outputPath,
+              ...(reviewRange ? { range: reviewRange } : {}),
+            });
         setJob(started);
       }
     } catch (cause) {
@@ -185,6 +207,22 @@ export default function ExportDialog(props: {
               </div>
             )}
           </div>
+          <ReviewExportControls
+            key={`${props.target?.sessionId}:${props.target?.sequenceId}`}
+            durationUs={props.target?.durationUs}
+            playheadUs={props.target?.playheadUs}
+            disabled={starting || exporting}
+            onChange={setRange}
+          />
+          {job && jobRange && (
+            <div className="info-row">
+              <span>Requested range</span>
+              <span>
+                {(jobRange.startUs / 1000000).toFixed(3)} to{" "}
+                {(jobRange.endUs / 1000000).toFixed(3)} s
+              </span>
+            </div>
+          )}
           {exporting && job && (
             <div className="export-progress" aria-live="polite">
               <div
@@ -252,7 +290,7 @@ export default function ExportDialog(props: {
             <ActionButton
               icon={Download}
               className="primary-action"
-              disabled={starting}
+              disabled={starting || !range.ok}
               onClick={handleExport}
             >
               {starting ? "Preparing" : "Export"}
