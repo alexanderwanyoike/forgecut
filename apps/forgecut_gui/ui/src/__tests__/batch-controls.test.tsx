@@ -1,7 +1,13 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import type { EditingService } from "../../electron/backend/editing-service";
 import {
@@ -92,7 +98,6 @@ it("creates the chosen output from the file menu and pauses it without changing 
   ).toBeTruthy();
 });
 
-
 it("reopens a paused saved batch without rendering and keeps form drafts when the project changes", async () => {
   const { state, service, App, root: main } = await sequenceWorkspaceFixture();
   owner = service;
@@ -115,43 +120,82 @@ it("reopens a paused saved batch without rendering and keeps form drafts when th
   const saved = await service.execute("get_export_batch", { directory });
   expect(saved).toMatchObject({ ok: true, value: { active: false } });
   fireEvent.click(screen.getByRole("button", { name: "New batch" }));
-  fireEvent.change(screen.getByLabelText("Batch folder"), { target: { value: "my draft" } });
-  fireEvent.change(screen.getByRole("combobox", { name: "Batch format" }), { target: { value: "webm" } });
+  fireEvent.change(screen.getByLabelText("Batch folder"), {
+    target: { value: "my draft" },
+  });
+  fireEvent.change(screen.getByRole("combobox", { name: "Batch format" }), {
+    target: { value: "webm" },
+  });
   await act(async () => {
-    const edited = await service.execute("update_project", { name: "Manual title" }, { sequenceId: main });
+    const edited = await service.execute(
+      "update_project",
+      { name: "Manual title" },
+      { sequenceId: main },
+    );
     expect(edited.ok).toBe(true);
   });
   await screen.findByRole("button", { name: "Refresh sequences" });
-  expect(screen.getByRole("button", { name: "Create and export" }).hasAttribute("disabled")).toBe(true);
+  expect(
+    screen
+      .getByRole("button", { name: "Create and export" })
+      .hasAttribute("disabled"),
+  ).toBe(true);
   fireEvent.click(screen.getByRole("button", { name: "Refresh sequences" }));
-  expect(screen.getByLabelText("Batch folder")).toHaveProperty("value", "my draft");
-  expect(screen.getByRole("combobox", { name: "Batch format" })).toHaveProperty("value", "webm");
+  expect(screen.getByLabelText("Batch folder")).toHaveProperty(
+    "value",
+    "my draft",
+  );
+  expect(screen.getByRole("combobox", { name: "Batch format" })).toHaveProperty(
+    "value",
+    "webm",
+  );
   expect(state.project.name).toBe("Manual title");
   fireEvent.keyDown(screen.getByLabelText("Batch folder"), { key: "Delete" });
   expect(state.project.timeline.tracks[0].items).toHaveLength(1);
   fireEvent.keyDown(screen.getByLabelText("Batch folder"), { key: "Escape" });
-  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Batch exports" })).toBeNull());
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog", { name: "Batch exports" })).toBeNull(),
+  );
 });
-
 
 it("continues an accepted export when the batch window closes during snapshot creation", async () => {
   const { state, service, App, clip } = await sequenceWorkspaceFixture();
   owner = service;
   root = await mkdtemp(join(tmpdir(), "forgecut-batch-close-"));
   const directory = join(root, "exports");
-  const held = new Promise<void>((resolve) => { release = resolve; });
-  service.jobs.start({ sessionId: state.sessionId, projectRevision: state.revision,
-    requestId: "hold-close", kind: "frame", label: "Held media job", input: null },
-    async () => { await held; return { ok: true, value: null }; });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  service.jobs.start(
+    {
+      sessionId: state.sessionId,
+      projectRevision: state.revision,
+      requestId: "hold-close",
+      kind: "frame",
+      label: "Held media job",
+      input: null,
+    },
+    async () => {
+      await held;
+      return { ok: true, value: null };
+    },
+  );
   const api = window.forgecut!;
   const original = api.invoke;
   let finishSave = () => {};
-  const saving = new Promise<void>((resolve) => { finishSave = resolve; });
+  const saving = new Promise<void>((resolve) => {
+    finishSave = resolve;
+  });
   let captured = () => {};
-  const created = new Promise<void>((resolve) => { captured = resolve; });
+  const created = new Promise<void>((resolve) => {
+    captured = resolve;
+  });
   api.invoke = async <T,>(...args: Parameters<typeof original>) => {
     const result = await original<T>(...args);
-    if (args[0] === "create_export_batch") { captured(); await saving; }
+    if (args[0] === "create_export_batch") {
+      captured();
+      await saving;
+    }
     return result;
   };
   render(<App />);
@@ -159,14 +203,25 @@ it("continues an accepted export when the batch window closes during snapshot cr
   fireEvent.click(screen.getByRole("button", { name: "File" }));
   fireEvent.click(await screen.findByRole("button", { name: "Batch exports" }));
   fireEvent.click(screen.getByRole("checkbox", { name: "Export Main" }));
-  fireEvent.change(screen.getByLabelText("Batch folder"), { target: { value: directory } });
+  fireEvent.change(screen.getByLabelText("Batch folder"), {
+    target: { value: directory },
+  });
   fireEvent.click(screen.getByRole("button", { name: "Create and export" }));
   await created;
   fireEvent.click(screen.getByRole("button", { name: "Close batch exports" }));
-  await act(async () => { finishSave(); await saving; });
+  await act(async () => {
+    finishSave();
+    await saving;
+  });
   await waitFor(async () => {
     const batch = await service.execute("get_export_batch", { directory });
-    expect(batch).toMatchObject({ ok: true, value: { active: true, entries: [expect.objectContaining({ sequenceId: clip })] } });
+    expect(batch).toMatchObject({
+      ok: true,
+      value: {
+        active: true,
+        entries: [expect.objectContaining({ sequenceId: clip })],
+      },
+    });
   });
   expect(localStorage.getItem("forgecut.exportBatchDirectory")).toBe(directory);
 });

@@ -11,7 +11,9 @@ export async function verifyBatchControls(directory, send) {
       returnByValue: true,
     });
     if (result.result?.exceptionDetails)
-      throw new Error(`Batch controls failed: ${JSON.stringify(result.result)}`);
+      throw new Error(
+        `Batch controls failed: ${JSON.stringify(result.result)}`,
+      );
     return result.result?.result?.value;
   };
   const helpers = `
@@ -44,10 +46,20 @@ export async function verifyBatchControls(directory, send) {
     return true;
   })()`);
   const shots = process.env.FORGECUT_BATCH_SCREENSHOTS;
-  for (const [width, height] of [[1280, 800], [1024, 768]]) {
-    await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+  for (const [width, height] of [
+    [1280, 800],
+    [1024, 768],
+  ]) {
+    await send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
     for (const mode of ["dark", "light"]) {
-      await evaluate(`(async () => { document.documentElement.dataset.theme = '${mode}'; await document.fonts.ready; await new Promise(resolve => setTimeout(resolve, 100)); return true; })()`);
+      await evaluate(
+        `(async () => { document.documentElement.dataset.theme = '${mode}'; await document.fonts.ready; await new Promise(resolve => setTimeout(resolve, 100)); return true; })()`,
+      );
       const layout = await evaluate(`(() => {
         const dialog = document.querySelector('.batch-dialog');
         const bounds = dialog.getBoundingClientRect();
@@ -56,8 +68,13 @@ export async function verifyBatchControls(directory, send) {
       if (!layout) throw new Error(`Batch dialog overflowed at ${width}px`);
       if (shots) {
         await mkdir(shots, { recursive: true });
-        const screenshot = await send("Page.captureScreenshot", { format: "png" });
-        await writeFile(join(shots, `batch-create-${mode}-${width}.png`), Buffer.from(screenshot.result.data, "base64"));
+        const screenshot = await send("Page.captureScreenshot", {
+          format: "png",
+        });
+        await writeFile(
+          join(shots, `batch-create-${mode}-${width}.png`),
+          Buffer.from(screenshot.result.data, "base64"),
+        );
       }
     }
   }
@@ -77,10 +94,35 @@ export async function verifyBatchControls(directory, send) {
     return saved.entries;
   })()`);
   for (const [index, entry] of entries.entries()) {
-    const result = spawnSync("ffprobe", ["-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries", "stream=codec_name,width,height,nb_read_frames", "-of", "json", join(output, entry.outputFile)], { encoding: "utf8" });
+    const result = spawnSync(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-count_frames",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=codec_name,width,height,nb_read_frames",
+        "-of",
+        "json",
+        join(output, entry.outputFile),
+      ],
+      { encoding: "utf8" },
+    );
     if (result.status !== 0) throw new Error(result.stderr);
     const stream = JSON.parse(result.stdout).streams[0];
-    if (stream.codec_name !== "vp9" || stream.width !== (index ? 18 : 32) || stream.height !== (index ? 32 : 18) || stream.nb_read_frames !== "2") throw new Error(`Incorrect visual batch output: ${JSON.stringify(stream)}`);
+    if (
+      stream.codec_name !== "vp9" ||
+      stream.width !== (index ? 18 : 32) ||
+      stream.height !== (index ? 32 : 18) ||
+      stream.nb_read_frames !== "2"
+    )
+      throw new Error(
+        `Incorrect visual batch output: ${JSON.stringify(stream)}`,
+      );
   }
-  console.log("Visual batch creation, two actual exports, unchanged project, read-only reopening and responsive themes verified");
+  console.log(
+    "Visual batch creation, two actual exports, unchanged project, read-only reopening and responsive themes verified",
+  );
 }

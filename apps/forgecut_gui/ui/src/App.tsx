@@ -8,7 +8,14 @@ import {
   Save,
   Undo2,
 } from "lucide-react";
-import { useCallback, useState, useEffect, useRef, lazy, Suspense } from "react";
+import {
+  useCallback,
+  useState,
+  useEffect,
+  useRef,
+  lazy,
+  Suspense,
+} from "react";
 import BatchExportDialog from "./components/BatchExportDialog";
 import CreditsDialog from "./components/CreditsDialog";
 import { sequenceDurationUs } from "../electron/domain/sequence";
