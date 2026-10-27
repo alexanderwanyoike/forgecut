@@ -1,4 +1,4 @@
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Client } from "@modelcontextprotocol/client";
@@ -290,6 +290,63 @@ export async function verifyMcp(directory, send) {
       throw new Error(
         "Packaged project credits did not round trip through MCP",
       );
+    const collectionRevision = await client.callTool({
+      name: "read_project",
+      arguments: {},
+    });
+    const collection = await client.callTool({
+      name: "start_project_collection",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        expectedRevision: collectionRevision.structuredContent.value.revision,
+        requestId: crypto.randomUUID(),
+        directory: join(directory, "adapter-collection"),
+        assetIds: [job.result.value.assetIds[0]],
+      },
+    });
+    if (collection.isError) throw new Error(JSON.stringify(collection));
+    let collected;
+    for (let attempt = 0; attempt < 400; attempt++) {
+      const result = await client.callTool({
+        name: "get_job",
+        arguments: {
+          sessionId: snapshot.sessionId,
+          jobId: collection.structuredContent.value.id,
+        },
+      });
+      if (result.isError) throw new Error(JSON.stringify(result));
+      collected = result.structuredContent.value;
+      if (["completed", "failed", "cancelled"].includes(collected.status))
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    if (
+      collected?.status !== "completed" ||
+      collected.result?.value?.copiedAssets !== 1
+    )
+      throw new Error(
+        `Compiled MCP collection failed: ${JSON.stringify(collected)}`,
+      );
+    const saved = JSON.parse(
+      await readFile(collected.result.value.projectPath, "utf8"),
+    );
+    if (
+      saved.assets.find((asset) => asset.id === job.result.value.assetIds[0])
+        ?.license?.attribution !== license.attribution
+    )
+      throw new Error("Compiled collection lost its media credit");
+    const afterCollection = await client.callTool({
+      name: "read_project",
+      arguments: {},
+    });
+    if (
+      JSON.stringify(afterCollection.structuredContent.value) !==
+      JSON.stringify(collectionRevision.structuredContent.value)
+    )
+      throw new Error("Compiled collection changed the current editor");
+    console.log(
+      "Isolated compiled MCP adapter collected actual media and preserved credits and live state",
+    );
   } finally {
     await client.close();
     await transport.close();
