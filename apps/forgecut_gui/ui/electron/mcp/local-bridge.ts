@@ -109,6 +109,7 @@ export async function startLocalBridge(
         "draft-save": "Save graphic draft",
         "draft-revert": "Revert graphic draft",
         "source-promote": "Apply graphic source",
+        collect: "Collect project",
         export: "Export project",
         import: "Import media",
         frame: "Source frame",

@@ -18,6 +18,7 @@ import type {
   ProjectSnapshot,
 } from "../shared/ipc-contract.js";
 import {
+  commandSchemas,
   sourceReviewRequestSchema,
   editRequestSchema,
   historyRequestSchema,
@@ -45,6 +46,7 @@ export const projectFileRequestSchema = z.strictObject({
     .refine(isAbsolute, "Use an absolute project path"),
 });
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
+  commandSchemas.collect_project.extend({ action: z.literal("collect") }),
   ...batchActionSchemas,
   ...sourceActionSchemas,
   z.strictObject({
@@ -148,6 +150,11 @@ export async function dispatchLocal(
   const request = parsed.data;
   const { state } = service;
   try {
+    if (request.action === "collect") {
+      const { action: _action, ...args } = request;
+      const response = await service.execute("collect_project", args);
+      return response.ok ? { ok: true, value: response.value } : response;
+    }
     if (
       request.action === "create-batch" ||
       request.action === "read-batch" ||

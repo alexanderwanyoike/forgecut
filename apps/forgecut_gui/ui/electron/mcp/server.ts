@@ -15,6 +15,7 @@ import {
 } from "./job-schema.js";
 import { editingCapabilities } from "./capabilities.js";
 import {
+  commandSchemas,
   sourceReviewRequestSchema,
   editRequestSchema,
   historyRequestSchema,
@@ -424,6 +425,15 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
       inputSchema: frameRequestSchema,
     },
     async (request) => call({ action: "frame", ...request }),
+  );
+  server.registerTool(
+    "start_project_collection",
+    {
+      description:
+        "Queue collection of this captured project revision into a new folder. Include chosen assetIds as bounded streaming media copies; unselected recordings stay external. Graphic source, artwork, fonts and notices use the existing project save format. The folder must not exist. Publishing project.forgecut finishes the collection without changing or opening the current editor. Poll get_job; cancel_job removes only this job's unfinished folder before publication. Reuse the same requestId to recover an uncertain response.",
+      inputSchema: commandSchemas.collect_project,
+    },
+    async (request) => call({ action: "collect", ...request }),
   );
   server.registerTool(
     "start_export",
