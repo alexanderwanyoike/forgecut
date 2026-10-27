@@ -175,7 +175,7 @@ export const sourceSelectionSchema = z
   );
 
 const projectSchema = z.strictObject({
-  schema_version: z.literal(7),
+  schema_version: z.literal(8),
   style_presets: z.array(stylePresetSchema).max(100).default([]),
   source_selections: z.array(sourceSelectionSchema).max(1000).default([]),
   default_sequence: z.strictObject({
@@ -213,7 +213,7 @@ export function validateProject(input: unknown): Project {
   if (legacy) {
     migrated = {
       ...previous,
-      schema_version: 7,
+      schema_version: 8,
       default_sequence: previous.default_sequence ?? {
         id: randomUUID(),
         name: "Main",
@@ -223,9 +223,10 @@ export function validateProject(input: unknown): Project {
     previous.schema_version === 3 ||
     previous.schema_version === 4 ||
     previous.schema_version === 5 ||
-    previous.schema_version === 6
+    previous.schema_version === 6 ||
+    previous.schema_version === 7
   ) {
-    migrated = { ...previous, schema_version: 7 };
+    migrated = { ...previous, schema_version: 8 };
   }
   const project = projectSchema.parse(migrated);
   const ids = new Set<string>();

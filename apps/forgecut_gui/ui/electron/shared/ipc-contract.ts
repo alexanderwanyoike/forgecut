@@ -176,7 +176,7 @@ export type ProjectSequence = {
 };
 
 export type Project = {
-  schema_version?: 2 | 3 | 4 | 5 | 6 | 7;
+  schema_version?: 2 | 3 | 4 | 5 | 6 | 7 | 8;
   style_presets?: StylePreset[];
   source_selections?: SourceSelection[];
   default_sequence?: Pick<ProjectSequence, "id" | "name">;
