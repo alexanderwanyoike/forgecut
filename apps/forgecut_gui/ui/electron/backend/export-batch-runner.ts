@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
+import type { Result } from "../shared/result.js";
 import type { Project } from "../shared/ipc-contract.js";
 import type { JobSnapshot } from "../shared/jobs.js";
 import { projectForSequence } from "../domain/project-sequences.js";
@@ -22,7 +23,7 @@ export async function runExportBatch(
   active: ActiveBatch,
   project: Project,
   jobs: JobQueue,
-): Promise<void> {
+): Promise<Result<void>> {
   for (const entry of active.record.entries) {
     if (active.stopping) break;
     if (entry.status === "completed") continue;
@@ -40,7 +41,7 @@ export async function runExportBatch(
       break;
     }
     const selected = projectForSequence(project, entry.sequenceId);
-    if (!selected.ok) throw new Error(selected.error.message);
+    if (!selected.ok) return selected;
     const started = jobs.start(
       {
         sessionId: active.record.id,
@@ -68,7 +69,7 @@ export async function runExportBatch(
           },
         ),
     );
-    if (!started.ok) throw new Error(started.error.message);
+    if (!started.ok) return started;
     active.job = started.value;
     let job = started.value;
     while (
@@ -78,7 +79,7 @@ export async function runExportBatch(
         setTimeout(resolve, 50);
       });
       const next = jobs.read(job.id, job.sessionId);
-      if (!next.ok) throw new Error(next.error.message);
+      if (!next.ok) return next;
       job = next.value;
     }
     active.job = undefined;
@@ -88,6 +89,16 @@ export async function runExportBatch(
     if (job.result && !job.result.ok)
       entry.error = job.result.error.message.slice(0, 4096);
     await writeBatchRecord(active.directory, active.record);
-    if (entry.status !== "completed") break;
+    if (entry.status !== "completed") {
+      if (job.result && !job.result.ok) return job.result;
+      return {
+        ok: false,
+        error: {
+          code: "JOB_FAILED",
+          message: "The export job did not complete",
+        },
+      };
+    }
   }
+  return { ok: true, value: undefined };
 }

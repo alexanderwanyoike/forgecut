@@ -146,17 +146,20 @@ export class ExportBatchService {
       const unlock = release;
       release = undefined;
       active.done = runExportBatch(active, project, this.jobs)
+        .then(async (result) => {
+          if (!result.ok)
+            await this.checkpointFailure(
+              active,
+              result.error.code,
+              result.error.message,
+            );
+        })
         .catch(async (cause) => {
-          const entry = record.entries.find(
-            (candidate) => candidate.status === "running",
+          await this.checkpointFailure(
+            active,
+            "IO_ERROR",
+            cause instanceof Error ? cause.message : String(cause),
           );
-          if (entry) {
-            entry.status = "failed";
-            entry.error = (
-              cause instanceof Error ? cause.message : String(cause)
-            ).slice(0, 4096);
-            await writeBatchRecord(path, record).catch(() => {});
-          }
         })
         .finally(async () => {
           this.active = undefined;
@@ -197,5 +200,18 @@ export class ExportBatchService {
     this.active.stopping = true;
     if (this.active.job)
       this.jobs.cancel(this.active.job.id, this.active.job.sessionId);
+  }
+  private async checkpointFailure(
+    active: ActiveBatch,
+    code: string,
+    message: string,
+  ): Promise<void> {
+    const entry = active.record.entries.find(
+      (candidate) => candidate.status === "running",
+    );
+    if (!entry) return;
+    entry.status = "failed";
+    entry.error = `${code}: ${message}`.slice(0, 4096);
+    await writeBatchRecord(active.directory, active.record).catch(() => {});
   }
 }
