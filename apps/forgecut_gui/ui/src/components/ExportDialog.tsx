@@ -210,7 +210,7 @@ export default function ExportDialog(props: {
                 value={preset}
                 disabled={starting || exporting}
                 onChange={(event) => {
-                  const value = event.target.value;
+                  const { value } = event.target;
                   if (value === "mp4" || value === "webm") setPreset(value);
                 }}
               >
