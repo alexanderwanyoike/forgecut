@@ -1,5 +1,5 @@
 /** @vitest-environment node */
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile, chmod } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
@@ -42,3 +42,43 @@ it("rejects colliding saved entries before resuming or replacing an output", asy
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it.skipIf(process.platform === "win32")(
+  "reports a failed durable checkpoint instead of silently returning to pending",
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "forgecut-batch-checkpoint-"));
+    const directory = join(root, "outputs");
+    const state = new AppState();
+    const service = new EditingService(state);
+    try {
+      const created = await service.execute("create_export_batch", {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        directory,
+        sequenceIds: [state.project.default_sequence!.id],
+      });
+      if (!created.ok) throw new Error(created.error.message);
+      const batch = created.value as { id: string };
+      await chmod(directory, 0o500);
+      expect(
+        await service.execute("resume_export_batch", {
+          directory,
+          batchId: batch.id,
+        }),
+      ).toMatchObject({ ok: true });
+      let result = await service.execute("get_export_batch", { directory });
+      for (let attempt = 0; attempt < 100; attempt++) {
+        result = await service.execute("get_export_batch", { directory });
+        if (!result.ok || !(result.value as { active: boolean }).active) break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(result).toMatchObject({ ok: false, error: { code: "IO_ERROR" } });
+    } finally {
+      await chmod(directory, 0o700).catch(() => {});
+      await service.batches.close();
+      await service.jobs.close();
+      await service.closeGraphicsPreview();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
