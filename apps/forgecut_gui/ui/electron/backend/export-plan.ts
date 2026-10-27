@@ -18,7 +18,11 @@ import {
   resolveVisualPlacement,
 } from "../domain/visual-placement.js";
 
-export type RenderInput = { path: string; index: number };
+export type RenderInput = {
+  path: string;
+  index: number;
+  range?: { startUs: number; durationUs: number };
+};
 export type RenderPlan = {
   inputs: RenderInput[];
   filterGraph: string;
@@ -67,11 +71,26 @@ export function compileExportPlan(
       (candidate) => candidate.id === assetIdOf(item),
     );
     if (!asset) throw new Error(`Missing source asset for ${data.id}`);
-    let input = inputs.find((candidate) => candidate.path === asset.path);
-    if (!input) {
-      input = { path: asset.path, index: inputs.length };
-      inputs.push(input);
-    }
+    const sourceClip =
+      "VideoClip" in item
+        ? item.VideoClip
+        : "AudioClip" in item
+          ? item.AudioClip
+          : undefined;
+    // Independent seeks avoid buffering intervening footage for reordered cuts.
+    const input: RenderInput = {
+      path: asset.path,
+      index: inputs.length,
+      ...(sourceClip
+        ? {
+            range: {
+              startUs: sourceClip.source_in_us,
+              durationUs: sourceClip.source_out_us - sourceClip.source_in_us,
+            },
+          }
+        : {}),
+    };
+    inputs.push(input);
     if ("VideoClip" in item || "ImageOverlay" in item) {
       const image = "ImageOverlay" in item;
       const placement = resolveVisualPlacement(project, item);
@@ -83,7 +102,7 @@ export function compileExportPlan(
           : `scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2:color=black@0`;
       const trim =
         "VideoClip" in item
-          ? `trim=start=${item.VideoClip.source_in_us / 1_000_000}:end=${item.VideoClip.source_out_us / 1_000_000},`
+          ? `trim=duration=${input.range!.durationUs / 1_000_000},`
           : "";
       filters.push(
         `[${input.index}:v]${trim}setpts=PTS-STARTPTS,${image ? "" : `fps=${fps},`}format=rgba,${fitFilter},colorchannelmixer=aa=${placement.opacity},setpts=PTS+${range.start}/${fps}/TB[visual${index}]`,
@@ -109,7 +128,7 @@ export function compileExportPlan(
           : "",
       ].join("");
       filters.push(
-        `[${input.index}:a]atrim=start=${clip.source_in_us / 1_000_000}:end=${clip.source_out_us / 1_000_000},asetpts=PTS-STARTPTS,aresample=${sampleRate},aformat=channel_layouts=stereo,volume=${envelope.volume}${fades},atrim=duration=${length},adelay=${delay}S:all=1[audio${index}]`,
+        `[${input.index}:a]atrim=duration=${input.range!.durationUs / 1_000_000},asetpts=PTS-STARTPTS,aresample=${sampleRate},aformat=channel_layouts=stereo,volume=${envelope.volume}${fades},atrim=duration=${length},adelay=${delay}S:all=1[audio${index}]`,
       );
       audioLabels.push(`[audio${index}]`);
     }
