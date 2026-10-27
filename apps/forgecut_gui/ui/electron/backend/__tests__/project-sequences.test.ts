@@ -42,7 +42,7 @@ it.each([undefined, 1, 2])(
     };
     const migrated = validateProject(legacy);
     expect(migrated).toMatchObject({
-      schema_version: 7,
+      schema_version: 8,
       default_sequence: {
         id: expect.stringMatching(/^[a-f\d-]{36}$/),
         name: "Main",
@@ -153,7 +153,7 @@ it("saves and reopens sequence names dimensions timelines and stable identities"
   }
 });
 
-it.each([3, 4, 5, 6] as const)(
+it.each([3, 4, 5, 6, 7] as const)(
   "migrates version %s without replacing default sequence identity or accepting corrupt metadata",
   (version) => {
     const current = structuredClone(new AppState().project);
@@ -162,7 +162,7 @@ it.each([3, 4, 5, 6] as const)(
     current.schema_version = version;
     expect(validateProject(current)).toEqual({
       ...current,
-      schema_version: 7,
+      schema_version: 8,
       source_selections: [],
       style_presets: [],
     });
