@@ -605,6 +605,14 @@ export type CommandMap = {
     result: JobSnapshot;
   };
   create_export_batch: { args: CreateExportBatch; result: ExportBatchSnapshot };
+  resume_export_batch: {
+    args: { directory: string; batchId: string; retryInterrupted?: boolean };
+    result: ExportBatchSnapshot;
+  };
+  cancel_export_batch: {
+    args: { directory: string; batchId: string };
+    result: ExportBatchSnapshot;
+  };
   get_export_batch: {
     args: { directory: string };
     result: ExportBatchSnapshot;

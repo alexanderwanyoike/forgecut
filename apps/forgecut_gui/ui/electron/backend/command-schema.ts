@@ -375,6 +375,15 @@ export const commandSchemas = {
   cancel_media_job: z.strictObject({ sessionId: id, jobId: z.uuid() }),
   get_media_job: z.strictObject({ sessionId: id, jobId: z.uuid() }),
   create_export_batch: createExportBatchSchema,
+  resume_export_batch: z.strictObject({
+    directory: batchDirectorySchema,
+    batchId: z.uuid(),
+    retryInterrupted: z.boolean().optional(),
+  }),
+  cancel_export_batch: z.strictObject({
+    directory: batchDirectorySchema,
+    batchId: z.uuid(),
+  }),
   get_export_batch: z.strictObject({ directory: batchDirectorySchema }),
   export_project: z.strictObject({
     preset: exportPresetSchema.optional(),

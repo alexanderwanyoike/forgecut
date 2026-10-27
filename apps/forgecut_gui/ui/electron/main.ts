@@ -23,6 +23,7 @@ app.on("before-quit", (event) => {
   event.preventDefault();
   quitting = true;
   void Promise.allSettled([
+    editing.batches.close(),
     editing.jobs.close(),
     editing.closeGraphicsPreview(),
     localBridge?.close(),
