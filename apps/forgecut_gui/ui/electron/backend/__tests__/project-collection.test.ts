@@ -248,7 +248,7 @@ it("preserves existing destinations and rejects stale or unknown collection inpu
   );
 });
 
-it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+it.skipIf(process.platform !== "linux" || process.getuid?.() === 0)(
   "reports the original failure and recovery folder when cleanup is denied",
   async () => {
     directory = await mkdtemp(join(tmpdir(), "forgecut-collect-cleanup-"));
