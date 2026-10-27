@@ -25,6 +25,7 @@ import {
   loadGraphicResources,
 } from "./graphic-resource-persistence.js";
 import { atomicWrite, readIfPresent } from "./atomic-file.js";
+import { projectForDisk, projectFromDisk } from "./project-media-paths.js";
 import { validateProject } from "./project-schema.js";
 import { EditingError } from "./editing-error.js";
 
@@ -214,7 +215,7 @@ export class AppState {
   saveProject(path: string): Promise<void> {
     const outputPath = ensureForgeCutExtension(path);
     const project = validateProject(this.project);
-    const content = `${JSON.stringify(project, null, 2)}\n`;
+    const content = `${JSON.stringify(projectForDisk(project, dirname(outputPath)), null, 2)}\n`;
     const save = this.saveQueue.then(async () => {
       await saveGraphicResources(project.resources ?? [], dirname(outputPath));
       const previous = await readIfPresent(outputPath);
@@ -240,7 +241,7 @@ export class AppState {
       recovery ? `${ensureForgeCutExtension(path)}.bak` : path,
       "utf8",
     );
-    const project = validateProject(JSON.parse(content));
+    const project = projectFromDisk(validateProject(JSON.parse(content)), dirname(path));
     await loadGraphicResources(project.resources ?? [], dirname(path));
     const missing = new Set<string>();
     await Promise.all(
@@ -422,7 +423,7 @@ export class AppState {
 
 function createProject(name: string): Project {
   return {
-    schema_version: 7,
+    schema_version: 8,
     source_selections: [],
     default_sequence: { id: randomUUID(), name: "Main" },
     sequences: [],
