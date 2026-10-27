@@ -1,3 +1,4 @@
+import type { ProjectCollectionRequest } from "./project-collection.js";
 import type {
   CreateExportBatch,
   ExportBatchSnapshot,
@@ -617,6 +618,7 @@ export type CommandMap = {
     args: { directory: string };
     result: ExportBatchSnapshot;
   };
+  collect_project: { args: ProjectCollectionRequest; result: JobSnapshot };
   export_project: {
     args: {
       outputPath: string;

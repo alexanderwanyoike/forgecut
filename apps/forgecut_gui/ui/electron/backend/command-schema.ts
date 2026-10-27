@@ -385,6 +385,13 @@ export const commandSchemas = {
     batchId: z.uuid(),
   }),
   get_export_batch: z.strictObject({ directory: batchDirectorySchema }),
+  collect_project: z.strictObject({
+    sessionId: id,
+    expectedRevision: time,
+    requestId: z.uuid(),
+    directory: batchDirectorySchema,
+    assetIds: z.array(id).max(1000),
+  }),
   export_project: z.strictObject({
     preset: exportPresetSchema.optional(),
     range: reviewRangeSchema.optional(),

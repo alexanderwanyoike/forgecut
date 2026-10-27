@@ -164,7 +164,9 @@ export class JobQueue {
           work.entry.controller.abort();
         },
         this.options.timeoutMs ??
-          (work.entry.snapshot.kind === "export" ? 900000 : 120000),
+          (["export", "collect"].includes(work.entry.snapshot.kind)
+            ? 900000
+            : 120000),
       );
       timeout.unref();
       try {

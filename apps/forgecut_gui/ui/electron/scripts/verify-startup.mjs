@@ -1,3 +1,4 @@
+import { verifyProjectCollection } from "./project-collection-smoke.mjs";
 import { verifyBatchControls } from "./batch-controls-smoke.mjs";
 import { verifyPortableMedia } from "./portable-media-smoke.mjs";
 import { verifyExportBatches } from "./export-batch-smoke.mjs";
@@ -231,6 +232,7 @@ async function main() {
   await verifyExportBatches(mcpDirectory, send);
   await verifyBatchControls(mcpDirectory, send);
   await verifyPortableMedia(mcpDirectory, send);
+  await verifyProjectCollection(mcpDirectory, send);
   ws.close();
 
   const value = result.result?.result?.value;

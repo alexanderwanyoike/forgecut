@@ -66,6 +66,13 @@ export const editingCapabilities = {
     restartPolicy:
       "explicit retry from the beginning of an interrupted output; skip completed outputs",
   },
+  projectCollection: {
+    request: z.toJSONSchema(commandSchemas.collect_project),
+    maxSelectedAssets: 1000,
+    copyBufferBytes: 65536,
+    timeoutMs: 900000,
+    opensCollectionAutomatically: false,
+  },
   jobs: {
     sourceReview: z.toJSONSchema(sourceReviewRequestSchema),
     sourceReviewMaxDurationUs: 30_000_000,

@@ -162,3 +162,7 @@ Project credits reuse the artwork/font licence shape for recording, music and im
 ## Durable export batches
 
 `create_export_batch` captures the named session/revision and selected `sequenceIds` in a new `directory`, with optional `preset`. It saves the snapshot and owned graphics resources but keeps source media paths external. Use `read_export_batch` to inspect bounded status, then `resume_export_batch` with `directory` and returned `batchId`. These controls work after switching projects or restarting the editor. Completed outputs are skipped. `retryInterrupted: true` explicitly rerenders interrupted, failed or cancelled outputs from the beginning; an earlier published file for that entry may be replaced. `cancel_export_batch` pauses the active batch. Startup never renders automatically. A crashed process's heartbeat lock must become stale before another owner can resume.
+
+## Project collection
+
+Call `start_project_collection` with the captured `sessionId`, `expectedRevision`, a unique `requestId`, a new absolute `directory` and the `assetIds` to copy. Poll `get_job`; `cancel_job` stops work before commit. Selected media, graphic source, artwork, fonts and notices are saved into the new folder. Unselected recordings remain external. Open `project.forgecut` explicitly after completion; collection never replaces the current editor or its manual edits. Reusing the same request ID recovers the existing queued or finished job. Hard-crashed collections do not resume automatically.

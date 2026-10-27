@@ -202,6 +202,7 @@ export class EditingService {
         if (
           !jobControl &&
           command !== "export_project" &&
+          command !== "collect_project" &&
           command !== "create_export_batch" &&
           !["create_project", "load_project", "recover_project"].includes(
             command,

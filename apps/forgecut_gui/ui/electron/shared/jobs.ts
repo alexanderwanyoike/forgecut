@@ -1,6 +1,7 @@
 import type { Result } from "./result.js";
 
 export type JobKind =
+  | "collect"
   | "import"
   | "frame"
   | "export"
