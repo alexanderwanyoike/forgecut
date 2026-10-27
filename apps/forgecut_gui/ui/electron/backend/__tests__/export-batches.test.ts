@@ -1,6 +1,15 @@
 /** @vitest-environment node */
 import { spawnSync } from "node:child_process";
-import { mkdtemp, readFile, rm, stat, utimes } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  utimes,
+  mkdir,
+  writeFile,
+  access,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
@@ -158,6 +167,86 @@ it.skipIf(
       await service.batches?.close();
       await service.jobs.close();
       await service.closeGraphicsPreview();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
+  "requires an explicit restart retry and removes only the interrupted entry's partial directory",
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "forgecut-batch-recovery-"));
+    const directory = join(root, "outputs");
+    const state = new AppState();
+    const original = new EditingService(state);
+    const recovered = new EditingService(new AppState());
+    try {
+      await original.execute("update_project", {
+        settings: { width: 32, height: 18, fps: 10 },
+      });
+      await original.execute("set_sequence_end", { endUs: 200000 });
+      const created = await original.execute("create_export_batch", {
+        sessionId: state.sessionId,
+        expectedRevision: state.revision,
+        directory,
+        sequenceIds: [state.project.default_sequence!.id],
+      });
+      if (!created.ok) throw new Error(created.error.message);
+      const batch = created.value as ExportBatchSnapshot;
+      const manifestPath = join(directory, "batch.json");
+      const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+      manifest.entries[0].status = "running";
+      await writeFile(manifestPath, JSON.stringify(manifest));
+      const partial = join(
+        directory,
+        `.forgecut-export-${batch.entries[0].id}`,
+      );
+      await mkdir(partial);
+      await writeFile(join(partial, "partial.mp4"), "Interrupted render");
+      const unrelated = join(directory, ".forgecut-export-unrelated");
+      await mkdir(unrelated);
+      await writeFile(join(unrelated, "keep"), "Keep this file");
+      await original.batches.close();
+      await original.jobs.close();
+      expect(
+        await recovered.execute("get_export_batch", { directory }),
+      ).toMatchObject({
+        ok: true,
+        value: { active: false, entries: [{ status: "interrupted" }] },
+      });
+      expect(
+        await recovered.execute("resume_export_batch", {
+          directory,
+          batchId: batch.id,
+        }),
+      ).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+      expect(
+        await recovered.execute("resume_export_batch", {
+          directory,
+          batchId: batch.id,
+          retryInterrupted: true,
+        }),
+      ).toMatchObject({ ok: true });
+      let result = batch;
+      for (let attempt = 0; attempt < 500; attempt++) {
+        const read = await recovered.execute("get_export_batch", { directory });
+        if (!read.ok) throw new Error(read.error.message);
+        result = read.value as ExportBatchSnapshot;
+        if (!result.active) break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(result.entries[0].status).toBe("completed");
+      await expect(access(partial)).rejects.toMatchObject({ code: "ENOENT" });
+      expect(await readFile(join(unrelated, "keep"), "utf8")).toBe(
+        "Keep this file",
+      );
+    } finally {
+      await original.batches.close();
+      await recovered.batches.close();
+      await original.jobs.close();
+      await recovered.jobs.close();
+      await original.closeGraphicsPreview();
+      await recovered.closeGraphicsPreview();
       await rm(root, { recursive: true, force: true });
     }
   },
