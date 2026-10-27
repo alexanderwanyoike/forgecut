@@ -207,6 +207,7 @@ export class ExportBatchService {
     if (this.active.job)
       this.jobs.cancel(this.active.job.id, this.active.job.sessionId);
   }
+
   private async checkpointFailure(
     active: ActiveBatch,
     code: string,
