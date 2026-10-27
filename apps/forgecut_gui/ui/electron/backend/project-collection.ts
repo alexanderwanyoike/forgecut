@@ -105,8 +105,7 @@ async function collectProject(
           message: "Collection cancelled before publication",
         },
       };
-    const copy = new AppState();
-    copy.replaceProject(captured);
+    const copy = new AppState({}, captured);
     const projectPath = join(directory, "project.forgecut");
     await copy.saveProject(projectPath);
     published = true;

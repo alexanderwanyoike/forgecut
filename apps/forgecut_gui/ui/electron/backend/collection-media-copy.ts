@@ -29,8 +29,8 @@ export async function copyCollectionMedia(
         highWaterMark: 65536,
       });
       let copied = 0;
-      readable.on("data", (chunk: Buffer) => {
-        copied += chunk.length;
+      readable.on("data", (chunk) => {
+        copied += typeof chunk === "string" ? Buffer.byteLength(chunk) : chunk.length;
         report(Math.min(1, copied / Math.max(1, metadata.size)));
       });
       await pipeline(
