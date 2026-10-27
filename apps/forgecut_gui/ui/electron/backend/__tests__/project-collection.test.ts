@@ -1,10 +1,12 @@
 /** @vitest-environment node */
+import { watch, chmodSync } from "node:fs";
 import {
   mkdtemp,
   readFile,
   rename,
   rm,
   writeFile,
+  chmod,
   mkdir,
   stat,
 } from "node:fs/promises";
@@ -245,3 +247,34 @@ it("preserves existing destinations and rejects stale or unknown collection inpu
     "Keep this file",
   );
 });
+
+
+it.skipIf(process.platform === "win32" || process.getuid?.() === 0)("reports the original failure and recovery folder when cleanup is denied", async () => {
+  directory = await mkdtemp(join(tmpdir(), "forgecut-collect-cleanup-"));
+  const root = directory;
+  const output = join(root, "partial");
+  const source = join(root, "not-a-file");
+  await mkdir(source);
+  const state = new AppState();
+  service = new EditingService(state);
+  state.executeProjectChange(project => { project.assets.push({ id: "invalid-file", name: "Unavailable image", path: source, kind: "Image", probe: null }); });
+  let denied = false;
+  const watcher = watch(root, (_, name) => {
+    if (name?.toString() !== "partial") return;
+    denied = true;
+    chmodSync(root, 0o500);
+  });
+  try {
+    const queued = await service.execute("collect_project", { sessionId: state.sessionId, expectedRevision: state.revision, requestId: crypto.randomUUID(), directory: output, assetIds: ["invalid-file"] });
+    expect(queued.ok).toBe(true);
+    if (!queued.ok) throw new Error(queued.error.message);
+    const completed = await terminal(service, queued.value as JobSnapshot);
+    expect(denied).toBe(true);
+    expect(completed).toMatchObject({ status: "failed", result: { ok: false, error: { code: "INVALID_INPUT", message: expect.stringContaining("regular files") } } });
+    expect(completed.result).toMatchObject({ ok: false, error: { message: expect.stringContaining(`Collection cleanup failed at ${output}`) } });
+    expect((await stat(output)).isDirectory()).toBe(true);
+  } finally {
+    watcher.close();
+    await chmod(root, 0o700);
+  }
+}, 15000);
