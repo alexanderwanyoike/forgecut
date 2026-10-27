@@ -239,3 +239,49 @@ it("reopens the dialog with a full export instead of a previous review draft", a
     }),
   );
 });
+
+it("captures the WebM preset and offers the matching save filter", async () => {
+  let choosePath!: (path: string) => void;
+  api.save.mockImplementation(
+    () =>
+      new Promise<string>((resolve) => {
+        choosePath = resolve;
+      }),
+  );
+  api.invoke.mockResolvedValue({
+    id: "webm",
+    sessionId: "session",
+    projectRevision: 1,
+    requestId: "webm",
+    kind: "export",
+    label: "Export",
+    status: "completed",
+    progress: 1,
+    result: { ok: true, value: { outputPath: "/result.webm" } },
+  });
+  render(<ExportDialog open onClose={() => {}} />);
+  fireEvent.change(screen.getByRole("combobox", { name: "Format" }), {
+    target: { value: "webm" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Export" }));
+  expect(api.save).toHaveBeenCalledWith({
+    filters: [{ name: "WebM / VP9 + Opus", extensions: ["webm"] }],
+    defaultPath: "export.webm",
+  });
+  expect(
+    (screen.getByRole("combobox", { name: "Format" }) as HTMLSelectElement)
+      .disabled,
+  ).toBe(true);
+  choosePath("/result.webm");
+  await screen.findByText("Export complete");
+  expect(api.invoke).toHaveBeenCalledWith("export_project", {
+    outputPath: "/result.webm",
+    preset: "webm",
+  });
+  fireEvent.change(screen.getByRole("combobox", { name: "Format" }), {
+    target: { value: "mp4" },
+  });
+  expect(
+    screen.getByText("WebM / VP9 + Opus", { selector: "span" }),
+  ).toBeTruthy();
+});

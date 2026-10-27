@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EXPORT_PRESET_IDS } from "../shared/export-presets.js";
 import {
   MIN_REVIEW_DURATION_US,
   MAX_REVIEW_DURATION_US,
@@ -277,6 +278,8 @@ export const sourceReviewRequestSchema = z
         (request.kind === "preview" ? 5000000 : 30000000),
     "Review 100 milliseconds to 30 seconds; previews are limited to 5 seconds",
   );
+export const exportPresetSchema = z.enum(EXPORT_PRESET_IDS);
+
 export const reviewRangeSchema = z
   .strictObject({ startUs: time, endUs: time })
   .refine(
@@ -368,6 +371,7 @@ export const commandSchemas = {
   cancel_media_job: z.strictObject({ sessionId: id, jobId: z.uuid() }),
   get_media_job: z.strictObject({ sessionId: id, jobId: z.uuid() }),
   export_project: z.strictObject({
+    preset: exportPresetSchema.optional(),
     range: reviewRangeSchema.optional(),
     outputPath: z.string().min(1),
     sequenceId: id.optional(),

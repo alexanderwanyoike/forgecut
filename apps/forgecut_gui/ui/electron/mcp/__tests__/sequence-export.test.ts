@@ -9,9 +9,12 @@ import { EditingService } from "../../backend/editing-service";
 import { startLocalBridge } from "../local-bridge";
 import { createMcpServer } from "../server";
 
-it.each([undefined, { startUs: 0, endUs: 500000 }])(
-  "accepts explicit MCP export targets and range %j in retry identity",
-  async (range) => {
+it.each([
+  { range: undefined, preset: undefined },
+  { range: { startUs: 0, endUs: 500000 }, preset: "webm" },
+])(
+  "accepts explicit MCP export targets and options %j in retry identity",
+  async ({ range, preset }) => {
     const directory = await mkdtemp(
       join(tmpdir(), "forgecut-sequence-export-mcp-"),
     );
@@ -53,7 +56,8 @@ it.each([undefined, { startUs: 0, endUs: 500000 }])(
         sessionId: state.sessionId,
         expectedRevision: state.revision,
         requestId: "portrait-export",
-        outputPath: join(directory, "portrait.mp4"),
+        outputPath: join(directory, `portrait.${preset ?? "mp4"}`),
+        ...(preset ? { preset } : {}),
         sequenceId: clip,
         ...(range ? { range } : {}),
       };
@@ -93,6 +97,26 @@ it.each([undefined, { startUs: 0, endUs: 500000 }])(
           })
         ).structuredContent,
       ).toMatchObject({ ok: false, error: { code: "REQUEST_REUSED" } });
+      expect(
+        (
+          await client.callTool({
+            name: "start_export",
+            arguments: {
+              ...request,
+              preset: preset === "webm" ? "mp4" : "webm",
+            },
+          })
+        ).structuredContent,
+      ).toMatchObject({ ok: false, error: { code: "REQUEST_REUSED" } });
+      if (!preset)
+        expect(
+          (
+            await client.callTool({
+              name: "start_export",
+              arguments: { ...request, preset: "mp4" },
+            })
+          ).structuredContent,
+        ).toEqual(started.structuredContent);
       const { sequenceId: _target, ...ambiguous } = request;
       expect(
         (

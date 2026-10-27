@@ -1,5 +1,10 @@
 import { ArrowLeft, Download, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import {
+  EXPORT_PRESETS,
+  EXPORT_PRESET_IDS,
+  type ExportPresetId,
+} from "../../electron/shared/export-presets";
 import type { ReviewRange } from "../../electron/shared/ipc-contract";
 import type { Result } from "../../electron/shared/result";
 import ReviewExportControls from "./ReviewExportControls";
@@ -42,6 +47,8 @@ export default function ExportDialog(props: {
   open: boolean;
   target?: ExportTarget;
 }) {
+  const [preset, setPreset] = useState<ExportPresetId>("mp4");
+  const [jobPreset, setJobPreset] = useState<ExportPresetId>("mp4");
   const [job, setJob] = useState<JobSnapshot | null>(null);
   const [range, setRange] = useState<Result<ReviewRange | undefined>>({
     ok: true,
@@ -96,6 +103,9 @@ export default function ExportDialog(props: {
   const handleExport = async () => {
     if (!range.ok) return;
     const reviewRange = range.value;
+    const selectedPreset = preset;
+    const format = EXPORT_PRESETS[selectedPreset];
+    setJobPreset(selectedPreset);
     setJobRange(reviewRange);
     const { target } = props;
     setStarting(true);
@@ -104,18 +114,20 @@ export default function ExportDialog(props: {
     setJob(null);
     try {
       const outputPath = await save({
-        filters: [{ name: "MP4 Video", extensions: ["mp4"] }],
-        defaultPath: "export.mp4",
+        filters: [{ name: format.label, extensions: [format.extension] }],
+        defaultPath: `export.${format.extension}`,
       });
       if (outputPath) {
         const started = target
           ? await invokeInContext(target, "export_project", {
               outputPath,
+              ...(selectedPreset === "mp4" ? {} : { preset: selectedPreset }),
               sequenceId: target.sequenceId,
               ...(reviewRange ? { range: reviewRange } : {}),
             })
           : await invoke("export_project", {
               outputPath,
+              ...(selectedPreset === "mp4" ? {} : { preset: selectedPreset }),
               ...(reviewRange ? { range: reviewRange } : {}),
             });
         setJob(started);
@@ -192,13 +204,32 @@ export default function ExportDialog(props: {
                 <span>{jobTarget.name}</span>
               </div>
             )}
-            <div className="info-row">
-              <span>Format</span>
-              <span>MP4 / H.264 + AAC</span>
-            </div>
+            <label className="export-preset">
+              Format
+              <select
+                value={preset}
+                disabled={starting || exporting}
+                onChange={(event) => {
+                  const { value } = event.target;
+                  if (value === "mp4" || value === "webm") setPreset(value);
+                }}
+              >
+                {EXPORT_PRESET_IDS.map((id) => (
+                  <option key={id} value={id}>
+                    {EXPORT_PRESETS[id].label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {job && (
+              <div className="info-row">
+                <span>Job format</span>
+                <span>{EXPORT_PRESETS[jobPreset].label}</span>
+              </div>
+            )}
             <div className="info-row">
               <span>Quality</span>
-              <span>CRF 23</span>
+              <span>{EXPORT_PRESETS[preset].quality}</span>
             </div>
             {job && (
               <div className="info-row">

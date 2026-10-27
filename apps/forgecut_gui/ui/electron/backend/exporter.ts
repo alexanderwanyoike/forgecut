@@ -1,5 +1,9 @@
 import { mkdtemp, rm, writeFile, open, rename } from "node:fs/promises";
-import { join, dirname, resolve as resolvePath } from "node:path";
+import { join, dirname, extname, resolve as resolvePath } from "node:path";
+import {
+  EXPORT_PRESETS,
+  type ExportPresetId,
+} from "../shared/export-presets.js";
 import { resolveReviewWindow } from "../domain/review-range.js";
 import type { ReviewRange } from "../shared/ipc-contract.js";
 import type { Result } from "../shared/result.js";
@@ -22,6 +26,7 @@ export type RenderProgress = {
 };
 
 type ExportOptions = {
+  preset?: ExportPresetId;
   range?: ReviewRange;
   signal?: AbortSignal;
   beginCommit?: () => boolean;
@@ -42,6 +47,17 @@ export async function exportProject(
     };
   const window = resolveReviewWindow(project, options.range);
   if (!window.ok) return window;
+  const preset = options.preset ?? "mp4";
+  if (
+    extname(outputPath).toLowerCase() !== `.${EXPORT_PRESETS[preset].extension}`
+  )
+    return {
+      ok: false,
+      error: {
+        code: "INVALID_INPUT",
+        message: `Choose a .${EXPORT_PRESETS[preset].extension} destination for this export preset.`,
+      },
+    };
   let directory: string | undefined;
   let result: Result<ExportOutcome>;
   try {
@@ -54,8 +70,11 @@ export async function exportProject(
     );
     if (!prepared.ok) result = prepared;
     else {
-      const plan = compileExportPlan(prepared.value, window.value);
-      plan.outputPath = join(directory, "render.mp4");
+      const plan = compileExportPlan(prepared.value, window.value, preset);
+      plan.outputPath = join(
+        directory,
+        `render.${EXPORT_PRESETS[preset].extension}`,
+      );
       result = await renderPrepared(
         plan,
         {

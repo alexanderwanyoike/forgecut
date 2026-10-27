@@ -1,3 +1,7 @@
+import {
+  EXPORT_PRESETS,
+  type ExportPresetId,
+} from "../shared/export-presets.js";
 import type { ReviewWindow } from "../domain/review-range.js";
 import type { Project } from "./state.js";
 import { assetIdOf, itemData } from "./timeline-ops.js";
@@ -26,6 +30,7 @@ export type RenderPlan = {
 export function compileExportPlan(
   project: Project,
   window?: ReviewWindow,
+  preset: ExportPresetId = "mp4",
 ): RenderPlan {
   const { width, height, fps, sample_rate: sampleRate } = project.settings;
   const duration = sequenceDurationUs(project) / 1_000_000;
@@ -117,7 +122,7 @@ export function compileExportPlan(
     inputs,
     textFiles,
     filterGraph: filters.join(";"),
-    outputPath: "output.mp4",
+    outputPath: `output.${EXPORT_PRESETS[preset].extension}`,
     outputArgs: [
       "-map",
       "[outv]",
@@ -128,22 +133,49 @@ export function compileExportPlan(
       String(window?.frameCount ?? frameCount),
       "-t",
       String(window?.durationSeconds ?? duration),
-      "-c:v",
-      "libx264",
-      "-threads",
-      "1",
-      "-crf",
-      "23",
-      "-c:a",
-      "aac",
-      "-b:a",
-      "192k",
-      "-ar",
-      String(sampleRate),
+      ...encodingArgs(preset, sampleRate),
       "-pix_fmt",
       "yuv420p",
       "-r",
       String(fps),
     ],
   };
+}
+
+function encodingArgs(preset: ExportPresetId, sampleRate: number): string[] {
+  if (preset === "webm")
+    return [
+      "-c:v",
+      "libvpx-vp9",
+      "-threads",
+      "1",
+      "-crf",
+      "32",
+      "-b:v",
+      "0",
+      "-deadline",
+      "good",
+      "-cpu-used",
+      "4",
+      "-c:a",
+      "libopus",
+      "-b:a",
+      "128k",
+      "-ar",
+      "48000",
+    ];
+  return [
+    "-c:v",
+    "libx264",
+    "-threads",
+    "1",
+    "-crf",
+    "23",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "192k",
+    "-ar",
+    String(sampleRate),
+  ];
 }
