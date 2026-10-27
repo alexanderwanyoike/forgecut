@@ -21,6 +21,8 @@ export class ExportBatchService {
 
   private starting = false;
 
+  private closed = false;
+
   constructor(private readonly jobs: JobQueue) {}
 
   async read(directory: string): Promise<ExportBatchResult> {
@@ -54,6 +56,14 @@ export class ExportBatchService {
     batchId: string,
     retryInterrupted = false,
   ): Promise<ExportBatchResult> {
+    if (this.closed)
+      return {
+        ok: false,
+        error: {
+          code: "QUEUE_CLOSED",
+          message: "The export batch service is shutting down",
+        },
+      };
     if (this.active || this.starting)
       return {
         ok: false,
@@ -110,6 +120,14 @@ export class ExportBatchService {
         };
       const project = validateProject(JSON.parse(bytes.toString("utf8")));
       await loadGraphicResources(project.resources ?? [], path);
+      if (this.closed)
+        return {
+          ok: false,
+          error: {
+            code: "QUEUE_CLOSED",
+            message: "The export batch service is shutting down",
+          },
+        };
       if (compromised)
         return {
           ok: false,
@@ -169,6 +187,7 @@ export class ExportBatchService {
   }
 
   async close(): Promise<void> {
+    this.closed = true;
     this.stop();
     await this.active?.done;
   }

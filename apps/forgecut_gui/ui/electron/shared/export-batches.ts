@@ -29,7 +29,12 @@ export type ExportBatchSnapshot = {
 export type ExportBatchResult<T = ExportBatchSnapshot> = Result<
   T,
   {
-    code: "INVALID_INPUT" | "CONFLICT" | "PROJECT_CHANGED" | "IO_ERROR";
+    code:
+      | "INVALID_INPUT"
+      | "CONFLICT"
+      | "PROJECT_CHANGED"
+      | "IO_ERROR"
+      | "QUEUE_CLOSED";
     message: string;
   }
 >;
