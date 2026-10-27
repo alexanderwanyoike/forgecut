@@ -20,6 +20,14 @@ Maintained generated-media checks verify the exported leading gap, silent pictur
 
 Review found two export integration regressions, now covered by real rendered fixtures. Activation compares the rounded project-frame index derived from FFmpeg time, rather than converting frame boundaries back to rounded microsecond timestamps. Source timestamps shift by an exact frame/rate expression; secondary frames are retained only within the explicit interval. Input paths become absolute before the child changes into its private text directory, preserving supported relative source paths. Distinct colour frames check cuts at upward- and downward-rounded boundaries.
 
+## Bounded recording ranges
+
+The real Octane trailer exposed memory pressure when one recording input fed distant source ranges in a different timeline order. The input kept frames waiting across those branches and repeatedly hit the existing soft memory limit before publishing picture data. Each audiovisual item now has an independent decoder input bounded to its selected source range. Images keep their normal still input. The filter graph retains the same timeline offsets, frame activation, placement and audio envelopes.
+
+This follows FFmpeg's documented [input seeking and duration options](https://ffmpeg.org/ffmpeg.html#Main-options): accurate input seeking discards the keyframe lead-in, and an input duration stops reading at the selected end. Source filters use segment-relative timestamps after that seek. No upstream source is copied and no new dependency is added. The existing process, aggregate memory and thread limits stay unchanged.
+
+A planner regression checks that reversed source cuts request only their own ranges. The retained rendered-media tests check frame colours, source offsets, audio, gaps and review-window timing through actual FFmpeg exports. The private long-recording workflow is also rerun against the finished application; small generated fixtures alone do not establish its resource behaviour.
+
 ## Export jobs and publication
 
 Both UI and MCP start exports through the same serial queue, retaining the owner's immutable project revision. Editing or opening another project does not change a queued export, and scoped job reads/cancellation remain valid for its original session. Exports have a 15-minute deadline; import/frame deadlines remain two minutes. The dialog can be closed while work continues and reopened with the same job state.

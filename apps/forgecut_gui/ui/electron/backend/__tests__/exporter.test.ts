@@ -68,6 +68,42 @@ function videoClip(overrides = {}) {
 }
 
 describe("Electron export planner", () => {
+  it("bounds recording reads to each selected range when cuts reverse source order", () => {
+    const project = baseProject([
+      {
+        id: videoTrackId,
+        kind: "Video",
+        items: [
+          videoClip({ source_in_us: 20_000_000, source_out_us: 22_000_000 }),
+          videoClip({
+            id: "earlier-shot",
+            timeline_start_us: 2_000_000,
+            source_in_us: 1_000_000,
+            source_out_us: 4_000_000,
+          }),
+        ],
+      },
+    ]);
+    const args = buildFfmpegArgs(compileExportPlan(project));
+    const reads: { start: string | undefined; duration: string | undefined }[] =
+      [];
+    let start: string | undefined;
+    let duration: string | undefined;
+    for (let index = 0; index < args.indexOf("-filter_complex"); index += 1) {
+      if (args[index] === "-ss") start = args[index + 1];
+      if (args[index] === "-t") duration = args[index + 1];
+      if (args[index] === "-i") {
+        reads.push({ start, duration });
+        start = undefined;
+        duration = undefined;
+      }
+    }
+    expect(reads).toEqual([
+      { start: "20", duration: "2" },
+      { start: "1", duration: "3" },
+    ]);
+  });
+
   it("builds ffmpeg args from a render plan", () => {
     const project = baseProject([
       { id: videoTrackId, kind: "Video", items: [videoClip()] },

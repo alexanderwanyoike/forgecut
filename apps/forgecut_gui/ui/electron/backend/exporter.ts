@@ -177,6 +177,14 @@ export function buildFfmpegArgs(plan: RenderPlan): string[] {
     ...plan.inputs.flatMap((input) => [
       "-threads",
       "1",
+      ...(input.range
+        ? [
+            "-ss",
+            String(input.range.startUs / 1_000_000),
+            "-t",
+            String(input.range.durationUs / 1_000_000),
+          ]
+        : []),
       "-i",
       resolvePath(input.path),
     ]),
