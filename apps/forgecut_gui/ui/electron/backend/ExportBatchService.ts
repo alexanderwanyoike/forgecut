@@ -1,4 +1,4 @@
-import { realpath } from "node:fs/promises";
+import { realpath, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { lock } from "proper-lockfile";
 import type { ExportBatchResult } from "../shared/export-batches.js";
@@ -8,6 +8,7 @@ import { projectForSequence } from "../domain/project-sequences.js";
 import { loadGraphicResources } from "./graphic-resource-persistence.js";
 import { validateProject } from "./project-schema.js";
 import type { JobQueue } from "./job-queue.js";
+import { batchStagePath } from "./export-staging.js";
 import { exportProject } from "./exporter.js";
 import type { ExportBatchRecord } from "./export-batch-schema.js";
 import {
@@ -194,6 +195,10 @@ export class ExportBatchService {
       entry.status = "running";
       delete entry.error;
       await writeBatchRecord(active.directory, active.record);
+      await rm(batchStagePath(active.directory, entry.id), {
+        recursive: true,
+        force: true,
+      });
       const selected = projectForSequence(project, entry.sequenceId);
       if (!selected.ok) throw new Error(selected.error.message);
       const started = this.jobs.start(
@@ -206,6 +211,7 @@ export class ExportBatchService {
           input: {
             projectHash: active.record.projectHash,
             outputFile: entry.outputFile,
+            stagingId: entry.id,
             preset: entry.preset,
           },
         },
@@ -214,6 +220,7 @@ export class ExportBatchService {
             selected.value,
             join(active.directory, entry.outputFile),
             {
+              stagingId: entry.id,
               preset: entry.preset,
               signal,
               beginCommit,

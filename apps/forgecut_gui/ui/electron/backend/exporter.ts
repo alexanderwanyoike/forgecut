@@ -1,9 +1,10 @@
-import { mkdtemp, rm, writeFile, open, rename } from "node:fs/promises";
+import { rm, writeFile, open, rename } from "node:fs/promises";
 import { join, dirname, extname, resolve as resolvePath } from "node:path";
 import {
   EXPORT_PRESETS,
   type ExportPresetId,
 } from "../shared/export-presets.js";
+import { createExportStage } from "./export-staging.js";
 import { resolveReviewWindow } from "../domain/review-range.js";
 import type { ReviewRange } from "../shared/ipc-contract.js";
 import type { Result } from "../shared/result.js";
@@ -26,6 +27,7 @@ export type RenderProgress = {
 };
 
 type ExportOptions = {
+  stagingId?: string;
   preset?: ExportPresetId;
   range?: ReviewRange;
   signal?: AbortSignal;
@@ -62,7 +64,7 @@ export async function exportProject(
   let result: Result<ExportOutcome>;
   try {
     const destination = resolvePath(outputPath);
-    directory = await mkdtemp(join(dirname(destination), ".forgecut-export-"));
+    directory = await createExportStage(destination, options.stagingId);
     const prepared = await prepareGraphicInputs(
       project,
       directory,
