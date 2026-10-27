@@ -1,5 +1,5 @@
 import { mkdtemp, rm, writeFile, open, rename } from "node:fs/promises";
-import { join, dirname, resolve as resolvePath } from "node:path";
+import { join, dirname, extname, resolve as resolvePath } from "node:path";
 import {
   EXPORT_PRESETS,
   type ExportPresetId,
@@ -48,6 +48,16 @@ export async function exportProject(
   const window = resolveReviewWindow(project, options.range);
   if (!window.ok) return window;
   const preset = options.preset ?? "mp4";
+  if (
+    extname(outputPath).toLowerCase() !== `.${EXPORT_PRESETS[preset].extension}`
+  )
+    return {
+      ok: false,
+      error: {
+        code: "INVALID_INPUT",
+        message: `Choose a .${EXPORT_PRESETS[preset].extension} destination for this export preset.`,
+      },
+    };
   let directory: string | undefined;
   let result: Result<ExportOutcome>;
   try {
