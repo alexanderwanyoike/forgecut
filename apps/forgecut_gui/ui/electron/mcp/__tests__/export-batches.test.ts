@@ -14,7 +14,10 @@ it("creates, reads, resumes and cancels a durable batch through the official MCP
   const directory = join(root, "outputs");
   const state = new AppState();
   const service = new EditingService(state);
-  const bridge = await startLocalBridge(service, root);
+  const activities: string[] = [];
+  const bridge = await startLocalBridge(service, root, (label) => {
+    activities.push(label);
+  });
   const server = createMcpServer(root);
   const client = new Client({ name: "batch-export", version: "1" });
   const [local, remote] = InMemoryTransport.createLinkedPair();
@@ -43,6 +46,7 @@ it("creates, reads, resumes and cancels a durable batch through the official MCP
       ok: true,
       value: { directory, entries: [{ status: "pending" }] },
     });
+    expect(activities).toContain("Create export batch");
     const data = created.structuredContent as {
       ok: true;
       value: { id: string };
