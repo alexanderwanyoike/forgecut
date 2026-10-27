@@ -44,10 +44,17 @@ export async function verifyReviewExports(directory, send) {
     await openRange();
     const start = [...dialog().querySelectorAll('label')].find(element => element.firstChild?.textContent.trim() === 'Review start (s)').querySelector('input');
     if (start.value !== '1.25' || !button('Export', dialog())) throw new Error('Review controls did not capture the visible playhead or accept the range');
+    const format = dialog().querySelector('select');
+    format.value = 'webm';
+    format.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    if (format.value !== 'webm') throw new Error('WebM preset was not selected');
     await click('Close export dialog', dialog());
     const before = await read();
     const job = await invoke('export_project', { outputPath: ${JSON.stringify(outputPath)}, sequenceId: before.project.default_sequence.id, range: { startUs: 1250000, endUs: 1850000 } });
     await wait(async () => { const current = await invoke('get_media_job', { sessionId: job.sessionId, jobId: job.id }); if (current.status === 'failed' || current.status === 'cancelled') throw new Error(JSON.stringify(current.result)); return current.status === 'completed'; }, 'output');
+    const webm = await invoke('export_project', { outputPath: ${JSON.stringify(join(directory, "review-range.webm"))}, preset: 'webm', sequenceId: before.project.default_sequence.id, range: { startUs: 1250000, endUs: 1850000 } });
+    await wait(async () => { const current = await invoke('get_media_job', { sessionId: webm.sessionId, jobId: webm.id }); if (current.status === 'failed' || current.status === 'cancelled') throw new Error(JSON.stringify(current.result)); return current.status === 'completed'; }, 'WebM output');
     if (JSON.stringify((await read()).project) !== JSON.stringify(before.project)) throw new Error('Review export changed the creative project');
     return true;
   })()`);
@@ -71,6 +78,29 @@ export async function verifyReviewExports(directory, send) {
     throw new Error(
       `Review output has incorrect frame count: ${probe.stdout} ${probe.stderr}`,
     );
+  const webmProbe = spawnSync(
+    "ffprobe",
+    [
+      "-v",
+      "error",
+      "-count_frames",
+      "-show_entries",
+      "stream=codec_name,nb_read_frames",
+      "-of",
+      "json",
+      join(directory, "review-range.webm"),
+    ],
+    { encoding: "utf8" },
+  );
+  if (webmProbe.status !== 0) throw new Error(webmProbe.stderr);
+  const streams = JSON.parse(webmProbe.stdout).streams;
+  if (
+    !streams.some(
+      (stream) => stream.codec_name === "vp9" && stream.nb_read_frames === "6",
+    ) ||
+    !streams.some((stream) => stream.codec_name === "opus")
+  )
+    throw new Error("WebM export has incorrect codecs or frame count");
   for (const width of [1280, 1024]) {
     await send("Emulation.setDeviceMetricsOverride", {
       width,
@@ -112,6 +142,6 @@ export async function verifyReviewExports(directory, send) {
     `(async () => { ${helpers} await invoke('create_project'); return true; })()`,
   );
   console.log(
-    "Native review-range controls, captured timing, six-frame export, unchanged project and themed layouts verified",
+    "Native review-range controls, format picker, MP4/WebM six-frame exports, unchanged project and themed layouts verified",
   );
 }
