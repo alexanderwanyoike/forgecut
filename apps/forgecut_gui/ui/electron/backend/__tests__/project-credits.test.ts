@@ -56,7 +56,7 @@ it("retains recording and music credits across sequences, global undo and projec
     const reopened = new AppState();
     await reopened.loadProject(path);
     expect(reopened.project).toEqual(state.project);
-    expect(reopened.project.schema_version).toBe(7);
+    expect(reopened.project.schema_version).toBe(8);
     expect(
       await service.execute("set_asset_license", {
         assetId: "music",
