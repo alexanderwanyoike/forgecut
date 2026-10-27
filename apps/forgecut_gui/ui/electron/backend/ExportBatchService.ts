@@ -161,6 +161,10 @@ export class ExportBatchService {
             );
         })
         .catch(async (cause) => {
+          this.failure = {
+            directory: active.directory,
+            result: batchFailure(cause),
+          };
           await this.checkpointFailure(
             active,
             "IO_ERROR",
