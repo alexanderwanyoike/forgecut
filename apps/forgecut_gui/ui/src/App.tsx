@@ -4,6 +4,7 @@ import {
   FileBadge,
   Download,
   FolderOpen,
+  FolderArchive,
   Redo2,
   Save,
   Undo2,
@@ -17,6 +18,7 @@ import {
   Suspense,
 } from "react";
 import BatchExportDialog from "./components/BatchExportDialog";
+import ProjectCollectionDialog from "./components/ProjectCollectionDialog";
 import CreditsDialog from "./components/CreditsDialog";
 import { sequenceDurationUs } from "../electron/domain/sequence";
 import ActionButton from "./components/ActionButton";
@@ -36,6 +38,7 @@ import { useProject } from "./hooks/useProject";
 const CodeWorkspace = lazy(() => import("./components/CodeWorkspace"));
 
 export default function App() {
+  const [showCollection, setShowCollection] = useState(false);
   const [showBatches, setShowBatches] = useState(false);
   const [batchDirectory, setBatchDirectory] = useState<string | null>(() =>
     localStorage.getItem("forgecut.exportBatchDirectory"),
@@ -167,6 +170,18 @@ export default function App() {
                   onClick={handleSave}
                 >
                   Save Project...
+                </ActionButton>
+                <ActionButton
+                  icon={FolderArchive}
+                  className="quiet-action"
+                  disabled={!snapshot}
+                  onClick={() => {
+                    setShowFileMenu(false);
+                    setPlaying(false);
+                    setShowCollection(true);
+                  }}
+                >
+                  Collect project
                 </ActionButton>
                 <ActionButton
                   icon={Download}
@@ -405,6 +420,11 @@ export default function App() {
           onClose={() => setShowBatches(false)}
         />
       )}
+      <ProjectCollectionDialog
+        open={showCollection}
+        snapshot={snapshot}
+        onClose={() => setShowCollection(false)}
+      />
       <ExportDialog
         open={showExport}
         target={exportTarget}
