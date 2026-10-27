@@ -38,6 +38,7 @@ export async function verifyCredits(directory, send) {
   `;
   await evaluated(`(async () => { ${helpers}
     await invoke('create_project');
+    await invoke('init_default_tracks');
     const assets = await invoke('import_assets', { paths: [${JSON.stringify(join(directory, "source-selection.mp4"))}] });
     await invoke('import_graphic_resource', { path: ${JSON.stringify(artwork)}, kind: 'Image', license: { identifier: 'Fixture artwork', text: 'Generated test image' } });
     await invoke('add_text_overlay', { trackId: 'credit-title', timelineStartUs: 0, durationUs: 1000000, text: 'Credits fixture', fontSize: 24, color: '#ffffff', x: 20, y: 20 });
