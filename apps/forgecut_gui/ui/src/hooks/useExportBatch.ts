@@ -23,6 +23,7 @@ export function useExportBatch(
 ) {
   const initial = useRef(initialDirectory);
   const generation = useRef(0);
+  const mounted = useRef(true);
   const [batch, setBatch] = useState<ExportBatchSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,25 +32,24 @@ export function useExportBatch(
       operation: () => Promise<ExportBatchSnapshot>,
     ): Promise<Result<ExportBatchSnapshot>> => {
       generation.current += 1;
-      const current = generation.current;
-      setBusy(true);
-      setError(null);
+      const { current } = generation;
+      if (mounted.current) {
+        setBusy(true);
+        setError(null);
+      }
       try {
         const value = await operation();
-        if (current !== generation.current)
-          return {
-            ok: false,
-            error: { code: "CANCELLED", message: "The batch view changed" },
-          };
-        setBatch(value);
+        if (mounted.current && current === generation.current) setBatch(value);
+        // View cleanup cannot cancel the accepted create-then-resume workflow.
         remember(value.directory);
         return { ok: true, value };
       } catch (cause) {
         const reason = failure(cause);
-        if (current === generation.current) setError(reason.message);
+        if (mounted.current && current === generation.current)
+          setError(reason.message);
         return { ok: false, error: reason };
       } finally {
-        if (current === generation.current) setBusy(false);
+        if (mounted.current && current === generation.current) setBusy(false);
       }
     },
     [remember],
@@ -59,8 +59,10 @@ export function useExportBatch(
     [run],
   );
   useEffect(() => {
+    mounted.current = true;
     if (initial.current) void load(initial.current);
     return () => {
+      mounted.current = false;
       generation.current += 1;
     };
   }, [load]);
