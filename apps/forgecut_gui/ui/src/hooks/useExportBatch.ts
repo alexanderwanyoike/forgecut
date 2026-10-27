@@ -30,7 +30,8 @@ export function useExportBatch(
     async (
       operation: () => Promise<ExportBatchSnapshot>,
     ): Promise<Result<ExportBatchSnapshot>> => {
-      const current = ++generation.current;
+      generation.current += 1;
+      const current = generation.current;
       setBusy(true);
       setError(null);
       try {
