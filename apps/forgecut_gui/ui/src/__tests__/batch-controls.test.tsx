@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -223,5 +223,7 @@ it("continues an accepted export when the batch window closes during snapshot cr
       },
     });
   });
-  expect(localStorage.getItem("forgecut.exportBatchDirectory")).toBe(directory);
+  expect(localStorage.getItem("forgecut.exportBatchDirectory")).toBe(
+    await realpath(directory),
+  );
 });
