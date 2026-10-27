@@ -1,11 +1,12 @@
 /** @vitest-environment node */
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
 import { AppState } from "../state";
 import { EditingService } from "../editing-service";
+import { exportProject } from "../exporter";
 import type { JobSnapshot } from "../../shared/jobs";
 
 it.skipIf(
@@ -83,3 +84,26 @@ it.skipIf(
     }
   },
 );
+
+it("rejects a mismatched preset extension before replacing a file or creating staging", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "forgecut-preset-extension-"));
+  const state = new AppState();
+  const service = new EditingService(state);
+  try {
+    await service.execute("update_project", {
+      settings: { width: 64, height: 36, fps: 10 },
+    });
+    await service.execute("set_sequence_end", { endUs: 200000 });
+    const outputPath = join(directory, "keep.mp4");
+    await writeFile(outputPath, "Existing export");
+    expect(
+      await exportProject(state.project, outputPath, { preset: "webm" }),
+    ).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
+    expect(await readFile(outputPath, "utf8")).toBe("Existing export");
+    expect(await readdir(directory)).toEqual(["keep.mp4"]);
+  } finally {
+    await service.jobs.close();
+    await service.closeGraphicsPreview();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
