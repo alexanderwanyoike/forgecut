@@ -74,68 +74,97 @@ async function collectProject(
   beginCommit: () => boolean,
 ): Promise<Result<ProjectCollection>> {
   let owned = false;
-  let published = false;
+  let result: Result<ProjectCollection>;
   try {
     signal.throwIfAborted();
     await mkdir(directory, { mode: 0o700 });
     owned = true;
-    const captured = structuredClone(project);
-    const selected = captured.assets.filter((asset) => ids.has(asset.id));
-    if (selected.length) await mkdir(join(directory, "media"), { mode: 0o700 });
-    for (const [index, asset] of selected.entries()) {
-      signal.throwIfAborted();
-      const extension = extname(asset.path);
-      const filename = `${randomUUID()}${/^\.[a-z0-9]{1,10}$/i.test(extension) ? extension : ""}`;
-      const destination = join(directory, "media", filename);
-      const copied = await copyCollectionMedia(
-        asset.path,
-        destination,
-        signal,
-        (progress) => report((0.9 * (index + progress)) / selected.length),
-      );
-      if (!copied.ok) return copied;
-      asset.path = destination;
-    }
-    signal.throwIfAborted();
-    if (!beginCommit())
-      return {
-        ok: false,
-        error: {
-          code: "CANCELLED",
-          message: "Collection cancelled before publication",
-        },
-      };
-    const copy = new AppState({}, captured);
-    const projectPath = join(directory, "project.forgecut");
-    await copy.saveProject(projectPath);
-    published = true;
-    return {
-      ok: true,
-      value: {
-        projectPath,
-        copiedAssets: selected.length,
-        externalAssets: captured.assets.length - selected.length,
-      },
-    };
+    result = await writeCollection(
+      project,
+      directory,
+      ids,
+      signal,
+      report,
+      beginCommit,
+    );
   } catch (cause) {
     let code = "IO_ERROR";
     if (signal.aborted) code = "CANCELLED";
     else if ((cause as NodeJS.ErrnoException)?.code === "EEXIST")
       code = "CONFLICT";
-    return {
+    result = {
       ok: false,
       error: {
         code,
         message: cause instanceof Error ? cause.message : String(cause),
       },
     };
-  } finally {
-    if (owned && !published)
+  }
+  if (owned && !result.ok) {
+    try {
       await rm(directory, {
         recursive: true,
         force: true,
         maxRetries: 10,
         retryDelay: 100,
-      }).catch(() => {});
+      });
+    } catch (cause) {
+      const warning = `Collection cleanup failed at ${directory}: ${cause instanceof Error ? cause.message : String(cause)}`;
+      result = {
+        ok: false,
+        error: {
+          ...result.error,
+          message: `${result.error.message} ${warning}`,
+        },
+      };
+    }
   }
+  return result;
+}
+
+async function writeCollection(
+  project: Project,
+  directory: string,
+  ids: ReadonlySet<string>,
+  signal: AbortSignal,
+  report: (progress: number) => void,
+  beginCommit: () => boolean,
+): Promise<Result<ProjectCollection>> {
+  const captured = structuredClone(project);
+  const selected = captured.assets.filter((asset) => ids.has(asset.id));
+  if (selected.length) await mkdir(join(directory, "media"), { mode: 0o700 });
+  for (const [index, asset] of selected.entries()) {
+    signal.throwIfAborted();
+    const extension = extname(asset.path);
+    const filename = `${randomUUID()}${/^\.[a-z0-9]{1,10}$/i.test(extension) ? extension : ""}`;
+    const destination = join(directory, "media", filename);
+    const copied = await copyCollectionMedia(
+      asset.path,
+      destination,
+      signal,
+      (progress) => report((0.9 * (index + progress)) / selected.length),
+    );
+    if (!copied.ok) return copied;
+    asset.path = destination;
+  }
+  signal.throwIfAborted();
+  if (!beginCommit())
+    return {
+      ok: false,
+      error: {
+        code: "CANCELLED",
+        message: "Collection cancelled before publication",
+      },
+    };
+  const copy = new AppState({}, captured);
+  const projectPath = join(directory, "project.forgecut");
+  await copy.saveProject(projectPath);
+  return {
+    ok: true,
+    value: {
+      projectPath,
+      copiedAssets: selected.length,
+      externalAssets: captured.assets.length - selected.length,
+    },
+  };
 }
