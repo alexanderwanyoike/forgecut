@@ -112,3 +112,40 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
   },
   15000,
 );
+
+it("does not begin rendering if shutdown starts while a batch is being resumed", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forgecut-batch-shutdown-"));
+  const directory = join(root, "outputs");
+  const state = new AppState();
+  const service = new EditingService(state);
+  try {
+    const created = await service.execute("create_export_batch", {
+      sessionId: state.sessionId,
+      expectedRevision: state.revision,
+      directory,
+      sequenceIds: [state.project.default_sequence!.id],
+    });
+    if (!created.ok) throw new Error(created.error.message);
+    const batch = created.value as ExportBatchSnapshot;
+    const resuming = service.execute("resume_export_batch", {
+      directory,
+      batchId: batch.id,
+    });
+    await service.batches.close();
+    expect(await resuming).toMatchObject({
+      ok: false,
+      error: { code: "QUEUE_CLOSED" },
+    });
+    expect(
+      await service.execute("get_export_batch", { directory }),
+    ).toMatchObject({
+      ok: true,
+      value: { active: false, entries: [{ status: "pending" }] },
+    });
+  } finally {
+    await service.batches.close();
+    await service.jobs.close();
+    await service.closeGraphicsPreview();
+    await rm(root, { recursive: true, force: true });
+  }
+});
