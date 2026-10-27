@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { realpath, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { lock } from "proper-lockfile";
@@ -44,6 +45,11 @@ export class ExportBatchService {
       const snapshot = batchSnapshot(active.record, path, true);
       if (active.job) {
         const job = this.jobs.read(active.job.id, active.job.sessionId);
+        const queued = snapshot.entries.find(
+          (entry) => entry.status === "running",
+        );
+        if (job.ok && job.value.status === "queued" && queued)
+          queued.status = "queued";
         if (job.ok)
           snapshot.progress = Math.min(
             1,
@@ -205,7 +211,7 @@ export class ExportBatchService {
         {
           sessionId: active.record.id,
           projectRevision: active.record.projectRevision,
-          requestId: entry.id,
+          requestId: randomUUID(),
           kind: "export",
           label: `Export ${entry.name}`,
           input: {

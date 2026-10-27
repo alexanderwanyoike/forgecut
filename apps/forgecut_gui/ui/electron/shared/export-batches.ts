@@ -8,6 +8,7 @@ export type ExportBatchEntry = {
   preset: ExportPresetId;
   outputFile: string;
   status:
+    | "queued"
     | "pending"
     | "running"
     | "completed"
