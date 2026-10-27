@@ -1,3 +1,4 @@
+import { constants } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, realpath, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -22,7 +23,10 @@ export const batchHash = (bytes: Uint8Array) =>
   createHash("sha256").update(bytes).digest("hex");
 
 export async function readBatchFile(path: string): Promise<Buffer> {
-  const file = await open(path, "r");
+  const file = await open(
+    path,
+    process.platform === "win32" ? "r" : constants.O_NONBLOCK,
+  );
   try {
     const stat = await file.stat();
     if (!stat.isFile() || stat.size > MAX_BATCH_BYTES)
