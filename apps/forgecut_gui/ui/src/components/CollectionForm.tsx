@@ -10,9 +10,11 @@ export default function CollectionForm({
   busy,
   dialog,
   onCollect,
+  failure,
 }: {
   snapshot: ProjectSnapshot | null;
   busy: boolean;
+  failure: string | null;
   dialog: HTMLDialogElement | null;
   onCollect: (request: ProjectCollectionRequest, name: string) => Promise<void>;
 }) {
@@ -109,9 +111,9 @@ export default function CollectionForm({
             Browse
           </ActionButton>
         </div>
-        {error && (
+        {(error || failure) && (
           <p className="collection-error" role="alert">
-            {error}
+            {error || failure}
           </p>
         )}
       </div>

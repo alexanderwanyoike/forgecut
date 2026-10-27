@@ -141,6 +141,13 @@
   color: var(--danger);
   overflow-wrap: anywhere;
 }
-.collection-start-error {
-  margin: 0 24px 16px;
+
+.collection-summary > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.collection-summary > span {
+  flex-shrink: 0;
 }

@@ -207,15 +207,11 @@ export default function ProjectCollectionDialog({
         <>
           <CollectionForm
             snapshot={snapshot}
+            failure={failure}
             busy={busy}
             dialog={dialog}
             onCollect={collect}
           />
-          {failure && (
-            <p className="collection-error collection-start-error" role="alert">
-              {failure}
-            </p>
-          )}
         </>
       )}
     </dialog>
