@@ -148,6 +148,7 @@ function request<K extends CommandName>(
       if (
         !jobControl &&
         command !== "export_project" &&
+        command !== "collect_project" &&
         response.revision < activeRevision &&
         (command.startsWith("get_") || response.sessionId !== activeSession)
       ) {
