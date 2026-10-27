@@ -132,3 +132,41 @@ it("reopens a paused saved batch without rendering and keeps form drafts when th
   fireEvent.keyDown(screen.getByLabelText("Batch folder"), { key: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog", { name: "Batch exports" })).toBeNull());
 });
+
+
+it("continues an accepted export when the batch window closes during snapshot creation", async () => {
+  const { state, service, App, clip } = await sequenceWorkspaceFixture();
+  owner = service;
+  root = await mkdtemp(join(tmpdir(), "forgecut-batch-close-"));
+  const directory = join(root, "exports");
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  service.jobs.start({ sessionId: state.sessionId, projectRevision: state.revision,
+    requestId: "hold-close", kind: "frame", label: "Held media job", input: null },
+    async () => { await held; return { ok: true, value: null }; });
+  const api = window.forgecut!;
+  const original = api.invoke;
+  let finishSave = () => {};
+  const saving = new Promise<void>((resolve) => { finishSave = resolve; });
+  let captured = () => {};
+  const created = new Promise<void>((resolve) => { captured = resolve; });
+  api.invoke = async <T,>(...args: Parameters<typeof original>) => {
+    const result = await original<T>(...args);
+    if (args[0] === "create_export_batch") { captured(); await saving; }
+    return result;
+  };
+  render(<App />);
+  await screen.findByLabelText("Text");
+  fireEvent.click(screen.getByRole("button", { name: "File" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Batch exports" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Export Main" }));
+  fireEvent.change(screen.getByLabelText("Batch folder"), { target: { value: directory } });
+  fireEvent.click(screen.getByRole("button", { name: "Create and export" }));
+  await created;
+  fireEvent.click(screen.getByRole("button", { name: "Close batch exports" }));
+  await act(async () => { finishSave(); await saving; });
+  await waitFor(async () => {
+    const batch = await service.execute("get_export_batch", { directory });
+    expect(batch).toMatchObject({ ok: true, value: { active: true, entries: [expect.objectContaining({ sequenceId: clip })] } });
+  });
+  expect(localStorage.getItem("forgecut.exportBatchDirectory")).toBe(directory);
+});
