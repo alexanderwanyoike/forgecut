@@ -10,7 +10,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, isAbsolute } from "node:path";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { AppState } from "../state";
 import { EditingService } from "../editing-service";
 import type { JobSnapshot } from "../../shared/jobs";
@@ -23,6 +23,7 @@ afterEach(async () => {
   release();
   await service?.jobs.close();
   await service?.closeGraphicsPreview();
+  vi.unstubAllEnvs();
   if (directory)
     await rm(directory, {
       recursive: true,
@@ -54,7 +55,13 @@ it("collects chosen media and graphic source from a captured revision without ch
   directory = await mkdtemp(join(tmpdir(), "forgecut-collect-"));
   const selected = join(directory, "selected.png");
   const external = join(directory, "external.png");
-  await writeFile(selected, "selected bytes");
+  const image = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+    "base64",
+  );
+  const cache = join(directory, "resource-cache");
+  vi.stubEnv("FORGECUT_RESOURCE_DIR", cache);
+  await writeFile(selected, image);
   await writeFile(external, "external bytes");
   const state = new AppState();
   service = new EditingService(state);
@@ -77,6 +84,29 @@ it("collects chosen media and graphic source from a captured revision without ch
       timelineStartUs: 0,
       durationUs: 1000000,
       props: { title: "Captured words" },
+    }),
+  ).toMatchObject({ ok: true });
+  expect(
+    await service.execute("import_graphic_resource", {
+      path: selected,
+      kind: "Image",
+      license: { identifier: "Original", text: "Generated fixture artwork" },
+    }),
+  ).toMatchObject({ ok: true });
+  const fontRoot = join(
+    process.cwd(),
+    "node_modules",
+    "@fontsource",
+    "ibm-plex-sans",
+  );
+  expect(
+    await service.execute("import_graphic_resource", {
+      path: join(fontRoot, "files", "ibm-plex-sans-latin-400-normal.woff2"),
+      kind: "Font",
+      license: {
+        identifier: "OFL-1.1",
+        text: await readFile(join(fontRoot, "LICENSE"), "utf8"),
+      },
     }),
   ).toMatchObject({ ok: true });
   const captured = state.snapshot();
@@ -127,16 +157,22 @@ it("collects chosen media and graphic source from a captured revision without ch
   expect(project.components).toEqual(captured.project.components);
   expect(project.assets[0].license).toEqual(captured.project.assets[0].license);
   expect(isAbsolute(project.assets[0].path)).toBe(false);
-  expect(await readFile(join(output, project.assets[0].path), "utf8")).toBe(
-    "selected bytes",
-  );
+  expect(await readFile(join(output, project.assets[0].path))).toEqual(image);
   expect(project.assets[1].path).toBe(external);
+  expect(project.resources).toEqual(captured.project.resources);
+  for (const resource of project.resources ?? [])
+    expect(await readFile(join(output, resource.path))).toEqual(
+      await readFile(join(cache, resource.sha256)),
+    );
+  await rm(cache, { recursive: true });
+  await rm(selected);
   const moved = join(directory, "moved");
   await rename(output, moved);
   const reopened = new AppState();
   await reopened.loadProject(join(moved, "project.forgecut"));
   expect(reopened.snapshot().missingMedia).toEqual([]);
   expect(reopened.project.components).toEqual(captured.project.components);
+  expect(reopened.project.resources).toEqual(captured.project.resources);
 });
 
 it("cancels collection during destination preparation and removes only its new folder", async () => {
