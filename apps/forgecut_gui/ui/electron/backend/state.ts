@@ -241,7 +241,10 @@ export class AppState {
       recovery ? `${ensureForgeCutExtension(path)}.bak` : path,
       "utf8",
     );
-    const project = projectFromDisk(validateProject(JSON.parse(content)), dirname(path));
+    const project = projectFromDisk(
+      validateProject(JSON.parse(content)),
+      dirname(path),
+    );
     await loadGraphicResources(project.resources ?? [], dirname(path));
     const missing = new Set<string>();
     await Promise.all(
