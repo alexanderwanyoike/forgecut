@@ -133,25 +133,49 @@ export function compileExportPlan(
       String(window?.frameCount ?? frameCount),
       "-t",
       String(window?.durationSeconds ?? duration),
-      "-c:v",
-      preset === "webm" ? "libvpx-vp9" : "libx264",
-      "-threads",
-      "1",
-      "-crf",
-      preset === "webm" ? "32" : "23",
-      ...(preset === "webm"
-        ? ["-b:v", "0", "-deadline", "good", "-cpu-used", "4"]
-        : []),
-      "-c:a",
-      preset === "webm" ? "libopus" : "aac",
-      "-b:a",
-      preset === "webm" ? "128k" : "192k",
-      "-ar",
-      String(preset === "webm" ? 48000 : sampleRate),
+      ...encodingArgs(preset, sampleRate),
       "-pix_fmt",
       "yuv420p",
       "-r",
       String(fps),
     ],
   };
+}
+
+function encodingArgs(preset: ExportPresetId, sampleRate: number): string[] {
+  if (preset === "webm")
+    return [
+      "-c:v",
+      "libvpx-vp9",
+      "-threads",
+      "1",
+      "-crf",
+      "32",
+      "-b:v",
+      "0",
+      "-deadline",
+      "good",
+      "-cpu-used",
+      "4",
+      "-c:a",
+      "libopus",
+      "-b:a",
+      "128k",
+      "-ar",
+      "48000",
+    ];
+  return [
+    "-c:v",
+    "libx264",
+    "-threads",
+    "1",
+    "-crf",
+    "23",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "192k",
+    "-ar",
+    String(sampleRate),
+  ];
 }
