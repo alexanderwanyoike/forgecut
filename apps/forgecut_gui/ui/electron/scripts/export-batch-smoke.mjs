@@ -19,7 +19,7 @@ export async function verifyExportBatches(directory, send) {
       const ready = await invoke('get_project_snapshot');
       const directory = ${JSON.stringify(output)};
       const batch = await invoke('create_export_batch', { sessionId: ready.sessionId, expectedRevision: ready.revision, directory, sequenceIds: ids, preset: 'webm' });
-      await invoke('update_project', { name: 'Manual changes after capture', settings: { width: 64, height: 36 } });
+      await invoke('update_project', { name: 'Manual changes after capture', settings: { width: 64, height: 36 } }, { sequenceId: ids[0] });
       const before = JSON.stringify((await invoke('get_project_snapshot')).project);
       await invoke('resume_export_batch', { directory, batchId: batch.id });
       let result;

@@ -105,10 +105,18 @@ it.skipIf(
       expect(created).toMatchObject({ ok: true });
       if (!created.ok) throw new Error(created.error.message);
       const batch = created.value as ExportBatchSnapshot;
-      await service.execute("update_project", {
-        name: "Manual edit after capture",
-        settings: { width: 64, height: 36 },
-      });
+      expect(
+        await service.execute(
+          "update_project",
+          {
+            name: "Manual edit after capture",
+            settings: { width: 64, height: 36 },
+          },
+          { sequenceId: ids[0] },
+        ),
+      ).toMatchObject({ ok: true });
+      expect(state.project.settings.width).toBe(64);
+      expect(state.project.name).toBe("Manual edit after capture");
       const before = state.snapshot();
       expect(
         await service.execute("resume_export_batch", {
