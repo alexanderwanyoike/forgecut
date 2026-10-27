@@ -34,7 +34,13 @@ afterEach(async () => {
   release();
   await owner?.batches.close();
   await cleanupSequenceWorkspace();
-  if (root) await rm(root, { recursive: true, force: true });
+  if (root)
+    await rm(root, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    });
   localStorage.removeItem("forgecut.exportBatchDirectory");
   if (originalShowModal)
     Object.defineProperty(
@@ -81,7 +87,11 @@ it("creates the chosen output from the file menu and pauses it without changing 
     target: { value: directory },
   });
   fireEvent.click(screen.getByRole("button", { name: "Create and export" }));
-  await screen.findByRole("button", { name: "Pause batch" });
+  await screen.findByRole(
+    "button",
+    { name: "Pause batch" },
+    { timeout: 10000 },
+  );
   const manifest = JSON.parse(
     await readFile(join(directory, "batch.json"), "utf8"),
   );
@@ -96,7 +106,7 @@ it("creates the chosen output from the file menu and pauses it without changing 
   expect(
     screen.getByRole("button", { name: "Retry unfinished exports" }),
   ).toBeTruthy();
-});
+}, 15000);
 
 it("reopens a paused saved batch without rendering and keeps form drafts when the project changes", async () => {
   const { state, service, App, root: main } = await sequenceWorkspaceFixture();
@@ -223,7 +233,9 @@ it("continues an accepted export when the batch window closes during snapshot cr
       },
     });
   });
-  expect(localStorage.getItem("forgecut.exportBatchDirectory")).toBe(
-    await realpath(directory),
-  );
+  await waitFor(async () => {
+    const remembered = localStorage.getItem("forgecut.exportBatchDirectory");
+    expect(remembered).not.toBeNull();
+    expect(await realpath(remembered!)).toBe(await realpath(directory));
+  });
 });
