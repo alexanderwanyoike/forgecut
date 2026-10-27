@@ -19,6 +19,8 @@ import {
 export class ExportBatchService {
   private active?: ActiveBatch;
 
+  private failure?: { directory: string; result: ExportBatchResult<never> };
+
   private starting = false;
 
   private closed = false;
@@ -29,7 +31,10 @@ export class ExportBatchService {
     try {
       const path = await realpath(directory);
       const { active } = this;
-      if (!active || active.directory !== path) return readExportBatch(path);
+      if (!active || active.directory !== path) {
+        if (this.failure?.directory === path) return this.failure.result;
+        return readExportBatch(path);
+      }
       const snapshot = batchSnapshot(active.record, path, true);
       if (active.job) {
         const job = this.jobs.read(active.job.id, active.job.sessionId);
@@ -142,6 +147,7 @@ export class ExportBatchService {
         stopping: false,
         done: Promise.resolve(),
       };
+      this.failure = undefined;
       this.active = active;
       const unlock = release;
       release = undefined;
@@ -212,6 +218,13 @@ export class ExportBatchService {
     if (!entry) return;
     entry.status = "failed";
     entry.error = `${code}: ${message}`.slice(0, 4096);
-    await writeBatchRecord(active.directory, active.record).catch(() => {});
+    try {
+      await writeBatchRecord(active.directory, active.record);
+    } catch (cause) {
+      this.failure = {
+        directory: active.directory,
+        result: batchFailure(cause),
+      };
+    }
   }
 }
