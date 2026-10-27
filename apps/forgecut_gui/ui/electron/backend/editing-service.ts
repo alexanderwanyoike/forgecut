@@ -32,6 +32,8 @@ import {
   metadataSchema,
 } from "./command-schema.js";
 import { autosaveCommands } from "./commands/autosave.js";
+import { ExportBatchService } from "./ExportBatchService.js";
+import { exportBatchCommands } from "./commands/export-batches.js";
 import { exportCommands } from "./commands/export.js";
 import { mediaCommands } from "./commands/media.js";
 import { projectCommands } from "./commands/project.js";
@@ -47,6 +49,10 @@ const handlers: Record<
     | "get_project_snapshot"
     | "apply_edits"
     | "apply_history"
+    | "create_export_batch"
+    | "get_export_batch"
+    | "resume_export_batch"
+    | "cancel_export_batch"
     | "export_project"
     | "get_media_job"
     | "cancel_media_job"
@@ -80,6 +86,8 @@ type CachedEdit = {
 export class EditingService {
   readonly jobs = new JobQueue();
 
+  readonly batches = new ExportBatchService(this.jobs);
+
   private readonly preview = new GraphicPreviewService();
 
   private readonly drafts = new GraphicDraftStore();
@@ -88,7 +96,11 @@ export class EditingService {
     return this.preview.close();
   }
 
-  private readonly handlers = { ...handlers, ...exportCommands(this.jobs) };
+  private readonly handlers = {
+    ...handlers,
+    ...exportCommands(this.jobs),
+    ...exportBatchCommands(this.batches),
+  };
 
   private requests = new Map<string, CachedEdit>();
 
@@ -118,7 +130,11 @@ export class EditingService {
       if (!Object.prototype.hasOwnProperty.call(commandSchemas, command))
         throw new EditingError("NOT_FOUND", `Unknown command: ${command}`);
       const jobControl =
-        command === "get_media_job" || command === "cancel_media_job";
+        command === "get_media_job" ||
+        command === "cancel_media_job" ||
+        command === "get_export_batch" ||
+        command === "resume_export_batch" ||
+        command === "cancel_export_batch";
       const meta = metadataSchema.parse(metadata);
       if (meta?.sessionId && !jobControl)
         this.state.assertSession(meta.sessionId);
@@ -168,6 +184,10 @@ export class EditingService {
         value = await this.handlers[
           command as
             | keyof typeof handlers
+            | "create_export_batch"
+            | "get_export_batch"
+            | "resume_export_batch"
+            | "cancel_export_batch"
             | "export_project"
             | "get_media_job"
             | "cancel_media_job"
@@ -182,6 +202,7 @@ export class EditingService {
         if (
           !jobControl &&
           command !== "export_project" &&
+          command !== "create_export_batch" &&
           !["create_project", "load_project", "recover_project"].includes(
             command,
           )

@@ -137,6 +137,10 @@ export async function startLocalBridge(
         resources: "Read graphic resources",
         "resource-details": "Read graphic resource",
         "asset-credit": "Read asset credit",
+        "create-batch": "Create export batch",
+        "read-batch": "Read export batch",
+        "resume-batch": "Resume export batch",
+        "cancel-batch": "Pause export batch",
       };
       let label = labels[request.action];
       if (request.action === "apply") label = request.label;

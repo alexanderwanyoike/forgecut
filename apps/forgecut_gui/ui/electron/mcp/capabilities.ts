@@ -56,6 +56,16 @@ export const editingCapabilities = {
     selectionChangesCreativeRevision: false,
   },
   history: z.toJSONSchema(historyRequestSchema),
+  exportBatches: {
+    create: z.toJSONSchema(commandSchemas.create_export_batch),
+    read: z.toJSONSchema(commandSchemas.get_export_batch),
+    resume: z.toJSONSchema(commandSchemas.resume_export_batch),
+    cancel: z.toJSONSchema(commandSchemas.cancel_export_batch),
+    maxEntries: 32,
+    snapshotBytes: 8 * 1024 * 1024,
+    restartPolicy:
+      "explicit retry from the beginning of an interrupted output; skip completed outputs",
+  },
   jobs: {
     sourceReview: z.toJSONSchema(sourceReviewRequestSchema),
     sourceReviewMaxDurationUs: 30_000_000,

@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  batchDirectorySchema,
+  createExportBatchSchema,
+} from "./export-batch-schema.js";
 import { EXPORT_PRESET_IDS } from "../shared/export-presets.js";
 import {
   MIN_REVIEW_DURATION_US,
@@ -370,6 +374,17 @@ export const commandSchemas = {
   get_waveform: z.strictObject({ assetId: id }),
   cancel_media_job: z.strictObject({ sessionId: id, jobId: z.uuid() }),
   get_media_job: z.strictObject({ sessionId: id, jobId: z.uuid() }),
+  create_export_batch: createExportBatchSchema,
+  resume_export_batch: z.strictObject({
+    directory: batchDirectorySchema,
+    batchId: z.uuid(),
+    retryInterrupted: z.boolean().optional(),
+  }),
+  cancel_export_batch: z.strictObject({
+    directory: batchDirectorySchema,
+    batchId: z.uuid(),
+  }),
+  get_export_batch: z.strictObject({ directory: batchDirectorySchema }),
   export_project: z.strictObject({
     preset: exportPresetSchema.optional(),
     range: reviewRangeSchema.optional(),

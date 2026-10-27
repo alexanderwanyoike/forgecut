@@ -1,3 +1,4 @@
+import { verifyExportBatches } from "./export-batch-smoke.mjs";
 import { verifyReviewExports } from "./review-export-smoke.mjs";
 import { verifyCredits } from "./credits-smoke.mjs";
 import { verifyStyleControls } from "./style-controls-smoke.mjs";
@@ -225,6 +226,7 @@ async function main() {
   await verifyStyleControls(send);
   await verifyCredits(mcpDirectory, send);
   await verifyReviewExports(mcpDirectory, send);
+  await verifyExportBatches(mcpDirectory, send);
   ws.close();
 
   const value = result.result?.result?.value;
