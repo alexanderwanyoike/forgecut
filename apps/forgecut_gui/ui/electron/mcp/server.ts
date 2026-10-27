@@ -427,7 +427,7 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
     "start_export",
     {
       description:
-        "Queue an MP4 export of the explicitly identified project revision and sequence. Provide sequenceId for multi-sequence projects. Optional range selects a 0.1 to 30 second review interval aligned to sequence frames; omit it for a full export. The immutable snapshot remains unchanged while editing continues. Poll get_job; cancel_job stops rendering before publication. A committing job is finishing its atomic output replacement and can no longer be cancelled.",
+        "Queue an export of the explicitly identified project revision and sequence. Optional preset selects mp4 (H.264/AAC, default) or webm (VP9/Opus); use the matching output filename extension. Provide sequenceId for multi-sequence projects. Optional range selects a 0.1 to 30 second review interval aligned to sequence frames; omit it for a full export. The immutable snapshot remains unchanged while editing continues. Poll get_job; cancel_job stops rendering before publication. A committing job is finishing its atomic output replacement and can no longer be cancelled.",
       inputSchema: exportRequestSchema,
     },
     async (request) => call({ action: "export", ...request }),
