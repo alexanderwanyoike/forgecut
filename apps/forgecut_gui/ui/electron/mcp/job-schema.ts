@@ -1,6 +1,9 @@
 import { isAbsolute } from "node:path";
 import { z } from "zod";
-import { reviewRangeSchema } from "../backend/command-schema.js";
+import {
+  exportPresetSchema,
+  reviewRangeSchema,
+} from "../backend/command-schema.js";
 import { resourceImportSchema } from "../backend/graphic-resource-schema.js";
 import { idSchema, timeSchema } from "../backend/project-schema.js";
 
@@ -27,6 +30,7 @@ export const exportRequestSchema = importRequestSchema
   .omit({ paths: true })
   .extend({
     sequenceId: idSchema.optional(),
+    preset: exportPresetSchema.optional(),
     range: reviewRangeSchema.optional(),
     outputPath: z
       .string()

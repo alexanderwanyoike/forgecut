@@ -45,6 +45,7 @@ export function exportCommands(jobs: JobQueue) {
         requestId: randomUUID(),
         outputPath: requiredString(args, "outputPath"),
         range: input.range,
+        preset: input.preset,
         sequenceId:
           typeof args?.sequenceId === "string" ? args.sequenceId : sequenceId,
       });

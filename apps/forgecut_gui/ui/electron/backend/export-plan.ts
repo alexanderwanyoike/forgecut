@@ -1,3 +1,7 @@
+import {
+  EXPORT_PRESETS,
+  type ExportPresetId,
+} from "../shared/export-presets.js";
 import type { ReviewWindow } from "../domain/review-range.js";
 import type { Project } from "./state.js";
 import { assetIdOf, itemData } from "./timeline-ops.js";
@@ -26,6 +30,7 @@ export type RenderPlan = {
 export function compileExportPlan(
   project: Project,
   window?: ReviewWindow,
+  preset: ExportPresetId = "mp4",
 ): RenderPlan {
   const { width, height, fps, sample_rate: sampleRate } = project.settings;
   const duration = sequenceDurationUs(project) / 1_000_000;
@@ -117,7 +122,7 @@ export function compileExportPlan(
     inputs,
     textFiles,
     filterGraph: filters.join(";"),
-    outputPath: "output.mp4",
+    outputPath: `output.${EXPORT_PRESETS[preset].extension}`,
     outputArgs: [
       "-map",
       "[outv]",
@@ -129,17 +134,20 @@ export function compileExportPlan(
       "-t",
       String(window?.durationSeconds ?? duration),
       "-c:v",
-      "libx264",
+      preset === "webm" ? "libvpx-vp9" : "libx264",
       "-threads",
       "1",
       "-crf",
-      "23",
+      preset === "webm" ? "32" : "23",
+      ...(preset === "webm"
+        ? ["-b:v", "0", "-deadline", "good", "-cpu-used", "4"]
+        : []),
       "-c:a",
-      "aac",
+      preset === "webm" ? "libopus" : "aac",
       "-b:a",
-      "192k",
+      preset === "webm" ? "128k" : "192k",
       "-ar",
-      String(sampleRate),
+      String(preset === "webm" ? 48000 : sampleRate),
       "-pix_fmt",
       "yuv420p",
       "-r",

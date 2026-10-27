@@ -1,3 +1,4 @@
+import type { ExportPresetId } from "./export-presets.js";
 import type { StylePreset, StylePresetInput } from "./style-presets.js";
 import type {
   SourceSelection,
@@ -600,7 +601,12 @@ export type CommandMap = {
     result: JobSnapshot;
   };
   export_project: {
-    args: { outputPath: string; sequenceId?: string; range?: ReviewRange };
+    args: {
+      outputPath: string;
+      sequenceId?: string;
+      range?: ReviewRange;
+      preset?: ExportPresetId;
+    };
     result: JobSnapshot;
   };
 };

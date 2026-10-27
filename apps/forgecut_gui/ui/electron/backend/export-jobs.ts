@@ -1,3 +1,4 @@
+import type { ExportPresetId } from "../shared/export-presets.js";
 import type { ReviewRange } from "../shared/ipc-contract.js";
 import type { AppState } from "./state.js";
 import type { JobQueue } from "./job-queue.js";
@@ -13,6 +14,7 @@ type ExportRequest = {
   outputPath: string;
   sequenceId?: string;
   range?: ReviewRange;
+  preset?: ExportPresetId;
 };
 
 export function startExportJob(
@@ -34,13 +36,14 @@ export function startExportJob(
     state.project.id;
   const range = request.range ? { ...request.range } : undefined;
   const { outputPath } = request;
+  const preset = request.preset ?? "mp4";
   const job: JobRequest = {
     sessionId: request.sessionId,
     projectRevision: request.expectedRevision,
     requestId: request.requestId,
     kind: "export",
     label: "Export project",
-    input: { outputPath, sequenceId, ...(range ? { range } : {}) },
+    input: { outputPath, sequenceId, preset, ...(range ? { range } : {}) },
   };
   const replayed = jobs.replay(job);
   if (!replayed.ok) return replayed;
@@ -69,6 +72,7 @@ export function startExportJob(
         },
       };
     return exportProject(snapshot, outputPath, {
+      preset,
       range,
       signal,
       beginCommit,
