@@ -1,3 +1,5 @@
+import { batchActionSchemas } from "./batch-schema.js";
+import { dispatchBatchAction } from "./batch-actions.js";
 import { isAbsolute } from "node:path";
 import { z } from "zod";
 import { stylePropertyPageFields } from "./style-schema.js";
@@ -43,6 +45,7 @@ export const projectFileRequestSchema = z.strictObject({
     .refine(isAbsolute, "Use an absolute project path"),
 });
 export const bridgeRequestSchema = z.discriminatedUnion("action", [
+  ...batchActionSchemas,
   ...sourceActionSchemas,
   z.strictObject({
     action: z.literal("source-review"),
@@ -145,6 +148,13 @@ export async function dispatchLocal(
   const request = parsed.data;
   const { state } = service;
   try {
+    if (
+      request.action === "create-batch" ||
+      request.action === "read-batch" ||
+      request.action === "resume-batch" ||
+      request.action === "cancel-batch"
+    )
+      return await dispatchBatchAction(service, request);
     if (
       request.action === "source-read" ||
       request.action === "draft-file" ||

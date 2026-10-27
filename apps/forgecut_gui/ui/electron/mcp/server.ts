@@ -1,3 +1,4 @@
+import { registerBatchTools } from "./batch-tools.js";
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { stylePropertyPageFields } from "./style-schema.js";
@@ -112,6 +113,7 @@ export function createMcpServer(directory = sessionDirectory()): McpServer {
           },
     );
   registerSourceTools(server, call);
+  registerBatchTools(server, call);
   server.registerTool(
     "list_sessions",
     {
