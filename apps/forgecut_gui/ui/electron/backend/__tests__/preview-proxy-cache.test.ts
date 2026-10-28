@@ -145,3 +145,25 @@ it("abandons an encode when closed and leaves no partial file", async () => {
   });
   expect(await readdir(root)).toEqual([]);
 });
+
+it("waits for interactive work before it starts encoding", async () => {
+  const { root, source } = await workspace();
+  const encode = encoder();
+  let finish!: () => void;
+  const busy = new Promise<void>((done) => {
+    finish = done;
+  });
+  const proxies = new PreviewProxyCache({
+    root,
+    probe: slow,
+    encode,
+    yieldTo: () => busy,
+  });
+  const prepared = proxies.prepare(await source("recording.mkv"));
+  await new Promise((done) => setTimeout(done, 20));
+  expect(encode).not.toHaveBeenCalled();
+  finish();
+  expect(await prepared).toMatchObject({ ok: true });
+  expect(encode).toHaveBeenCalledTimes(1);
+  await proxies.close();
+});
