@@ -153,9 +153,26 @@ describe("Preview component", () => {
     fireEvent.seeked(video);
     expect(video.style.visibility).toBe("visible");
     network.mockReturnValue(HTMLMediaElement.NETWORK_LOADING);
-    rerender(<Preview {...idle} project={project} playheadUs={1100000} playing />);
+    rerender(
+      <Preview {...idle} project={project} playheadUs={1100000} playing />,
+    );
     expect(video.currentTime).toBe(1);
     expect(video.style.visibility).toBe("visible");
+  });
+  it("lets native playback absorb small clock differences without repeated seeks", () => {
+    const project = videoProject();
+    const { rerender } = render(
+      <Preview {...idle} project={project} playheadUs={1000000} />,
+    );
+    const video = document.querySelector("video")!;
+    fireEvent.seeked(video);
+    rerender(
+      <Preview {...idle} project={project} playheadUs={1100000} playing />,
+    );
+    expect(video.currentTime).toBe(1);
+    expect(video.style.visibility).toBe("visible");
+    rerender(<Preview {...idle} project={project} playheadUs={4000000} />);
+    expect(video.currentTime).toBe(4);
   });
   it("reveals a decoded source-start frame when the cut intentionally starts there", () => {
     const ready = vi
