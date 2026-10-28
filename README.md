@@ -48,29 +48,7 @@ sudo apt-get install ffmpeg bubblewrap
 sudo dnf install ffmpeg bubblewrap
 ```
 
-Source builds use Node.js 22 and Yarn. The packaged graphics and code runtimes are prepared at build time. Queued Linux exports run serially with CPU and memory limits; full-resolution exports can take time on slower CPUs.
-
-## Building
-
-```bash
-git clone --branch dev https://github.com/alexanderwanyoike/forgecut.git
-cd forgecut
-
-yarn --cwd apps/forgecut_gui/ui install --frozen-lockfile
-yarn --cwd apps/forgecut_gui/ui build
-yarn --cwd apps/forgecut_gui/ui build:graphic-runtime
-yarn --cwd apps/forgecut_gui/ui dev
-```
-
-`build:graphic-runtime` prepares the browser and isolated graphics worker needed for graphics export and custom source preview. The code editor and MCP adapter are included by the Electron build.
-
-To produce Linux installers:
-
-```bash
-yarn --cwd apps/forgecut_gui/ui package:linux
-```
-
-[Released installers](https://github.com/alexanderwanyoike/forgecut/releases) are separate from the current development preview. FFmpeg must be installed and available on `PATH`.
+Queued Linux exports run serially with CPU and memory limits. Full-resolution exports can take time on slower CPUs.
 
 ## Verification and formatting
 
