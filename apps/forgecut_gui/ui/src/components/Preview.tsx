@@ -126,6 +126,7 @@ export default function Preview(props: PreviewProps) {
           {scheduled.map(({ layer, standby }) => {
             const { item, asset, placement } = layer;
             const playing = playback.playing && !playback.buffering && !standby;
+            const precise = !playback.playing || standby;
             const key = layerKey(layer);
             if ("VideoClip" in item && asset && placement) {
               return (
@@ -135,9 +136,10 @@ export default function Preview(props: PreviewProps) {
                   audioGain={layer.audioGain}
                   path={asset.path}
                   timeUs={
-                    (playing ? layer.playbackTimeUs : layer.sourceTimeUs) ?? 0
+                    (precise ? layer.sourceTimeUs : layer.playbackTimeUs) ?? 0
                   }
                   playing={playing}
+                  precise={precise}
                   standby={standby}
                   onPresentedChange={onPresentedChange(key)}
                   version={props.projectVersion}
@@ -159,6 +161,7 @@ export default function Preview(props: PreviewProps) {
                     (standby ? layer.sourceTimeUs : layer.playbackTimeUs) ?? 0
                   }
                   playing={playing}
+                  precise={precise}
                   standby={standby}
                   onPresentedChange={onPresentedChange(key)}
                   version={props.projectVersion}
@@ -219,12 +222,13 @@ export default function Preview(props: PreviewProps) {
                             mixer={mixer}
                             path={render}
                             timeUs={
-                              playing
-                                ? props.playheadUs -
+                              precise
+                                ? frameMidpointUs(localFrame, settings.fps)
+                                : props.playheadUs -
                                   frameTimeUs(startFrame, settings.fps)
-                                : frameMidpointUs(localFrame, settings.fps)
                             }
                             playing={playing}
+                            precise={precise}
                             standby={standby}
                             onPresentedChange={onPresentedChange(key)}
                             version={props.projectVersion}

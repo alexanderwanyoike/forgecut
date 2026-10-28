@@ -13,6 +13,8 @@ type Props = {
   path: string;
   timeUs: number;
   playing: boolean;
+  /** Paused by the user or parked: seek to the exact requested frame. */
+  precise: boolean;
   version: number;
   fps: number;
   style?: CSSProperties;
@@ -44,7 +46,7 @@ export default function PreviewMedia(props: Props) {
     if (media.readyState < 1) return;
     const target = usToSeconds(props.timeUs);
     // Playing sources run on their own decoder clock; seeking for small drift drops frames.
-    const tolerance = props.playing ? 0.15 : 0.001;
+    const tolerance = props.precise ? 0.001 : 0.15;
     if (Math.abs(media.currentTime - target) > tolerance) {
       // Matroska index reads may still be in flight after loadeddata.
       if (
