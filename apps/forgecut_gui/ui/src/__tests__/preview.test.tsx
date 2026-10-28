@@ -110,6 +110,35 @@ describe("Preview component", () => {
       ).toBe(4),
     );
   });
+  it("waits for decoded data before seeking a newly loaded source", () => {
+    const ready = vi
+      .spyOn(HTMLMediaElement.prototype, "readyState", "get")
+      .mockReturnValue(1);
+    render(<Preview {...idle} project={videoProject()} playheadUs={4000000} />);
+    const video = document.querySelector("video")!;
+    fireEvent.loadedMetadata(video);
+    expect(video.currentTime).toBe(0);
+    ready.mockReturnValue(2);
+    fireEvent.loadedData(video);
+    expect(video.currentTime).toBe(4);
+  });
+  it("seeks to the latest paused playhead after an outstanding seek finishes", () => {
+    const ready = vi
+      .spyOn(HTMLMediaElement.prototype, "readyState", "get")
+      .mockReturnValue(4);
+    const project = videoProject();
+    const { rerender } = render(
+      <Preview {...idle} project={project} playheadUs={1000000} />,
+    );
+    const video = document.querySelector("video")!;
+    expect(video.currentTime).toBe(1);
+    ready.mockReturnValue(1);
+    rerender(<Preview {...idle} project={project} playheadUs={4000000} />);
+    expect(video.currentTime).toBe(1);
+    ready.mockReturnValue(2);
+    fireEvent.seeked(video);
+    expect(video.currentTime).toBe(4);
+  });
   it("keeps unprobed source audio silent until it can match export", () => {
     const project = videoProject();
     project.assets[0].probe = null;
