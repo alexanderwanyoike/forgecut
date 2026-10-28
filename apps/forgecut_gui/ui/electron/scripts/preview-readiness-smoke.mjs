@@ -43,6 +43,7 @@ export async function verifyPreviewReadiness(directory, send) {
       const snapshot = await invoke('get_project_snapshot');
       const track = snapshot.project.timeline.tracks.find(track => track.kind === 'Video');
       await invoke('add_clip_to_timeline', { assetId: assets[0].id, trackId: track.id, timelineStartUs: 0, sourceInUs: 1000000, sourceOutUs: 2500000 });
+      await invoke('add_clip_to_timeline', { assetId: assets[0].id, trackId: track.id, timelineStartUs: 1500000, sourceInUs: 1000000, sourceOutUs: 2500000 });
       await invoke('save_project', { path: ${JSON.stringify(project)} });
       await invoke('create_project');
       const seen = new WeakSet();
@@ -51,6 +52,8 @@ export async function verifyPreviewReadiness(directory, send) {
       let badFrames = 0;
       let decodedFrames = 0;
       let exposedBeforeReady = 0;
+      let recordingPlayback = false;
+      const visiblePlaybackFrames = new Map();
       const watch = () => {
         if (stopped) return;
         const video = document.querySelector('.preview-composition video');
@@ -62,6 +65,8 @@ export async function verifyPreviewReadiness(directory, send) {
             if (stopped) return;
             presented.set(video, metadata.mediaTime);
             decodedFrames += 1;
+            if (recordingPlayback && video.isConnected && getComputedStyle(video).visibility === 'visible' && metadata.mediaTime >= 0.95)
+              visiblePlaybackFrames.set(video, (visiblePlaybackFrames.get(video) ?? 0) + 1);
             if (video.isConnected && getComputedStyle(video).visibility !== 'hidden' && metadata.mediaTime < 0.95) badFrames += 1;
             video.requestVideoFrameCallback(frame);
           };
@@ -89,8 +94,13 @@ export async function verifyPreviewReadiness(directory, send) {
           if (cycle < 2) await invoke('create_project');
         }
         const play = document.querySelector('.preview-controls button[aria-label="Play sequence"]');
+        recordingPlayback = true;
         play.click();
-        await wait(() => document.querySelector('.preview-controls button[aria-label="Play sequence"]') && decodedFrames > 8);
+        await wait(() => document.querySelector('.preview-controls button[aria-label="Pause sequence"]'));
+        await wait(() => document.querySelector('.preview-controls button[aria-label="Play sequence"]'));
+        recordingPlayback = false;
+        if (visiblePlaybackFrames.size !== 2 || [...visiblePlaybackFrames.values()].some(count => count < 8))
+          throw new Error('Playback did not visibly advance through both cuts: ' + JSON.stringify([...visiblePlaybackFrames.values()]));
         if (badFrames) throw new Error('Playback exposed source-start frames: ' + badFrames);
         const ruler = document.querySelector('.time-ruler');
         const bounds = ruler.getBoundingClientRect();
@@ -102,7 +112,7 @@ export async function verifyPreviewReadiness(directory, send) {
           return v && !v.seeking && getComputedStyle(v).visibility === 'visible' && Math.abs((presented.get(v) ?? -1) - 1) < 0.06;
         });
         if (badFrames) throw new Error('Scrubbing exposed source-start frames: ' + badFrames);
-        return { correct: true, badFrames, exposedBeforeReady, decodedFrames };
+        return { correct: true, badFrames, exposedBeforeReady, decodedFrames, visiblePlaybackFrames: [...visiblePlaybackFrames.values()] };
       } finally { stopped = true; observer.disconnect(); }
     })()`,
     returnByValue: true,
@@ -119,6 +129,6 @@ export async function verifyPreviewReadiness(directory, send) {
     Buffer.from(screenshot.result.data, "base64"),
   );
   console.log(
-    "Native preview exposed no source-start frames across three loads and playback",
+    "Native preview exposed no source-start frames across three loads, both visible cuts and playback",
   );
 }

@@ -64,6 +64,20 @@ export async function verifyAudio(directory, send) {
           analyser.getFloatTimeDomainData(samples);
           return Math.sqrt(samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length) > 0.03;
         });
+        let correctiveSeeks = 0;
+        let silentSamples = 0;
+        const seeking = () => { correctiveSeeks += 1; };
+        media.addEventListener('seeking', seeking);
+        try {
+          for (let sample = 0; sample < 20; sample++) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            analyser.getFloatTimeDomainData(samples);
+            const rms = Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length);
+            if (rms < 0.03) silentSamples += 1;
+          }
+          if (correctiveSeeks > 1 || silentSamples > 1)
+            throw new Error('Continuous preview audio was interrupted: ' + JSON.stringify({ correctiveSeeks, silentSamples }));
+        } finally { media.removeEventListener('seeking', seeking); }
         document.querySelector('.preview-controls button[aria-label]').click();
         await waitFor(() => media.paused);
         analyser.disconnect();
