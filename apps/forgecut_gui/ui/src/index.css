@@ -184,7 +184,7 @@ body,
 }
 @media (max-width: 1150px) {
   .shell {
-    grid-template-columns: 200px minmax(0, 1fr) 270px 30px;
+    grid-template-columns: 200px minmax(0, 1fr) 270px;
   }
   .timeline-controls {
     gap: 10px;
