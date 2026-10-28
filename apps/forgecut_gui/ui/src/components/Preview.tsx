@@ -13,6 +13,7 @@ import { formatTimeUs } from "../lib/preview/time-utils";
 import { usePlayback } from "../hooks/usePlayback";
 import { useGraphicPlayback } from "../hooks/useGraphicPlayback";
 import { useCompositionSize } from "../hooks/useCompositionSize";
+import { upcomingLayers } from "../lib/preview/preroll";
 import PreviewMedia from "./PreviewMedia";
 import { AudioMixer } from "../lib/preview/AudioMixer";
 import type { VisualPlacement } from "../../electron/shared/ipc-contract";
@@ -48,6 +49,15 @@ export default function Preview(props: PreviewProps) {
     durationUs: frame?.durationUs ?? 0,
   });
   const graphicRender = useGraphicPlayback(props.project, props.projectVersion);
+  const scheduled = [
+    ...(frame?.layers ?? []).map((layer) => ({ layer, standby: false })),
+    ...(props.project && frame
+      ? upcomingLayers(props.project, frame.frame).map((layer) => ({
+          layer,
+          standby: true,
+        }))
+      : []),
+  ];
   return (
     <section className="panel preview">
       <div className="panel-header">
@@ -74,8 +84,9 @@ export default function Preview(props: PreviewProps) {
             background: "#000",
           }}
         >
-          {frame?.layers.map((layer) => {
+          {scheduled.map(({ layer, standby }) => {
             const { item, asset, placement } = layer;
+            const playing = playback.playing && !standby;
             const data = itemData(item);
             const key = `${data.id}:${props.projectVersion}`;
             if ("VideoClip" in item && asset && placement) {
@@ -86,11 +97,10 @@ export default function Preview(props: PreviewProps) {
                   audioGain={layer.audioGain}
                   path={asset.path}
                   timeUs={
-                    (playback.playing
-                      ? layer.playbackTimeUs
-                      : layer.sourceTimeUs) ?? 0
+                    (playing ? layer.playbackTimeUs : layer.sourceTimeUs) ?? 0
                   }
-                  playing={playback.playing}
+                  playing={playing}
+                  standby={standby}
                   version={props.projectVersion}
                   fps={settings.fps}
                   style={visualStyle(placement)}
@@ -106,14 +116,18 @@ export default function Preview(props: PreviewProps) {
                   audioOnly
                   audioGain={layer.audioGain}
                   path={asset.path}
-                  timeUs={layer.playbackTimeUs ?? 0}
-                  playing={playback.playing}
+                  timeUs={
+                    (standby ? layer.sourceTimeUs : layer.playbackTimeUs) ?? 0
+                  }
+                  playing={playing}
+                  standby={standby}
                   version={props.projectVersion}
                   fps={settings.fps}
                   onError={reportError}
                 />
               );
             }
+            if (standby && !("RemotionGraphic" in item)) return null;
             if ("ImageOverlay" in item && asset && placement) {
               return (
                 <img
@@ -131,6 +145,8 @@ export default function Preview(props: PreviewProps) {
                 settings.fps,
               );
               const render = graphicRender(graphic);
+              if (standby && !render) return null;
+              const localFrame = Math.max(0, (frame?.frame ?? 0) - startFrame);
               const component = props.project?.components?.find(
                 (candidate) =>
                   candidate.id === graphic.component_id &&
@@ -145,13 +161,17 @@ export default function Preview(props: PreviewProps) {
                       revision={props.projectVersion}
                       selected={props.selectedClipId === graphic.id}
                       selectedLayerId={props.selectedLayerId}
-                      editable={!playback.playing && !!props.onGraphicSelection}
+                      editable={
+                        !playback.playing &&
+                        !standby &&
+                        !!props.onGraphicSelection
+                      }
                       onSelect={props.onGraphicSelection}
                       resources={props.project?.resources ?? []}
                       placement={placement}
                       component={component}
                       item={graphic}
-                      frame={frame.frame - startFrame}
+                      frame={localFrame}
                       settings={settings}
                       picture={
                         render && (
@@ -159,15 +179,13 @@ export default function Preview(props: PreviewProps) {
                             mixer={mixer}
                             path={render}
                             timeUs={
-                              playback.playing
+                              playing
                                 ? props.playheadUs -
                                   frameTimeUs(startFrame, settings.fps)
-                                : frameMidpointUs(
-                                    frame.frame - startFrame,
-                                    settings.fps,
-                                  )
+                                : frameMidpointUs(localFrame, settings.fps)
                             }
-                            playing={playback.playing}
+                            playing={playing}
+                            standby={standby}
                             version={props.projectVersion}
                             fps={settings.fps}
                             style={{

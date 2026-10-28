@@ -21,6 +21,8 @@ type Props = {
   audioGain?: number;
   onError: (message: string) => void;
   onPresentedChange?: (presented: boolean) => void;
+  /** Parked at its first frame, hidden and paused, until its cut arrives. */
+  standby?: boolean;
 };
 
 export default function PreviewMedia(props: Props) {
@@ -130,7 +132,7 @@ export default function PreviewMedia(props: Props) {
       preload="auto"
       style={{
         ...props.style,
-        visibility: presented ? "visible" : "hidden",
+        visibility: presented && !props.standby ? "visible" : "hidden",
       }}
       onError={() => props.onError("Unable to play this source.")}
     />

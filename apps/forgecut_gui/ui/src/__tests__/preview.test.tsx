@@ -177,7 +177,12 @@ describe("Preview component", () => {
     if (!("VideoClip" in clip)) throw new Error("Invalid video fixture");
     clip.VideoClip.timeline_start_us = 2000000;
     render(<Preview {...idle} project={project} />);
-    expect(document.querySelector(".preview-viewport video")).toBeNull();
+    const videos = document.querySelectorAll<HTMLVideoElement>(
+      ".preview-viewport video",
+    );
+    expect([...videos].map((video) => video.style.visibility)).not.toContain(
+      "visible",
+    );
   });
   it("renders active text from the current project snapshot", () => {
     const project = videoProject();
