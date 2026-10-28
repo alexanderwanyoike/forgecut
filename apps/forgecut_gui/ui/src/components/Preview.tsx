@@ -49,8 +49,12 @@ export default function Preview(props: PreviewProps) {
   const playback = usePlayback({
     ...props,
     durationUs: frame?.durationUs ?? 0,
-    canAdvance: () =>
-      Array.from(
+    canAdvance: () => {
+      const viewport = viewportRef.current;
+      if (viewport?.querySelector('[data-graphic-ready="false"]')) return false;
+      if (Array.from(viewport?.querySelectorAll<HTMLImageElement>(".graphic-player img") ?? [])
+        .some((image) => !image.complete || image.naturalWidth === 0)) return false;
+      return Array.from(
         viewportRef.current?.querySelectorAll<HTMLMediaElement>(
           "video:not([data-preroll]), audio:not([data-preroll])",
         ) ?? [],
@@ -60,7 +64,8 @@ export default function Preview(props: PreviewProps) {
             media.ended) &&
           !media.seeking &&
           media.style.visibility !== "hidden",
-      ),
+      );
+    },
   });
   return (
     <section className="panel preview">
@@ -151,7 +156,7 @@ export default function Preview(props: PreviewProps) {
               );
               return (
                 <div key={key} style={visualStyle(placement)}>
-                  <Suspense fallback={<span>Loading graphic…</span>}>
+                  <Suspense fallback={<span data-graphic-ready={false}>Loading graphic…</span>}>
                     <GraphicPreview
                       displayScale={scale}
                       sessionId={props.sessionId}

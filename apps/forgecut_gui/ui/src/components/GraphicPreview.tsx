@@ -78,7 +78,7 @@ export default function GraphicPreview({
   }, [frame, duration, fontStatus.key]);
   if (!component)
     return (
-      <span role="alert">
+      <span role="alert" data-graphic-ready={false}>
         This component version is unavailable in the graphics runtime.
       </span>
     );
@@ -94,11 +94,11 @@ export default function GraphicPreview({
       />
     );
   if (fontId && !font)
-    return <span role="alert">The selected font resource is unavailable.</span>;
+    return <span role="alert" data-graphic-ready={false}>The selected font resource is unavailable.</span>;
   if (fontId && fontStatus.key === fontId && fontStatus.error)
-    return <span role="alert">Font could not load: {fontStatus.error}</span>;
+    return <span role="alert" data-graphic-ready={false}>Font could not load: {fontStatus.error}</span>;
   if (fontId && fontStatus.key !== fontId)
-    return <span role="status">Loading font…</span>;
+    return <span role="status" data-graphic-ready={false}>Loading font…</span>;
   const fit = graphicFit(placement, settings);
   const { scale } = fit;
   const width = settings.width * scale;
@@ -115,7 +115,7 @@ export default function GraphicPreview({
           layerStates: item.layer_states,
         }}
         errorFallback={({ error }) => (
-          <span role="alert">Graphic failed: {error.message}</span>
+          <span role="alert" data-graphic-ready={false}>Graphic failed: {error.message}</span>
         )}
         initialFrame={Math.min(duration - 1, Math.max(0, frame))}
         durationInFrames={duration}

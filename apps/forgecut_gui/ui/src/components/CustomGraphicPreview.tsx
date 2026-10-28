@@ -14,6 +14,7 @@ export default function CustomGraphicPreview({
 }: GraphicPreviewProps) {
   const [image, setImage] = useState("");
   const [error, setError] = useState("");
+  const [ready, setReady] = useState(false);
   const queue = useRef({
     mounted: true,
     busy: false,
@@ -62,12 +63,17 @@ export default function CustomGraphicPreview({
   }, [input]);
   const fit = graphicFit(placement, settings);
   return (
-    <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
+    <div data-graphic-ready={ready && !error} style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
       {image ? (
         <img
           alt="Graphic preview"
           src={image}
           draggable={false}
+          onLoad={() => setReady(true)}
+          onError={() => {
+            setReady(false);
+            setError("The graphic preview image could not be decoded");
+          }}
           style={{
             position: "absolute",
             width: settings.width * fit.scale,
