@@ -23,7 +23,8 @@ type Props = {
   mixer: AudioMixer;
   audioGain?: number;
   onError: (message: string) => void;
-  onPresentedChange?: (presented: boolean) => void;
+  /** Whether this source has nothing more for the clock to wait on. */
+  onReadyChange?: (ready: boolean) => void;
   /** Parked at its first frame, hidden and paused, until its cut arrives. */
   standby?: boolean;
 };
@@ -118,8 +119,8 @@ export default function PreviewMedia(props: Props) {
     }
     synchronize.current();
   }, [props.playing, props.timeUs, props.audioGain]);
-  const report = useRef(props.onPresentedChange);
-  report.current = props.onPresentedChange;
+  const report = useRef(props.onReadyChange);
+  report.current = props.onReadyChange;
   useEffect(() => {
     report.current?.(presented);
   }, [presented]);
