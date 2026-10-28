@@ -13,6 +13,7 @@ type Props = { beforeInstall: () => Promise<boolean> };
 export default function ApplicationFooter({ beforeInstall }: Props) {
   const bridge = window.forgecut?.updates;
   const [status, setStatus] = useState<UpdateStatus | null>(null);
+  const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -44,8 +45,10 @@ export default function ApplicationFooter({ beforeInstall }: Props) {
     try {
       if (installing && !(await beforeInstall())) return;
       const result = await operation();
-      if (result.ok) setStatus(result.value);
-      else setError(result.error.message);
+      if (result.ok) {
+        setStatus(result.value);
+        setChecked(true);
+      } else setError(result.error.message);
     } catch {
       setError("The update could not finish. Please retry.");
     } finally {
@@ -87,7 +90,11 @@ export default function ApplicationFooter({ beforeInstall }: Props) {
           title={error ?? undefined}
         >
           {error ??
-            (status?.stage === "ready" ? `v${status.version} ready` : "")}
+            (status?.stage === "ready"
+              ? `v${status.version} ready`
+              : checked && status?.stage === "idle"
+                ? "Up to date"
+                : "")}
         </span>
         <ActionButton
           icon={icon}
