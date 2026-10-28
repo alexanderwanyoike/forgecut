@@ -8,6 +8,7 @@ import { openBrowser } from "@remotion/renderer";
 import { z } from "zod";
 import { graphicRuntimeDiagnostics } from "./graphic-runtime-diagnostics.js";
 import { previewCommandSchema } from "./graphic-preview-protocol.js";
+import { previewScale } from "./graphic-render-job.js";
 import type { GraphicPreviewInput } from "../shared/graphic-preview.js";
 
 async function main() {
@@ -88,12 +89,7 @@ async function main() {
         code = input.code;
         if (request.frame >= input.duration)
           throw new Error("Preview frame is outside the component duration");
-        const scale = Math.min(
-          1,
-          960 / input.width,
-          960 / input.height,
-          Math.sqrt(518400 / (input.width * input.height)),
-        );
+        const scale = previewScale(input.width, input.height);
         const width = Math.max(1, Math.round(input.width * scale));
         const height = Math.max(1, Math.round(input.height * scale));
         await page.setViewport({ width, height, deviceScaleFactor: 1 });

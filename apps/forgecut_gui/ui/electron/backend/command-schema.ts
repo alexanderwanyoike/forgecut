@@ -330,6 +330,10 @@ export const commandSchemas = {
     frame: time,
     props: graphicValuesSchema.optional(),
   }),
+  get_graphic_playback: z.strictObject({
+    itemId: id,
+    revision: z.number().int().nonnegative(),
+  }),
   check_graphic_source: z.strictObject({
     properties: graphicPropertiesSchema.optional(),
     source: graphicSourceSchema,

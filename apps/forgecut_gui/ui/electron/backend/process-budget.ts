@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 export async function budgetedMediaCommand(
   executable: string,
   args: string[],
+  cpuPercent = 150,
 ): Promise<{ command: string; args: string[]; unit?: string }> {
   const supported =
     process.platform === "linux" &&
@@ -27,7 +28,7 @@ export async function budgetedMediaCommand(
         "MemoryMax=3221225472",
         "MemoryHigh=2147483648",
         "MemorySwapMax=268435456",
-        "CPUQuota=150%",
+        "CPUQuota=400%",
       ],
       { timeout: 1000, maxBuffer: 4096 },
       (error) => resolve(!error),
@@ -48,7 +49,7 @@ export async function budgetedMediaCommand(
       "--property=MemoryMax=3221225472",
       "--property=MemoryHigh=2147483648",
       "--property=MemorySwapMax=268435456",
-      "--property=CPUQuota=150%",
+      `--property=CPUQuota=${cpuPercent}%`,
       "--",
       executable,
       ...args,

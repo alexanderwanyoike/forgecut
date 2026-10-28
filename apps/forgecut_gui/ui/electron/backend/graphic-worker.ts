@@ -8,7 +8,10 @@ import {
   renderMedia,
   selectComposition,
 } from "@remotion/renderer";
-import { graphicRenderJobSchema } from "./graphic-render-job.js";
+import {
+  graphicRenderJobSchema,
+  renderEncoding,
+} from "./graphic-render-job.js";
 
 async function main() {
   const runtime = dirname(fileURLToPath(import.meta.url));
@@ -59,11 +62,8 @@ async function main() {
     await renderMedia({
       ...common,
       composition,
-      codec: "prores",
-      proResProfile: "4444",
-      pixelFormat: "yuva444p10le",
+      ...renderEncoding(job),
       imageFormat: "png",
-      concurrency: 1,
       muted: true,
       frameRange: [0, Math.min(job.duration, job.renderFrames) - 1],
       outputLocation: job.output,

@@ -9,6 +9,7 @@ export async function runGraphicWorker(
   jobPath: string,
   signal?: AbortSignal,
   requiresBudget = false,
+  cpuPercent?: number,
 ): Promise<Result<null>> {
   if (process.platform !== "linux")
     return {
@@ -20,13 +21,17 @@ export async function runGraphicWorker(
       },
     };
   const directory = dirname(jobPath);
-  const invocation = await budgetedMediaCommand("bwrap", [
-    ...graphicSandboxArgs(runtime, directory),
-    "--",
-    process.execPath,
-    join(runtime, "worker.cjs"),
-    jobPath,
-  ]);
+  const invocation = await budgetedMediaCommand(
+    "bwrap",
+    [
+      ...graphicSandboxArgs(runtime, directory),
+      "--",
+      process.execPath,
+      join(runtime, "worker.cjs"),
+      jobPath,
+    ],
+    cpuPercent,
+  );
   if (requiresBudget && !invocation.unit)
     return {
       ok: false,

@@ -11,6 +11,7 @@ import { graphicPromotionCommands } from "./commands/graphic-promotion.js";
 import { GraphicDraftStore } from "./GraphicDraftStore.js";
 import { graphicDraftCommands } from "./commands/graphic-drafts.js";
 import { GraphicPreviewService } from "./GraphicPreviewService.js";
+import { GraphicRenderCache } from "./GraphicRenderCache.js";
 import { graphicPreviewCommands } from "./commands/graphic-preview.js";
 import { changedItemIds } from "./project-diff.js";
 import type {
@@ -90,10 +91,12 @@ export class EditingService {
 
   private readonly preview = new GraphicPreviewService();
 
+  readonly renders = new GraphicRenderCache();
+
   private readonly drafts = new GraphicDraftStore();
 
-  closeGraphicsPreview(): Promise<void> {
-    return this.preview.close();
+  async closeGraphicsPreview(): Promise<void> {
+    await Promise.all([this.preview.close(), this.renders.close()]);
   }
 
   private readonly handlers = {
@@ -110,6 +113,7 @@ export class EditingService {
       if (snapshot.sessionId !== currentSessionId) {
         currentSessionId = snapshot.sessionId;
         void this.preview.reset();
+        this.renders.cancelPending();
       }
     });
   }
@@ -195,6 +199,7 @@ export class EditingService {
           state: this.state,
           sequenceId: meta?.sequenceId,
           preview: this.preview,
+          renders: this.renders,
           drafts: this.drafts,
           jobs: this.jobs,
           ...options,

@@ -30,6 +30,7 @@ vi.mock("../lib/bridge", () => ({
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.mocked(invoke).mockResolvedValue(undefined);
 });
 it("seeks the real Player from sequence time and exposes typed instance controls", async () => {
   const state = new AppState();
@@ -94,12 +95,16 @@ it("shows isolated custom frames without evaluating source in the editor", async
   const item = project.timeline.tracks[0].items[0];
   if (!("RemotionGraphic" in item)) throw new Error("Invalid fixture");
   item.RemotionGraphic.component_version = component.version;
-  vi.mocked(invoke).mockResolvedValueOnce({
-    mimeType: "image/png",
-    data: "aXNvbGF0ZWQ=",
-    width: 64,
-    height: 36,
-  });
+  vi.mocked(invoke).mockImplementation((command) =>
+    command === "get_graphic_preview"
+      ? Promise.resolve({
+          mimeType: "image/png",
+          data: "aXNvbGF0ZWQ=",
+          width: 64,
+          height: 36,
+        })
+      : new Promise(() => {}),
+  );
   render(
     <Preview
       project={project}

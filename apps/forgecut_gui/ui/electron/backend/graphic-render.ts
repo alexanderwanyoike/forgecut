@@ -3,7 +3,10 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Result } from "../shared/result.js";
-import type { GraphicRenderJob } from "./graphic-render-job.js";
+import {
+  renderCpuPercent,
+  type GraphicRenderJob,
+} from "./graphic-render-job.js";
 import { runGraphicWorker } from "./graphic-worker-process.js";
 
 export function graphicRuntimeDirectory(): string {
@@ -41,6 +44,7 @@ export async function renderGraphic(
     path,
     signal,
     job.code !== undefined,
+    renderCpuPercent(job.format),
   );
   return rendered.ok ? { ok: true, value: job.output } : rendered;
 }
