@@ -3,6 +3,7 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useReducer,
   useRef,
   useState,
   type CSSProperties,
@@ -58,9 +59,12 @@ export default function Preview(props: PreviewProps) {
   const layerKey = (layer: { item: TimelineItem }) =>
     `${itemData(layer.item).id}:${props.projectVersion}`;
   const presented = useRef(new Set<string>());
+  const [, presentedChanged] = useReducer((count: number) => count + 1, 0);
   const onPresentedChange = (key: string) => (value: boolean) => {
+    if (value === presented.current.has(key)) return;
     if (value) presented.current.add(key);
     else presented.current.delete(key);
+    presentedChanged();
   };
   const awaited = useRef<string[]>([]);
   awaited.current = (frame?.layers ?? []).flatMap((layer) => {
@@ -81,12 +85,17 @@ export default function Preview(props: PreviewProps) {
   });
   const scheduled = [
     ...(frame?.layers ?? []).map((layer) => ({ layer, standby: false })),
-    ...(props.project && frame
-      ? upcomingLayers(props.project, frame.frame).map((layer) => ({
-          layer,
-          standby: true,
-        }))
-      : []),
+    ...admitted(
+      (props.project && frame
+        ? upcomingLayers(props.project, frame.frame)
+        : []
+      ).filter(
+        (layer) =>
+          !("RemotionGraphic" in layer.item) ||
+          graphicRender(layer.item.RemotionGraphic).path,
+      ),
+      (layer) => presented.current.has(layerKey(layer)),
+    ).map((layer) => ({ layer, standby: true })),
   ];
   return (
     <section className="panel preview">
@@ -292,6 +301,12 @@ export default function Preview(props: PreviewProps) {
       </div>
     </section>
   );
+}
+
+// Sources sharing one file contend for its index while seeking, so the next cut parks first.
+function admitted<T>(upcoming: T[], parked: (layer: T) => boolean): T[] {
+  const waiting = upcoming.findIndex((layer) => !parked(layer));
+  return waiting === -1 ? upcoming : upcoming.slice(0, waiting + 1);
 }
 
 // A frame's start can round below its exact timestamp, which shows the previous frame.

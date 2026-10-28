@@ -12,8 +12,8 @@ import { itemData } from "../../../electron/domain/timeline-item";
 const PREROLL_US = 2_000_000;
 
 /**
- * Media layers starting within the preroll window, resolved at their first
- * frame so their sources can be decoded and parked before the cut.
+ * Media layers starting within the preroll window, nearest first, resolved at
+ * their first frame so their sources can be decoded and parked before the cut.
  */
 export function upcomingLayers(
   project: Project,
@@ -31,6 +31,7 @@ export function upcomingLayers(
         itemFrameRange(item, fps).start > currentFrame &&
         itemFrameRange(item, fps).start <= lastFrame,
     )
+    .sort((a, b) => itemFrameRange(a, fps).start - itemFrameRange(b, fps).start)
     .flatMap((item) => {
       const { id } = itemData(item);
       return resolveSequenceFrame(
