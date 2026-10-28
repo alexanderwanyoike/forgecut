@@ -107,6 +107,7 @@ function createWindow(): void {
     },
   });
 
+  win.maximize();
   if (updates) registerUpdateHandlers(win, updates);
 
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
