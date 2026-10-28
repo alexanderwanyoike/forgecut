@@ -9,12 +9,10 @@ test("native client disables unattended installs and reports a verified download
     allowPrerelease: true,
     allowDowngrade: true,
     disableDifferentialDownload: false,
-    checkForUpdates: vi
-      .fn()
-      .mockResolvedValue({
-        isUpdateAvailable: true,
-        updateInfo: { version: "1.1.0" },
-      }),
+    checkForUpdates: vi.fn().mockResolvedValue({
+      isUpdateAvailable: true,
+      updateInfo: { version: "1.1.0" },
+    }),
     downloadUpdate: vi.fn().mockImplementation(async () => {
       client.emit("download-progress", { percent: 37 });
       return ["/verified.AppImage"];
