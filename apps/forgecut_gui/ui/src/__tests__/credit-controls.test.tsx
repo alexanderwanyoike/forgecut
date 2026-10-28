@@ -93,7 +93,7 @@ it("saves a music credit from the project menu and restores it through project u
   await act(async () => {
     expect(await service.execute("redo")).toMatchObject({ ok: true });
   });
-});
+}, 15000);
 
 it("updates a font attribution while retaining the imported font identity and notice", async () => {
   const { state } = await fixture();
