@@ -24,6 +24,12 @@ extraResources:
   - from: electron/dist/mcp-notices.txt
     to: mcp-notices.txt
 
+publish:
+  provider: github
+  owner: alexanderwanyoike
+  repo: forgecut
+  releaseType: draft
+
 npmRebuild: false
 
 linux:

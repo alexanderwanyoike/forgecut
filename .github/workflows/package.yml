@@ -3,6 +3,8 @@ name: Package
 on:
   push:
     tags: ["v*"]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
@@ -18,7 +20,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     permissions:
-      contents: write
+      contents: read
     env:
       # No signing certificates in CI; ship unsigned builds
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -64,14 +66,24 @@ jobs:
             apps/forgecut_gui/ui/dist-installers/forgecut-*.rpm
             apps/forgecut_gui/ui/dist-installers/forgecut-*.dmg
             apps/forgecut_gui/ui/dist-installers/forgecut-*.exe
+            apps/forgecut_gui/ui/dist-installers/latest*.yml
+            apps/forgecut_gui/ui/dist-installers/*.blockmap
 
-      - name: Attach installers to release
+  release:
+    needs: package
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: forgecut-*
+          merge-multiple: true
+          path: installers
+      - name: Attach installers and update metadata to draft release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
-          files: |
-            apps/forgecut_gui/ui/dist-installers/forgecut-*.AppImage
-            apps/forgecut_gui/ui/dist-installers/forgecut-*.deb
-            apps/forgecut_gui/ui/dist-installers/forgecut-*.rpm
-            apps/forgecut_gui/ui/dist-installers/forgecut-*.dmg
-            apps/forgecut_gui/ui/dist-installers/forgecut-*.exe
+          draft: true
+          files: installers/*
