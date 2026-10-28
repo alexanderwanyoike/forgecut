@@ -45,7 +45,7 @@ export default function PreviewMedia(props: Props) {
     }
     const target = usToSeconds(props.timeUs);
     const tolerance = props.playing
-      ? Math.max(0.03, Math.min(0.05, 1 / props.fps))
+      ? Math.max(0.15, Math.min(0.2, 1 / props.fps))
       : 0.001;
     if (Math.abs(media.currentTime - target) > tolerance) {
       // Matroska index reads may still be in flight after loadeddata.
