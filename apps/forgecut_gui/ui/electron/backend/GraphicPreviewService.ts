@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { resolveGraphicInstance } from "../domain/graphic-instance.js";
 import type { Project } from "../shared/ipc-contract.js";
+import type { GraphicCompilation } from "../shared/graphic-source.js";
 import type { GraphicValues } from "../shared/graphics.js";
 import type {
   GraphicPreviewResult as Result,
@@ -19,6 +20,8 @@ export class GraphicPreviewService {
   private readonly host = new GraphicPreviewHost();
 
   private readonly cache = new Map<string, Promise<Result<Prepared>>>();
+
+  private readonly compilations = new Map<string, GraphicCompilation>();
 
   private controller = new AbortController();
 
@@ -103,12 +106,20 @@ export class GraphicPreviewService {
           },
         };
       preparing = (async (): Promise<Result<Prepared>> => {
-        const compiled = await checkGraphicSource(
-          component.source,
-          cancellation,
-          component.properties,
-        );
+        const cached = this.compilations.get(component.version);
+        const compiled = cached
+          ? { ok: true as const, value: cached }
+          : await checkGraphicSource(
+              component.source,
+              cancellation,
+              component.properties,
+            );
         if (!compiled.ok) return compiled;
+        if (compiled.value.ok) {
+          this.compilations.set(component.version, compiled.value);
+          while (this.compilations.size > 4)
+            this.compilations.delete(this.compilations.keys().next().value ?? "");
+        }
         if (!compiled.value.ok)
           return {
             ok: false,
@@ -178,6 +189,7 @@ export class GraphicPreviewService {
     this.controller = new AbortController();
     const pending = [...this.preparing];
     this.cache.clear();
+    this.compilations.clear();
     this.resetting = Promise.allSettled([this.host.reset(), ...pending]).then(
       () => {},
     );
@@ -190,5 +202,6 @@ export class GraphicPreviewService {
     this.controller.abort();
     await Promise.allSettled([this.host.close(), ...this.preparing]);
     this.cache.clear();
+    this.compilations.clear();
   }
 }
