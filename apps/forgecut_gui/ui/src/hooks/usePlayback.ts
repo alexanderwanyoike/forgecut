@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { secondsToUs } from "../lib/preview/time-utils";
 
 type PlaybackOptions = {
@@ -6,11 +6,13 @@ type PlaybackOptions = {
   durationUs: number;
   playheadUs: number;
   playing: boolean;
+  canAdvance: () => boolean;
   onPlayingChange: (playing: boolean) => void;
   onPlayheadChange: (timeUs: number) => void;
 };
 
 export function usePlayback(options: PlaybackOptions) {
+  const [buffering, setBuffering] = useState(false);
   const latest = useRef(options);
   latest.current = options;
   const version = useRef(options.projectVersion);
@@ -27,23 +29,36 @@ export function usePlayback(options: PlaybackOptions) {
       latest.current.onPlayingChange(false);
       return undefined;
     }
-    if (!options.playing) return undefined;
+    if (!options.playing) {
+      setBuffering(false);
+      return undefined;
+    }
     clock.current = {
       anchorMs: performance.now(),
       anchorUs: options.playheadUs,
       emittedUs: options.playheadUs,
     };
     let request = 0;
+    let buffered = false;
     const tick = (now: number) => {
       const { current } = latest;
+      const ready = current.canAdvance();
+      if (!ready || buffered) {
+        clock.current.anchorUs = clock.current.emittedUs;
+        clock.current.anchorMs = now;
+      }
+      buffered = !ready;
+      setBuffering(buffered);
       const next = Math.min(
         current.durationUs,
         clock.current.anchorUs +
           secondsToUs((now - clock.current.anchorMs) / 1000),
       );
-      clock.current.emittedUs = next;
-      current.onPlayheadChange(next);
-      if (next >= current.durationUs) current.onPlayingChange(false);
+      if (ready && next !== clock.current.emittedUs) {
+        clock.current.emittedUs = next;
+        current.onPlayheadChange(next);
+      }
+      if (ready && next >= current.durationUs) current.onPlayingChange(false);
       else request = requestAnimationFrame(tick);
     };
     request = requestAnimationFrame(tick);
@@ -66,5 +81,5 @@ export function usePlayback(options: PlaybackOptions) {
       current.onPlayingChange(true);
     }
   }, []);
-  return { handlePlayPause, playing: options.playing && stable };
+  return { handlePlayPause, playing: options.playing && stable && !buffering };
 }

@@ -44,6 +44,17 @@ export default function Preview(props: PreviewProps) {
   const playback = usePlayback({
     ...props,
     durationUs: frame?.durationUs ?? 0,
+    canAdvance: () =>
+      Array.from(
+        viewportRef.current?.querySelectorAll<HTMLMediaElement>(
+          "video:not([data-preroll]), audio:not([data-preroll])",
+        ) ?? [],
+      ).every(
+        (media) =>
+          media.readyState >= 2 &&
+          !media.seeking &&
+          media.style.visibility !== "hidden",
+      ),
   });
   return (
     <section className="panel preview">
