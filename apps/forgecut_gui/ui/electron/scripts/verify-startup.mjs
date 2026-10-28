@@ -1,3 +1,4 @@
+import { verifyPreviewReadiness } from "./preview-readiness-smoke.mjs";
 import { verifyProjectCollection } from "./project-collection-smoke.mjs";
 import { verifyBatchControls } from "./batch-controls-smoke.mjs";
 import { verifyPortableMedia } from "./portable-media-smoke.mjs";
@@ -217,6 +218,7 @@ async function main() {
     );
   }
   await verifyMcp(mcpDirectory, send);
+  await verifyPreviewReadiness(mcpDirectory, send);
   await verifyAudio(mcpDirectory, send);
   await verifyGraphicsPreview(mcpDirectory, send);
   await verifyCanvas(send);

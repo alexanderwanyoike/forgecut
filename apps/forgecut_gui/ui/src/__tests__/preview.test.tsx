@@ -124,6 +124,35 @@ describe("Preview component", () => {
     fireEvent.seeked(video);
     expect(video.style.visibility).toBe("visible");
   });
+  it("keeps a paused scrub hidden when a stale seek completion arrives", () => {
+    const project = videoProject();
+    const { rerender } = render(
+      <Preview {...idle} project={project} playheadUs={1000000} />,
+    );
+    const video = document.querySelector("video")!;
+    fireEvent.seeked(video);
+    expect(video.style.visibility).toBe("visible");
+    rerender(<Preview {...idle} project={project} playheadUs={4000000} />);
+    expect(video.style.visibility).toBe("hidden");
+    video.currentTime = 2;
+    fireEvent.seeked(video);
+    expect(video.currentTime).toBe(4);
+    expect(video.style.visibility).toBe("hidden");
+    fireEvent.seeked(video);
+    expect(video.style.visibility).toBe("visible");
+  });
+  it("reveals a decoded source-start frame when the cut intentionally starts there", () => {
+    const ready = vi
+      .spyOn(HTMLMediaElement.prototype, "readyState", "get")
+      .mockReturnValue(1);
+    render(<Preview {...idle} project={videoProject()} />);
+    const video = document.querySelector("video")!;
+    expect(video.style.visibility).toBe("hidden");
+    ready.mockReturnValue(2);
+    fireEvent.loadedData(video);
+    expect(video.currentTime).toBe(0);
+    expect(video.style.visibility).toBe("visible");
+  });
   it("waits for decoded data before seeking a newly loaded source", () => {
     const ready = vi
       .spyOn(HTMLMediaElement.prototype, "readyState", "get")
