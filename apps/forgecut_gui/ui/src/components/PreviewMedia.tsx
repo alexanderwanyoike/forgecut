@@ -40,6 +40,8 @@ export default function PreviewMedia(props: Props) {
   const previousPlaying = useRef(props.playing);
   const pendingSeek = useRef(false);
   const [presented, setPresented] = useState(false);
+  // A source that cannot load will never present, so the clock must not wait on it.
+  const [failed, setFailed] = useState(false);
   synchronize.current = () => {
     const media = mediaRef.current;
     if (!media) return;
@@ -95,6 +97,7 @@ export default function PreviewMedia(props: Props) {
     epoch.current += 1;
     pendingSeek.current = false;
     setPresented(false);
+    setFailed(false);
     const loaded = () => synchronize.current();
     const seeked = () => {
       pendingSeek.current = false;
@@ -122,8 +125,8 @@ export default function PreviewMedia(props: Props) {
   const report = useRef(props.onReadyChange);
   report.current = props.onReadyChange;
   useEffect(() => {
-    report.current?.(presented);
-  }, [presented]);
+    report.current?.(presented || failed);
+  }, [presented, failed]);
   useEffect(() => () => report.current?.(false), []);
   const Media = props.audioOnly ? "audio" : "video";
   return (
@@ -140,7 +143,10 @@ export default function PreviewMedia(props: Props) {
         ...props.style,
         visibility: presented && !props.standby ? "visible" : "hidden",
       }}
-      onError={() => props.onError("Unable to play this source.")}
+      onError={() => {
+        setFailed(true);
+        props.onError("Unable to play this source.");
+      }}
     />
   );
 }
