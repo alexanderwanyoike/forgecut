@@ -17,8 +17,6 @@ files:
 extraResources:
   - from: electron/dist/code-runtime
     to: code-runtime
-  - from: electron/dist/graphic-runtime
-    to: graphic-runtime
   - from: electron/dist/mcp-adapter.cjs
     to: mcp-adapter.cjs
   - from: electron/dist/mcp-notices.txt
@@ -33,6 +31,9 @@ publish:
 npmRebuild: false
 
 linux:
+  extraResources:
+    - from: electron/dist/graphic-runtime
+      to: graphic-runtime
   target:
     - AppImage
     - deb

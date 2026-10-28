@@ -25,3 +25,15 @@ test("manual packaging checks out the requested release tag", () => {
   );
   expect(workflow).toContain("ref: ${{ inputs.tag || github.ref }}");
 });
+
+test("release PR packaging is never excluded by changed-file trigger filters", () => {
+  const workflow = readFileSync(
+    "../../../.github/workflows/package.yml",
+    "utf8",
+  );
+  const trigger = workflow
+    .split("  pull_request:")[1]
+    .split("  workflow_dispatch:")[0];
+  expect(trigger).toContain("main");
+  expect(trigger).not.toContain("paths:");
+});

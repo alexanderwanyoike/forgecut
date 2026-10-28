@@ -27,6 +27,15 @@ export async function renderGraphic(
   directory: string,
   signal?: AbortSignal,
 ): Promise<Result<string>> {
+  if (process.platform !== "linux")
+    return {
+      ok: false,
+      error: {
+        code: "UNAVAILABLE",
+        message:
+          "Native graphics rendering requires the supported Linux process boundary.",
+      },
+    };
   const runtime = graphicRuntimeDirectory();
   if (!existsSync(join(runtime, "runtime.json")))
     return {

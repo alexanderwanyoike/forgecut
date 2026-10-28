@@ -4,7 +4,7 @@ on:
   push:
     tags: ["v*"]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
     inputs:
       tag:
@@ -12,7 +12,40 @@ on:
         required: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      build: ${{ steps.decide.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 2
+      - id: decide
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_BRANCH: ${{ github.base_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT_NAME" != "pull_request" ] || [ "$BASE_BRANCH" = "main" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$BASE_SHA" HEAD -- \
+            .github/workflows/package.yml \
+            apps/forgecut_gui/ui/package.json \
+            apps/forgecut_gui/ui/yarn.lock \
+            apps/forgecut_gui/ui/electron-builder.yml \
+            apps/forgecut_gui/ui/electron/scripts/prepare-graphic-runtime.mjs; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
   package:
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
+
     name: Package (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
