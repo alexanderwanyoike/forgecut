@@ -27,3 +27,15 @@ it.skipIf(process.platform !== "linux")(
     expect(media.args).toContain("--property=CPUQuota=150%");
   },
 );
+
+it.skipIf(process.platform !== "linux")(
+  "lets background work yield the CPU to interactive scopes",
+  async () => {
+    const background = await budgetedMediaCommand("ffmpeg", [], {
+      cpuWeight: 10,
+    });
+    expect(background.args).toContain("--property=CPUWeight=10");
+    const interactive = await budgetedMediaCommand("bwrap", []);
+    expect(interactive.args.join(" ")).not.toContain("CPUWeight");
+  },
+);
