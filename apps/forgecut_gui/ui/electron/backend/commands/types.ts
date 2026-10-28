@@ -1,6 +1,7 @@
 import type { JobQueue } from "../job-queue.js";
 import type { GraphicDraftStore } from "../GraphicDraftStore.js";
 import type { GraphicPreviewService } from "../GraphicPreviewService.js";
+import type { GraphicRenderCache } from "../GraphicRenderCache.js";
 import type { AppState } from "../state.js";
 
 export type CommandArgs = Record<string, unknown> | undefined;
@@ -8,6 +9,7 @@ export type CommandContext = {
   sequenceId?: string;
   state: AppState;
   preview?: GraphicPreviewService;
+  renders?: GraphicRenderCache;
   drafts?: GraphicDraftStore;
   jobs?: JobQueue;
   signal?: AbortSignal;

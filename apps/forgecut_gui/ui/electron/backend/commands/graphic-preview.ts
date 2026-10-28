@@ -19,4 +19,17 @@ export const graphicPreviewCommands = {
     if (!result.ok) throw graphicPreviewError(result.error);
     return result.value;
   },
+  get_graphic_playback: async (args, { state, renders }) => {
+    if (!renders)
+      throw new EditingError("UNAVAILABLE", "Graphics playback is unavailable");
+    const input = args as CommandMap["get_graphic_playback"]["args"];
+    if (input.revision !== state.revision)
+      throw new EditingError(
+        "CONFLICT",
+        "The project changed before this graphic rendered. Request it again.",
+      );
+    const result = await renders.prepare(state.project, input.itemId);
+    if (!result.ok) throw graphicPreviewError(result.error);
+    return { path: result.value };
+  },
 } satisfies CommandRegistry;
