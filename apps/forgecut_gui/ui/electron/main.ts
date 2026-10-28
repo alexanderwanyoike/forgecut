@@ -101,6 +101,8 @@ function createWindow(): void {
     },
   });
 
+  win.maximize();
+
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
   if (rendererUrl) {
     void win.loadURL(rendererUrl);
