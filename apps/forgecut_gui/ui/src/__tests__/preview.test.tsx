@@ -347,7 +347,10 @@ describe("Preview component", () => {
     video.currentTime = 1;
     ready.mockReturnValue(2);
     vi.spyOn(HTMLMediaElement.prototype, "ended", "get").mockReturnValue(true);
+    const play = vi.mocked(HTMLMediaElement.prototype.play);
+    play.mockClear();
     fireEvent.seeked(video);
+    expect(play).not.toHaveBeenCalled();
     act(() => tick(100));
     expect(onPlayheadChange).toHaveBeenLastCalledWith(1000000);
     expect(onPlayingChange).toHaveBeenCalledWith(false);
