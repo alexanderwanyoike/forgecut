@@ -10,7 +10,11 @@ import type {
   RemotionGraphicItem,
 } from "../shared/graphics.js";
 import type { Result } from "../shared/result.js";
-import { graphicRenderInputs } from "./graphic-render-inputs.js";
+import {
+  graphicRenderInputs,
+  projectCode,
+  type CompileComponent,
+} from "./graphic-render-inputs.js";
 import type { GraphicRenderJob } from "./graphic-render-job.js";
 import { renderGraphic } from "./graphic-render.js";
 
@@ -23,6 +27,8 @@ type Render = (
 type Settings = Pick<ProjectSettings, "width" | "height" | "fps">;
 
 const RETAINED_RENDERS = 64;
+
+const RETAINED_COMPILATIONS = 8;
 
 function cancelled(message: string): Result<string> {
   return { ok: false, error: { code: "CANCELLED", message } };
@@ -39,6 +45,8 @@ export class GraphicRenderCache {
   private readonly files = new Map<string, string>();
 
   private readonly wanted = new Map<string, string>();
+
+  private readonly compiled = new Map<string, ReturnType<CompileComponent>>();
 
   private queue: Promise<unknown> = Promise.resolve();
 
@@ -114,7 +122,13 @@ export class GraphicRenderCache {
     if (![...this.wanted.values()].includes(key))
       return cancelled("A newer edit replaced this graphic render");
     try {
-      const inputs = await graphicRenderInputs(project, item, settings, signal);
+      const inputs = await graphicRenderInputs(
+        project,
+        item,
+        settings,
+        signal,
+        this.compile,
+      );
       if (!inputs.ok) return inputs;
       this.directory ??= mkdtemp(join(tmpdir(), "forgecut-graphic-renders-"));
       const root = await this.directory;
@@ -151,6 +165,20 @@ export class GraphicRenderCache {
       };
     }
   }
+
+  private readonly compile: CompileComponent = (component, signal) => {
+    const existing = this.compiled.get(component.version);
+    if (existing) return existing;
+    const code = projectCode(component, signal);
+    this.compiled.set(component.version, code);
+    void code.then((result) => {
+      if (!result.ok) this.compiled.delete(component.version);
+    });
+    for (const version of this.compiled.keys())
+      if (this.compiled.size > RETAINED_COMPILATIONS)
+        this.compiled.delete(version);
+    return code;
+  };
 
   private async evict(): Promise<void> {
     for (const key of this.renders.keys()) {

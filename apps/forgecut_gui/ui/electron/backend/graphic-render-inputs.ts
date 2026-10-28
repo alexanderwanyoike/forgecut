@@ -23,6 +23,7 @@ export async function graphicRenderInputs(
   graphic: RemotionGraphicItem,
   settings: Pick<ProjectSettings, "width" | "height" | "fps">,
   signal?: AbortSignal,
+  compile: CompileComponent = projectCode,
 ): Promise<Result<{ name: string; job: GraphicRenderInputs }>> {
   const component = project.components?.find(
     (candidate) =>
@@ -40,7 +41,7 @@ export async function graphicRenderInputs(
     };
   const dependencies = validateGraphicDependencies(component);
   if (!dependencies.ok) return dependencies;
-  const code = await projectCode(component, signal);
+  const code = await compile(component, signal);
   if (!code.ok) return code;
   const resources = await graphicResourceInputs(
     project,
@@ -70,8 +71,10 @@ export async function graphicRenderInputs(
   };
 }
 
+export type CompileComponent = typeof projectCode;
+
 /** Packaged templates run prepared runtime code; project source is compiled. */
-async function projectCode(
+export async function projectCode(
   component: GraphicComponent,
   signal?: AbortSignal,
 ): Promise<Result<string | undefined>> {
