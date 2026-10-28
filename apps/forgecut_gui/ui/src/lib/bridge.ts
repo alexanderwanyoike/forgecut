@@ -1,3 +1,4 @@
+import type { UpdatesBridge } from "../../electron/shared/updates";
 import type {
   CommandArgsOf,
   CommandName,
@@ -13,6 +14,7 @@ type InvokeArgs = Record<string, unknown>;
 type UnlistenFn = () => void;
 
 type ForgeCutElectronApi = {
+  updates?: UpdatesBridge;
   invoke: <T>(
     command: string,
     args?: InvokeArgs,

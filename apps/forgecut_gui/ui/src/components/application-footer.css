@@ -1,0 +1,43 @@
+.application-footer {
+  grid-area: footer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 14px;
+  min-width: 0;
+  background: var(--material);
+  border-top: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 11px;
+  box-shadow: inset 0 1px 0 #ffffff08;
+}
+.application-version {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.application-updates {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.update-message {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.update-message[role="alert"] {
+  color: var(--text-primary);
+}
+.application-footer .footer-update {
+  min-height: 24px;
+  padding: 2px 6px;
+  font-size: 11px;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.application-footer .footer-update svg {
+  width: 13px;
+  height: 13px;
+}
