@@ -100,6 +100,8 @@ export async function verifyAppearance(send, state) {
             if (textBox.width && textBox.left < icon.getBoundingClientRect().right - 1) issues.push('Overlapping icon: ' + button.textContent);
           }
         }
+        const footer = document.querySelector('.application-footer')?.getBoundingClientRect();
+        if (!footer || Math.abs(footer.right - innerWidth) > 1 || Math.abs(footer.bottom - innerHeight) > 1) issues.push('Application footer does not span the bottom edge');
         const root = document.querySelector('.shell').getBoundingClientRect();
         if (root.width > innerWidth + 1) issues.push('Editor overflows window');
         if ('${state}' === 'code' && innerWidth === 1024) {
