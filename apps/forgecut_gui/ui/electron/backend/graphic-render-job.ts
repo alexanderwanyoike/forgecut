@@ -47,6 +47,22 @@ export const graphicRenderJobSchema = z.strictObject({
 });
 export type GraphicRenderJob = z.infer<typeof graphicRenderJobSchema>;
 
+export function renderEncoding(
+  job: Pick<GraphicRenderJob, "format" | "width" | "height">,
+) {
+  return job.format === "webm"
+    ? {
+        codec: "vp9" as const,
+        pixelFormat: "yuva420p" as const,
+        scale: previewScale(job.width, job.height),
+      }
+    : {
+        codec: "prores" as const,
+        proResProfile: "4444" as const,
+        pixelFormat: "yuva444p10le" as const,
+      };
+}
+
 /** Preview output stays within 960 pixels per side and 518400 pixels total. */
 export function previewScale(width: number, height: number): number {
   return Math.min(
