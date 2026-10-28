@@ -78,6 +78,10 @@ export default function ApplicationFooter({ beforeInstall }: Props) {
   } else if (status?.stage === "checking") label = "Checking for updates…";
   else if (status?.stage === "downloading")
     label = `Downloading · ${status.percent}%`;
+  let message = error ?? "";
+  if (!error && status?.stage === "ready") message = `v${status.version} ready`;
+  else if (!error && checked && status?.stage === "idle")
+    message = "Up to date";
   return (
     <footer className="application-footer" aria-label="Application status">
       <span className="application-version">
@@ -89,12 +93,7 @@ export default function ApplicationFooter({ beforeInstall }: Props) {
           className="update-message"
           title={error ?? undefined}
         >
-          {error ??
-            (status?.stage === "ready"
-              ? `v${status.version} ready`
-              : checked && status?.stage === "idle"
-                ? "Up to date"
-                : "")}
+          {message}
         </span>
         <ActionButton
           icon={icon}
