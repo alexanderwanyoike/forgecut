@@ -6,6 +6,7 @@ import {
 
 export const graphicRenderJobSchema = z.strictObject({
   output: z.string().min(1),
+  format: z.enum(["prores", "webm"]),
   sourceHash: z.string().regex(/^[a-f0-9]{64}$/),
   code: z.string().min(1).max(2097152).optional(),
   width: z.number().int().positive().max(16384),
@@ -45,3 +46,13 @@ export const graphicRenderJobSchema = z.strictObject({
     ),
 });
 export type GraphicRenderJob = z.infer<typeof graphicRenderJobSchema>;
+
+/** Preview output stays within 960 pixels per side and 518400 pixels total. */
+export function previewScale(width: number, height: number): number {
+  return Math.min(
+    1,
+    960 / width,
+    960 / height,
+    Math.sqrt(518400 / (width * height)),
+  );
+}

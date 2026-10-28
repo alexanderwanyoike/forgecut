@@ -8,7 +8,7 @@ import {
   renderMedia,
   selectComposition,
 } from "@remotion/renderer";
-import { graphicRenderJobSchema } from "./graphic-render-job.js";
+import { graphicRenderJobSchema, previewScale } from "./graphic-render-job.js";
 
 async function main() {
   const runtime = dirname(fileURLToPath(import.meta.url));
@@ -59,9 +59,17 @@ async function main() {
     await renderMedia({
       ...common,
       composition,
-      codec: "prores",
-      proResProfile: "4444",
-      pixelFormat: "yuva444p10le",
+      ...(job.format === "webm"
+        ? {
+            codec: "vp9" as const,
+            pixelFormat: "yuva420p" as const,
+            scale: previewScale(job.width, job.height),
+          }
+        : {
+            codec: "prores" as const,
+            proResProfile: "4444" as const,
+            pixelFormat: "yuva444p10le" as const,
+          }),
       imageFormat: "png",
       concurrency: 1,
       muted: true,

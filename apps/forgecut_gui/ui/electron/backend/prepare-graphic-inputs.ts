@@ -44,6 +44,7 @@ export async function prepareGraphicInputs(
       const rendered = await renderGraphic(
         {
           ...job,
+          format: "prores",
           output: join(directory, `${id}.mov`),
           renderFrames: Math.min(job.duration, end - range.start),
         },

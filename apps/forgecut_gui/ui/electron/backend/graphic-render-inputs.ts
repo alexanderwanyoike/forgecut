@@ -12,7 +12,7 @@ import { checkGraphicSource } from "./graphic-source-check.js";
 
 export type GraphicRenderInputs = Omit<
   GraphicRenderJob,
-  "output" | "renderFrames"
+  "output" | "renderFrames" | "format"
 >;
 
 export async function graphicRenderInputs(
