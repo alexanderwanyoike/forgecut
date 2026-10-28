@@ -29,15 +29,22 @@ export default function PreviewMedia(props: Props) {
     const media = mediaRef.current;
     if (!media) return;
     if (gain.current) props.mixer.setGain(gain.current, props.audioGain ?? 0);
+    if (!props.playing) media.pause();
     if (media.readyState < 1) return;
     const target = usToSeconds(props.timeUs);
     const tolerance = props.playing
       ? Math.max(0.03, Math.min(0.05, 1 / props.fps))
       : 0.001;
-    if (Math.abs(media.currentTime - target) > tolerance)
+    if (Math.abs(media.currentTime - target) > tolerance) {
+      // Matroska index reads may still be in flight after loadeddata.
+      if (
+        media.readyState < 2 ||
+        media.networkState === HTMLMediaElement.NETWORK_LOADING
+      )
+        return;
       media.currentTime = target;
-    if (!props.playing) media.pause();
-    else if (media.paused) {
+    }
+    if (props.playing && media.paused) {
       const { current } = epoch;
       void props.mixer.resume().then((result) => {
         if (!result.ok && current === epoch.current)
@@ -70,11 +77,15 @@ export default function PreviewMedia(props: Props) {
     if (!media) return undefined;
     epoch.current += 1;
     const loaded = () => synchronize.current();
-    media.addEventListener("loadedmetadata", loaded);
+    media.addEventListener("loadeddata", loaded);
+    media.addEventListener("seeked", loaded);
+    media.addEventListener("suspend", loaded);
     synchronize.current();
     return () => {
       epoch.current += 1;
-      media.removeEventListener("loadedmetadata", loaded);
+      media.removeEventListener("loadeddata", loaded);
+      media.removeEventListener("seeked", loaded);
+      media.removeEventListener("suspend", loaded);
       media.pause();
     };
   }, [props.path, props.version]);
