@@ -42,7 +42,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg bubblewrap fonts-dejavu-core
 
       - name: Run tests
-        run: yarn --cwd apps/forgecut_gui/ui test
+        run: yarn --cwd apps/forgecut_gui/ui test --no-file-parallelism
 
       - name: Build frontend
         run: yarn --cwd apps/forgecut_gui/ui build
