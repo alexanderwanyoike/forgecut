@@ -28,7 +28,7 @@ export function createApplicationUpdates(confirm: () => Promise<boolean>) {
     image,
   );
   let backend;
-  if (supported) {
+  if (supported && image) {
     const feed = {
       provider: "github" as const,
       owner: "alexanderwanyoike",
@@ -37,7 +37,7 @@ export function createApplicationUpdates(confirm: () => Promise<boolean>) {
     const client = new electronUpdater.AppImageUpdater(feed);
     client.logger = null;
     backend = createNativeUpdateBackend(client, async (file) => {
-      const replaced = await replaceAppImage(image!, file);
+      const replaced = await replaceAppImage(image, file);
       if (!replaced.ok) return replaced;
       app.relaunch({ execPath: image });
       app.quit();
@@ -70,6 +70,10 @@ export function registerUpdateHandlers(
         if (
           event.sender !== window.webContents ||
           event.senderFrame !== window.webContents.mainFrame ||
+          event.senderFrame?.url !==
+            new URL(
+              process.env.ELECTRON_RENDERER_URL ?? "forgecut-app://editor/",
+            ).href ||
           args.length > 0
         )
           return {
