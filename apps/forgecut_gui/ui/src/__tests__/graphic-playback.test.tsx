@@ -125,3 +125,14 @@ it("plays on with the live graphic when a card cannot render", async () => {
   render(preview(project, 1, { playing: true, onPlayheadChange: clock }));
   await vi.waitFor(() => expect(clock).toHaveBeenCalled());
 });
+
+it("asks again for a card's render after a conflicting edit", async () => {
+  const { project } = await titled("Retried");
+  vi.mocked(invoke)
+    .mockRejectedValueOnce(
+      Object.assign(new Error("Project changed"), { code: "CONFLICT" }),
+    )
+    .mockResolvedValue({ path: "/renders/first.webm" });
+  render(preview(project, 1));
+  await waitFor(() => expect(renderedVideo()).toBeTruthy());
+});
