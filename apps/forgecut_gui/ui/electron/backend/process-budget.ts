@@ -4,7 +4,14 @@ import { randomUUID } from "node:crypto";
 export async function budgetedMediaCommand(
   executable: string,
   args: string[],
-  { cpuPercent = 150 }: { cpuPercent?: number } = {},
+  {
+    cpuPercent = 150,
+    cpuWeight,
+  }: {
+    cpuPercent?: number;
+    /** Below the default 100, the scope yields CPU to busier siblings in the slice. */
+    cpuWeight?: number;
+  } = {},
 ): Promise<{ command: string; args: string[]; unit?: string }> {
   const supported =
     process.platform === "linux" &&
@@ -50,6 +57,7 @@ export async function budgetedMediaCommand(
       "--property=MemoryHigh=2147483648",
       "--property=MemorySwapMax=268435456",
       `--property=CPUQuota=${cpuPercent}%`,
+      ...(cpuWeight === undefined ? [] : [`--property=CPUWeight=${cpuWeight}`]),
       "--",
       executable,
       ...args,

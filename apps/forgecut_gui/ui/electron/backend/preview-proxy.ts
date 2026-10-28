@@ -92,7 +92,8 @@ export async function encodePreviewProxy(
       "mp4",
       output,
     ],
-    { signal, budget: true, cpuPercent: 400 },
+    // A viewer waits on graphic renders, while a proxy only speeds up later seeks.
+    { signal, budget: true, cpuPercent: 400, cpuWeight: 10 },
   );
   return encoded.ok ? { ok: true, value: null } : encoded;
 }
