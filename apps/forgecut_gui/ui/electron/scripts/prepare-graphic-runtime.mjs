@@ -3,9 +3,15 @@ import { dirname, relative, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { build } from "esbuild";
-import { bundle } from "@remotion/bundler";
-import { ensureBrowser } from "@remotion/renderer";
+if (process.platform !== "linux") {
+  console.log(
+    `Native graphics require Linux isolation; skipping runtime packaging on ${process.platform}.`,
+  );
+  process.exit(0);
+}
+const { build } = await import("esbuild");
+const { bundle } = await import("@remotion/bundler");
+const { ensureBrowser } = await import("@remotion/renderer");
 
 const require = createRequire(import.meta.url);
 const root = resolve(import.meta.dirname, "../..");
