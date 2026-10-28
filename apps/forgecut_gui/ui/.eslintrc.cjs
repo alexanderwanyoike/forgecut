@@ -49,6 +49,7 @@ module.exports = {
       {
         devDependencies: [
           "electron/main.ts",
+          "electron/updates/runtime.ts",
           "electron/preload.cts",
           "electron/mcp/server.ts",
           "electron/mcp/stdio.ts",

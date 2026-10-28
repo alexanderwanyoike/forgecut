@@ -1,7 +1,20 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { UpdateResult } from "./shared/updates.js";
 import type { McpStatus } from "./shared/ipc-contract.js";
 
 contextBridge.exposeInMainWorld("forgecut", {
+  updates: {
+    status: () =>
+      ipcRenderer.invoke("forgecut:updates:status") as Promise<UpdateResult>,
+    check: () =>
+      ipcRenderer.invoke("forgecut:updates:check") as Promise<UpdateResult>,
+    download: () =>
+      ipcRenderer.invoke("forgecut:updates:download") as Promise<UpdateResult>,
+    install: () =>
+      ipcRenderer.invoke("forgecut:updates:install") as Promise<UpdateResult>,
+    releases: () =>
+      ipcRenderer.invoke("forgecut:updates:releases") as Promise<UpdateResult>,
+  },
   invoke: (
     command: string,
     args?: Record<string, unknown>,

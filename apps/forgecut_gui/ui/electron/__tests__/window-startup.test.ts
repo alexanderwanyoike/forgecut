@@ -11,6 +11,8 @@ const desktop = vi.hoisted(() => ({
 
 vi.mock("electron", () => ({
   app: {
+    isPackaged: false,
+    getVersion: () => "1.0.1",
     on: vi.fn((event: string, listener: () => void) => {
       desktop.events.set(event, listener);
     }),
@@ -30,7 +32,7 @@ vi.mock("electron", () => ({
     { getAllWindows: () => [] },
   ),
   dialog: {},
-  ipcMain: { handle: vi.fn() },
+  ipcMain: { handle: vi.fn(), removeHandler: vi.fn() },
   protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
 }));
 vi.mock("../backend/state.js", () => ({

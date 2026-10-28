@@ -44,11 +44,13 @@
     "@jridgewell/trace-mapping": "0.3.31",
     "@radix-ui/react-popover": "1.1.15",
     "@radix-ui/react-tooltip": "1.2.8",
+    "electron-updater": "6.8.11",
     "image-size": "2.0.4",
     "lucide-react": "0.555.0",
     "proper-lockfile": "4.1.2",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "semver": "7.7.3",
     "zod": "4.3.6"
   },
   "devDependencies": {
@@ -64,6 +66,7 @@
     "@types/proper-lockfile": "4.1.4",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
+    "@types/semver": "7.7.1",
     "@typescript-eslint/eslint-plugin": "8.46.1",
     "@typescript-eslint/parser": "8.46.1",
     "@vitejs/plugin-react": "^4.3.0",

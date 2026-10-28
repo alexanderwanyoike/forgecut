@@ -17,6 +17,7 @@ import {
   lazy,
   Suspense,
 } from "react";
+import ApplicationFooter from "./components/ApplicationFooter";
 import BatchExportDialog from "./components/BatchExportDialog";
 import ProjectCollectionDialog from "./components/ProjectCollectionDialog";
 import CreditsDialog from "./components/CreditsDialog";
@@ -405,6 +406,27 @@ export default function App() {
         />
       )}
 
+      <ApplicationFooter
+        beforeInstall={async () => {
+          if (sourceClose.current && !(await sourceClose.current()))
+            return false;
+          setPlaying(false);
+          const path = await save({
+            filters: [{ name: "ForgeCut Project", extensions: ["forgecut"] }],
+            defaultPath: "project.forgecut",
+          });
+          if (!path) return false;
+          try {
+            await invoke("save_project", { path });
+            return true;
+          } catch {
+            setError(
+              "Save the project successfully before restarting to update.",
+            );
+            return false;
+          }
+        }}
+      />
       {showCredits && snapshot && (
         <CreditsDialog
           key={snapshot.sessionId}
