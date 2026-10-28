@@ -26,6 +26,11 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
+function edits() {
+  return vi
+    .mocked(invoke)
+    .mock.calls.filter(([command]) => command === "apply_edits");
+}
 const titleId = "3aa35212-adf2-46b6-b406-2c4b1bb4f93a";
 async function fixture(
   settings?: { width: number; height: number },
@@ -82,28 +87,30 @@ it("drags in composition coordinates and commits one guarded history action", as
   const { target, props, item } = await fixture();
   fireEvent.mouseDown(target, { button: 0, clientX: 100, clientY: 100 });
   fireEvent.mouseMove(window, { clientX: 150, clientY: 125 });
-  expect(invoke).not.toHaveBeenCalled();
+  expect(edits()).toEqual([]);
   fireEvent.mouseUp(window, { clientX: 150, clientY: 125 });
   await waitFor(() =>
-    expect(invoke).toHaveBeenCalledExactlyOnceWith(
-      "apply_edits",
-      expect.objectContaining({
-        sessionId: props.sessionId,
-        expectedRevision: props.projectVersion,
-        operations: [
-          {
-            command: "update_item",
-            args: {
-              itemId: item.id,
-              patch: {
-                kind: "RemotionGraphic",
-                changes: { props: { title_x: 250, title_y: 470 } },
+    expect(edits()).toEqual([
+      [
+        "apply_edits",
+        expect.objectContaining({
+          sessionId: props.sessionId,
+          expectedRevision: props.projectVersion,
+          operations: [
+            {
+              command: "update_item",
+              args: {
+                itemId: item.id,
+                patch: {
+                  kind: "RemotionGraphic",
+                  changes: { props: { title_x: 250, title_y: 470 } },
+                },
               },
             },
-          },
-        ],
-      }),
-    ),
+          ],
+        }),
+      ],
+    ]),
   );
 });
 it("cancels a gesture with Escape or a changed project revision", async () => {
@@ -112,14 +119,14 @@ it("cancels a gesture with Escape or a changed project revision", async () => {
   fireEvent.mouseMove(window, { clientX: 150, clientY: 125 });
   fireEvent.keyDown(window, { key: "Escape" });
   fireEvent.mouseUp(window);
-  expect(invoke).not.toHaveBeenCalled();
+  expect(edits()).toEqual([]);
   fireEvent.mouseDown(target, { button: 0, clientX: 100, clientY: 100 });
   fireEvent.mouseMove(window, { clientX: 150, clientY: 125 });
   view.rerender(
     <Preview {...props} projectVersion={props.projectVersion + 1} />,
   );
   fireEvent.mouseUp(window);
-  expect(invoke).not.toHaveBeenCalled();
+  expect(edits()).toEqual([]);
 });
 
 it("resizes through a nested portrait placement independently of display pixel ratio", async () => {
@@ -213,22 +220,24 @@ it("keeps an active drag through a preview redraw at the same project revision",
   fireEvent.mouseMove(window, { clientX: 160, clientY: 130 });
   fireEvent.mouseUp(window, { clientX: 160, clientY: 130 });
   await waitFor(() =>
-    expect(invoke).toHaveBeenCalledExactlyOnceWith(
-      "apply_edits",
-      expect.objectContaining({
-        expectedRevision: props.projectVersion,
-        operations: [
-          expect.objectContaining({
-            args: expect.objectContaining({
-              patch: {
-                kind: "RemotionGraphic",
-                changes: { props: { title_x: 270, title_y: 480 } },
-              },
+    expect(edits()).toEqual([
+      [
+        "apply_edits",
+        expect.objectContaining({
+          expectedRevision: props.projectVersion,
+          operations: [
+            expect.objectContaining({
+              args: expect.objectContaining({
+                patch: {
+                  kind: "RemotionGraphic",
+                  changes: { props: { title_x: 270, title_y: 480 } },
+                },
+              }),
             }),
-          }),
-        ],
-      }),
-    ),
+          ],
+        }),
+      ],
+    ]),
   );
 });
 it("removes the transient drag position when the project revision changes", async () => {
@@ -246,7 +255,7 @@ it("removes the transient drag position when the project revision changes", asyn
     ).toBe("150px"),
   );
   fireEvent.mouseUp(window);
-  expect(invoke).not.toHaveBeenCalled();
+  expect(edits()).toEqual([]);
 });
 
 it("accepts a drag as soon as its canvas is visible before passive effects", async () => {
@@ -297,21 +306,23 @@ it("accepts a drag as soon as its canvas is visible before passive effects", asy
   }
   render(<VisibleCanvas />);
   await waitFor(() =>
-    expect(invoke).toHaveBeenCalledExactlyOnceWith(
-      "apply_edits",
-      expect.objectContaining({
-        expectedRevision: props.projectVersion,
-        operations: [
-          expect.objectContaining({
-            args: expect.objectContaining({
-              patch: {
-                kind: "RemotionGraphic",
-                changes: { props: { title_x: 250, title_y: 470 } },
-              },
+    expect(edits()).toEqual([
+      [
+        "apply_edits",
+        expect.objectContaining({
+          expectedRevision: props.projectVersion,
+          operations: [
+            expect.objectContaining({
+              args: expect.objectContaining({
+                patch: {
+                  kind: "RemotionGraphic",
+                  changes: { props: { title_x: 250, title_y: 470 } },
+                },
+              }),
             }),
-          }),
-        ],
-      }),
-    ),
+          ],
+        }),
+      ],
+    ]),
   );
 });

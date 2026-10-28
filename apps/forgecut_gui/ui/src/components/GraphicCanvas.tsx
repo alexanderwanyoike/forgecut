@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import GraphicPreview, { type GraphicPreviewProps } from "./GraphicPreview";
 import {
   graphicFit,
@@ -15,6 +15,8 @@ type Props = GraphicPreviewProps & {
   selected?: boolean;
   editable?: boolean;
   onSelect?: (itemId: string, layerId: string) => void;
+  /** A rendered picture of the item's committed content; live gestures replace it. */
+  picture?: ReactNode;
 };
 export default function GraphicCanvas(props: Props) {
   const { item, component, placement, settings } = props;
@@ -43,7 +45,21 @@ export default function GraphicCanvas(props: Props) {
         overflow: "hidden",
       }}
     >
-      <GraphicPreview {...props} item={displayed} />
+      {props.picture && !gesture.draft ? (
+        <div
+          style={{
+            position: "absolute",
+            left: fit.x,
+            top: fit.y,
+            width: settings.width * fit.scale,
+            height: settings.height * fit.scale,
+          }}
+        >
+          {props.picture}
+        </div>
+      ) : (
+        <GraphicPreview {...props} item={displayed} />
+      )}
       {props.editable &&
         layers.map((layer, index) => {
           const state = item.layer_states?.[layer.id];

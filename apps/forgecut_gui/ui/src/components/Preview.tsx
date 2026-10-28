@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useState, type CSSProperties } from "react";
 import ActionButton from "./ActionButton";
 import {
   frameAtOrAfter,
+  frameTimeUs,
   resolveSequenceFrame,
 } from "../../electron/domain/sequence";
 import { itemData } from "../../electron/domain/timeline-item";
@@ -10,6 +11,7 @@ import { mediaUrl } from "../lib/bridge";
 import type { PreviewProps } from "../lib/preview/types";
 import { formatTimeUs } from "../lib/preview/time-utils";
 import { usePlayback } from "../hooks/usePlayback";
+import { useGraphicPlayback } from "../hooks/useGraphicPlayback";
 import { useCompositionSize } from "../hooks/useCompositionSize";
 import PreviewMedia from "./PreviewMedia";
 import { AudioMixer } from "../lib/preview/AudioMixer";
@@ -45,6 +47,7 @@ export default function Preview(props: PreviewProps) {
     ...props,
     durationUs: frame?.durationUs ?? 0,
   });
+  const graphicRender = useGraphicPlayback(props.project, props.projectVersion);
   return (
     <section className="panel preview">
       <div className="panel-header">
@@ -123,6 +126,11 @@ export default function Preview(props: PreviewProps) {
             }
             if ("RemotionGraphic" in item && placement) {
               const graphic = item.RemotionGraphic;
+              const startFrame = frameAtOrAfter(
+                graphic.timeline_start_us,
+                settings.fps,
+              );
+              const render = graphicRender(graphic);
               const component = props.project?.components?.find(
                 (candidate) =>
                   candidate.id === graphic.component_id &&
@@ -143,11 +151,34 @@ export default function Preview(props: PreviewProps) {
                       placement={placement}
                       component={component}
                       item={graphic}
-                      frame={
-                        frame.frame -
-                        frameAtOrAfter(graphic.timeline_start_us, settings.fps)
-                      }
+                      frame={frame.frame - startFrame}
                       settings={settings}
+                      picture={
+                        render && (
+                          <PreviewMedia
+                            mixer={mixer}
+                            path={render}
+                            timeUs={
+                              playback.playing
+                                ? props.playheadUs -
+                                  frameTimeUs(startFrame, settings.fps)
+                                : frameMidpointUs(
+                                    frame.frame - startFrame,
+                                    settings.fps,
+                                  )
+                            }
+                            playing={playback.playing}
+                            version={props.projectVersion}
+                            fps={settings.fps}
+                            style={{
+                              position: "absolute",
+                              width: "100%",
+                              height: "100%",
+                            }}
+                            onError={reportError}
+                          />
+                        )
+                      }
                     />
                   </Suspense>
                 </div>
@@ -206,6 +237,11 @@ export default function Preview(props: PreviewProps) {
       </div>
     </section>
   );
+}
+
+// A frame's start can round below its exact timestamp, which shows the previous frame.
+function frameMidpointUs(frame: number, fps: number): number {
+  return Math.round(((frame + 0.5) * 1_000_000) / fps);
 }
 
 function visualStyle(placement: VisualPlacement): CSSProperties {
