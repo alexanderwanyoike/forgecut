@@ -9,6 +9,24 @@ import {
 } from "./types.js";
 
 export const mediaCommands = {
+  get_preview_proxy: async (args, { state, proxies }) => {
+    if (!proxies)
+      throw new EditingError("UNAVAILABLE", "Preview proxies are unavailable");
+    const assetId = requiredString(args, "assetId");
+    const asset = state.project.assets.find(
+      (candidate) => candidate.id === assetId && candidate.kind === "Video",
+    );
+    if (!asset) throw new EditingError("NOT_FOUND", "Video asset not found");
+    const proxy = await proxies.prepare(asset.path);
+    if (!proxy.ok)
+      throw new EditingError(
+        proxy.error.code === "CANCELLED" || proxy.error.code === "UNAVAILABLE"
+          ? proxy.error.code
+          : "IO_ERROR",
+        proxy.error.message,
+      );
+    return { path: proxy.value ?? null };
+  },
   import_assets: async (args, { state, signal, onProgress, beginCommit }) => {
     const { sessionId } = state;
     const { revision } = state;

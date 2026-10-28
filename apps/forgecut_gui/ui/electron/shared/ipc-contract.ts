@@ -465,6 +465,10 @@ export type CommandMap = {
     args: { itemId: string; frame: number; props?: GraphicValues };
     result: GraphicPreviewFrame;
   };
+  get_preview_proxy: {
+    args: { assetId: string };
+    result: { path: string | null };
+  };
   get_graphic_playback: {
     args: { itemId: string; revision: number };
     result: { path: string };

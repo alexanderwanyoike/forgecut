@@ -12,6 +12,7 @@ import { GraphicDraftStore } from "./GraphicDraftStore.js";
 import { graphicDraftCommands } from "./commands/graphic-drafts.js";
 import { GraphicPreviewService } from "./GraphicPreviewService.js";
 import { GraphicRenderCache } from "./GraphicRenderCache.js";
+import { PreviewProxyCache } from "./PreviewProxyCache.js";
 import { graphicPreviewCommands } from "./commands/graphic-preview.js";
 import { changedItemIds } from "./project-diff.js";
 import type {
@@ -93,10 +94,16 @@ export class EditingService {
 
   readonly renders = new GraphicRenderCache();
 
+  readonly proxies = new PreviewProxyCache();
+
   private readonly drafts = new GraphicDraftStore();
 
   async closeGraphicsPreview(): Promise<void> {
-    await Promise.all([this.preview.close(), this.renders.close()]);
+    await Promise.all([
+      this.preview.close(),
+      this.renders.close(),
+      this.proxies.close(),
+    ]);
   }
 
   private readonly handlers = {
@@ -200,6 +207,7 @@ export class EditingService {
           sequenceId: meta?.sequenceId,
           preview: this.preview,
           renders: this.renders,
+          proxies: this.proxies,
           drafts: this.drafts,
           jobs: this.jobs,
           ...options,
