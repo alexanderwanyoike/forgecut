@@ -301,6 +301,32 @@ describe("Preview component", () => {
     act(() => tick(1000));
     expect(onPlayheadChange).toHaveBeenLastCalledWith(200000);
   });
+  it("finishes the sequence when the last resource reaches its native end", () => {
+    let tick: FrameRequestCallback = () => {};
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((callback) => {
+      tick = callback;
+      return 1;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const ready = vi.spyOn(HTMLMediaElement.prototype, "readyState", "get").mockReturnValue(4);
+    const project = videoProject();
+    const clip = project.timeline.tracks[0].items[0];
+    if (!("VideoClip" in clip) || !project.assets[0].probe) throw new Error("Invalid video fixture");
+    clip.VideoClip.source_out_us = 1000000;
+    project.assets[0].probe.duration_us = 1000000;
+    const onPlayingChange = vi.fn();
+    const onPlayheadChange = vi.fn();
+    render(<Preview {...idle} project={project} playheadUs={983333} playing onPlayingChange={onPlayingChange} onPlayheadChange={onPlayheadChange} />);
+    const video = document.querySelector("video")!;
+    video.currentTime = 1;
+    ready.mockReturnValue(2);
+    vi.spyOn(HTMLMediaElement.prototype, "ended", "get").mockReturnValue(true);
+    fireEvent.seeked(video);
+    act(() => tick(100));
+    expect(onPlayheadChange).toHaveBeenLastCalledWith(1000000);
+    expect(onPlayingChange).toHaveBeenCalledWith(false);
+  });
   it("pauses immediately while a source is still buffering", () => {
     const ready = vi
       .spyOn(HTMLMediaElement.prototype, "readyState", "get")
