@@ -14,6 +14,7 @@ type Props = {
   path: string;
   timeUs: number;
   playing: boolean;
+  buffering?: boolean;
   version: number;
   fps: number;
   style?: CSSProperties;
@@ -25,6 +26,7 @@ type Props = {
 };
 
 export default function PreviewMedia(props: Props) {
+  const playing = props.playing && !props.buffering;
   const mediaRef = useRef<HTMLMediaElement | null>(null);
   const [frameReady, setFrameReady] = useState(false);
   const pendingSeek = useRef(false);
@@ -34,12 +36,12 @@ export default function PreviewMedia(props: Props) {
   const gain = useRef<GainNode | null>(null);
   const synchronize = useRef(() => {});
   const epoch = useRef(0);
-  const previousPlaying = useRef(props.playing);
+  const previousPlaying = useRef(playing);
   synchronize.current = () => {
     const media = mediaRef.current;
     if (!media) return;
     if (gain.current) props.mixer.setGain(gain.current, props.audioGain ?? 0);
-    if (!props.playing) media.pause();
+    if (!playing) media.pause();
     if (media.readyState < 1) {
       setFrameReady(false);
       return;
@@ -64,7 +66,7 @@ export default function PreviewMedia(props: Props) {
     setFrameReady(
       !pendingSeek.current && !media.seeking && media.readyState >= 2,
     );
-    if (props.playing && media.paused) {
+    if (playing && media.paused) {
       const { current } = epoch;
       void props.mixer.resume().then((result) => {
         if (!result.ok && current === epoch.current)
@@ -122,12 +124,12 @@ export default function PreviewMedia(props: Props) {
     };
   }, [props.path, props.version]);
   useLayoutEffect(() => {
-    if (previousPlaying.current !== props.playing) {
+    if (previousPlaying.current !== playing) {
       epoch.current += 1;
-      previousPlaying.current = props.playing;
+      previousPlaying.current = playing;
     }
     synchronize.current();
-  }, [props.playing, props.timeUs, props.audioGain]);
+  }, [playing, props.timeUs, props.audioGain]);
   const Media = props.audioOnly ? "audio" : "video";
   return (
     <Media

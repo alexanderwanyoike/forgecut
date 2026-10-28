@@ -81,5 +81,9 @@ export function usePlayback(options: PlaybackOptions) {
       current.onPlayingChange(true);
     }
   }, []);
-  return { handlePlayPause, playing: options.playing && stable && !buffering };
+  return {
+    handlePlayPause,
+    buffering,
+    playing: options.playing && stable && !buffering,
+  };
 }

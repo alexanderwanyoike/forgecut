@@ -101,11 +101,12 @@ export default function Preview(props: PreviewProps) {
                   preroll={preroll}
                   path={asset.path}
                   timeUs={
-                    (!preroll && playback.playing
+                    (!preroll && props.playing
                       ? layer.playbackTimeUs
                       : layer.sourceTimeUs) ?? 0
                   }
-                  playing={!preroll && playback.playing}
+                  playing={!preroll && props.playing}
+                  buffering={playback.buffering}
                   version={props.projectVersion}
                   fps={settings.fps}
                   style={visualStyle(placement)}
@@ -122,7 +123,8 @@ export default function Preview(props: PreviewProps) {
                   audioGain={layer.audioGain}
                   path={asset.path}
                   timeUs={layer.playbackTimeUs ?? 0}
-                  playing={playback.playing}
+                  playing={props.playing}
+                  buffering={playback.buffering}
                   version={props.projectVersion}
                   fps={settings.fps}
                   onError={reportError}
