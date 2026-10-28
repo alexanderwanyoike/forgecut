@@ -307,12 +307,12 @@ it("allows a production export window while still enforcing its deadline", async
       },
     );
     if (!job.ok) throw new Error(job.error.message);
-    await vi.advanceTimersByTimeAsync(120001);
+    await vi.advanceTimersByTimeAsync(15 * 60 * 1000 + 1);
     expect(jobs.read(job.value.id, "session")).toMatchObject({
       ok: true,
       value: { status: "running" },
     });
-    await vi.advanceTimersByTimeAsync(780000);
+    await vi.advanceTimersByTimeAsync(15 * 60 * 1000);
     expect(jobs.read(job.value.id, "session")).toMatchObject({
       ok: true,
       value: {
