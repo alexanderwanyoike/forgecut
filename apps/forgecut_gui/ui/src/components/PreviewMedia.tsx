@@ -48,13 +48,15 @@ export default function PreviewMedia(props: Props) {
       ? Math.max(0.03, Math.min(0.05, 1 / props.fps))
       : 0.001;
     if (Math.abs(media.currentTime - target) > tolerance) {
-      setFrameReady(false);
       // Matroska index reads may still be in flight after loadeddata.
       if (
         media.readyState < 2 ||
         media.networkState === HTMLMediaElement.NETWORK_LOADING
-      )
+      ) {
+        if (!props.playing) setFrameReady(false);
         return;
+      }
+      setFrameReady(false);
       pendingSeek.current = true;
       media.currentTime = target;
     }
@@ -98,7 +100,10 @@ export default function PreviewMedia(props: Props) {
     const loaded = () => synchronize.current();
     const seeking = () => setFrameReady(false);
     const seeked = () => {
+      const completed = pendingSeek.current;
       pendingSeek.current = false;
+      if (completed && !media.seeking && media.readyState >= 2)
+        setFrameReady(true);
       synchronize.current();
     };
     media.addEventListener("loadeddata", loaded);
