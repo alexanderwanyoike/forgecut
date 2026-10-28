@@ -97,4 +97,4 @@ Clicking a clip selects it. Use the ruler to move the playhead.
 
 ## Licence
 
-ForgeCut's own code is [MIT-licensed](apps/forgecut_gui/ui/LICENSE). Third-party dependencies, including Remotion, retain their own licences and notices. The site includes IBM Plex Sans under its [font licence](site/fonts/OFL.txt).
+ForgeCut's own code is [MIT-licensed](https://opensource.org/license/mit). Third-party dependencies, including Remotion, retain their own licences and notices. The site includes IBM Plex Sans under its [font licence](site/fonts/OFL.txt).
