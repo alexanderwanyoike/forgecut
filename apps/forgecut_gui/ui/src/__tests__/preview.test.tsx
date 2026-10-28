@@ -227,6 +227,33 @@ describe("Preview component", () => {
     fireEvent.suspend(video);
     expect(video.currentTime).toBe(4);
   });
+  it("prepares only the next cut while keeping it concealed until its timeline start", () => {
+    const project = videoProject();
+    const first = project.timeline.tracks[0].items[0];
+    if (!("VideoClip" in first)) throw new Error("Invalid video fixture");
+    first.VideoClip.source_out_us = 1000000;
+    project.timeline.tracks[0].items.push({
+      VideoClip: {
+        ...first.VideoClip,
+        id: "next",
+        timeline_start_us: 1000000,
+        source_in_us: 4000000,
+        source_out_us: 5000000,
+      },
+    });
+    const { rerender } = render(
+      <Preview {...idle} project={project} playheadUs={500000} />,
+    );
+    const prepared = document.querySelector<HTMLVideoElement>("video[data-preroll]");
+    expect(prepared).not.toBeNull();
+    expect(prepared?.currentTime).toBe(4);
+    expect(prepared?.style.visibility).toBe("hidden");
+    fireEvent.seeked(prepared!);
+    expect(prepared?.style.visibility).toBe("hidden");
+    rerender(<Preview {...idle} project={project} playheadUs={1000000} />);
+    expect(document.querySelector("video:not([data-preroll])")).toBe(prepared);
+    expect(prepared?.style.visibility).toBe("visible");
+  });
   it("pauses immediately while a source is still buffering", () => {
     const ready = vi
       .spyOn(HTMLMediaElement.prototype, "readyState", "get")
@@ -253,7 +280,7 @@ describe("Preview component", () => {
     if (!("VideoClip" in clip)) throw new Error("Invalid video fixture");
     clip.VideoClip.timeline_start_us = 2000000;
     render(<Preview {...idle} project={project} />);
-    expect(document.querySelector(".preview-viewport video")).toBeNull();
+    expect(document.querySelector(".preview-viewport video:not([data-preroll])")).toBeNull();
   });
   it("renders active text from the current project snapshot", () => {
     const project = videoProject();
