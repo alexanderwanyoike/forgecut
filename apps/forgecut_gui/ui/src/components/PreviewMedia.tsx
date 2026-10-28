@@ -115,10 +115,12 @@ export default function PreviewMedia(props: Props) {
     }
     synchronize.current();
   }, [props.playing, props.timeUs, props.audioGain]);
-  const { onPresentedChange } = props;
+  const report = useRef(props.onPresentedChange);
+  report.current = props.onPresentedChange;
   useEffect(() => {
-    onPresentedChange?.(presented);
-  }, [onPresentedChange, presented]);
+    report.current?.(presented);
+  }, [presented]);
+  useEffect(() => () => report.current?.(false), []);
   const Media = props.audioOnly ? "audio" : "video";
   return (
     <Media

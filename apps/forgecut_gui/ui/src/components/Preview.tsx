@@ -1,5 +1,12 @@
 import { Clapperboard, MonitorPlay, Pause, Play } from "lucide-react";
-import { lazy, Suspense, useEffect, useState, type CSSProperties } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import ActionButton from "./ActionButton";
 import {
   frameAtOrAfter,
@@ -16,7 +23,10 @@ import { useCompositionSize } from "../hooks/useCompositionSize";
 import { upcomingLayers } from "../lib/preview/preroll";
 import PreviewMedia from "./PreviewMedia";
 import { AudioMixer } from "../lib/preview/AudioMixer";
-import type { VisualPlacement } from "../../electron/shared/ipc-contract";
+import type {
+  TimelineItem,
+  VisualPlacement,
+} from "../../electron/shared/ipc-contract";
 
 const GraphicPreview = lazy(() => import("./GraphicCanvas"));
 
@@ -44,11 +54,31 @@ export default function Preview(props: PreviewProps) {
     settings.width,
     settings.height,
   );
+  const graphicRender = useGraphicPlayback(props.project, props.projectVersion);
+  const layerKey = (layer: { item: TimelineItem }) =>
+    `${itemData(layer.item).id}:${props.projectVersion}`;
+  const presented = useRef(new Set<string>());
+  const onPresentedChange = (key: string) => (value: boolean) => {
+    if (value) presented.current.add(key);
+    else presented.current.delete(key);
+  };
+  const awaited = useRef<string[]>([]);
+  awaited.current = (frame?.layers ?? []).flatMap((layer) => {
+    const { item, asset, placement } = layer;
+    if ("VideoClip" in item) return asset && placement ? [layerKey(layer)] : [];
+    if ("AudioClip" in item) return asset ? [layerKey(layer)] : [];
+    if ("RemotionGraphic" in item && placement) {
+      const render = graphicRender(item.RemotionGraphic);
+      return render.path || render.pending ? [layerKey(layer)] : [];
+    }
+    return [];
+  });
   const playback = usePlayback({
     ...props,
     durationUs: frame?.durationUs ?? 0,
+    canAdvance: () =>
+      awaited.current.every((key) => presented.current.has(key)),
   });
-  const graphicRender = useGraphicPlayback(props.project, props.projectVersion);
   const scheduled = [
     ...(frame?.layers ?? []).map((layer) => ({ layer, standby: false })),
     ...(props.project && frame
@@ -86,9 +116,8 @@ export default function Preview(props: PreviewProps) {
         >
           {scheduled.map(({ layer, standby }) => {
             const { item, asset, placement } = layer;
-            const playing = playback.playing && !standby;
-            const data = itemData(item);
-            const key = `${data.id}:${props.projectVersion}`;
+            const playing = playback.playing && !playback.buffering && !standby;
+            const key = layerKey(layer);
             if ("VideoClip" in item && asset && placement) {
               return (
                 <PreviewMedia
@@ -101,6 +130,7 @@ export default function Preview(props: PreviewProps) {
                   }
                   playing={playing}
                   standby={standby}
+                  onPresentedChange={onPresentedChange(key)}
                   version={props.projectVersion}
                   fps={settings.fps}
                   style={visualStyle(placement)}
@@ -121,6 +151,7 @@ export default function Preview(props: PreviewProps) {
                   }
                   playing={playing}
                   standby={standby}
+                  onPresentedChange={onPresentedChange(key)}
                   version={props.projectVersion}
                   fps={settings.fps}
                   onError={reportError}
@@ -144,7 +175,7 @@ export default function Preview(props: PreviewProps) {
                 graphic.timeline_start_us,
                 settings.fps,
               );
-              const render = graphicRender(graphic);
+              const render = graphicRender(graphic).path;
               if (standby && !render) return null;
               const localFrame = Math.max(0, (frame?.frame ?? 0) - startFrame);
               const component = props.project?.components?.find(
@@ -186,6 +217,7 @@ export default function Preview(props: PreviewProps) {
                             }
                             playing={playing}
                             standby={standby}
+                            onPresentedChange={onPresentedChange(key)}
                             version={props.projectVersion}
                             fps={settings.fps}
                             style={{
@@ -251,6 +283,11 @@ export default function Preview(props: PreviewProps) {
         <span className="preview-duration">
           / {formatTimeUs(frame?.durationUs ?? 0)}
         </span>
+        {playback.buffering && (
+          <span className="preview-buffering" role="status">
+            Buffering
+          </span>
+        )}
         <span className="preview-scale">Fit · {Math.round(scale * 100)}%</span>
       </div>
     </section>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { secondsToUs } from "../lib/preview/time-utils";
 
 type PlaybackOptions = {
@@ -8,9 +8,12 @@ type PlaybackOptions = {
   playing: boolean;
   onPlayingChange: (playing: boolean) => void;
   onPlayheadChange: (timeUs: number) => void;
+  /** False while something on screen has nothing to show yet; the clock waits. */
+  canAdvance?: () => boolean;
 };
 
 export function usePlayback(options: PlaybackOptions) {
+  const [buffering, setBuffering] = useState(false);
   const latest = useRef(options);
   latest.current = options;
   const version = useRef(options.projectVersion);
@@ -27,7 +30,10 @@ export function usePlayback(options: PlaybackOptions) {
       latest.current.onPlayingChange(false);
       return undefined;
     }
-    if (!options.playing) return undefined;
+    if (!options.playing) {
+      setBuffering(false);
+      return undefined;
+    }
     clock.current = {
       anchorMs: performance.now(),
       anchorUs: options.playheadUs,
@@ -36,6 +42,14 @@ export function usePlayback(options: PlaybackOptions) {
     let request = 0;
     const tick = (now: number) => {
       const { current } = latest;
+      if (current.canAdvance && !current.canAdvance()) {
+        clock.current.anchorUs = clock.current.emittedUs;
+        clock.current.anchorMs = now;
+        setBuffering(true);
+        request = requestAnimationFrame(tick);
+        return;
+      }
+      setBuffering(false);
       const next = Math.min(
         current.durationUs,
         clock.current.anchorUs +
@@ -66,5 +80,5 @@ export function usePlayback(options: PlaybackOptions) {
       current.onPlayingChange(true);
     }
   }, []);
-  return { handlePlayPause, playing: options.playing && stable };
+  return { handlePlayPause, buffering, playing: options.playing && stable };
 }

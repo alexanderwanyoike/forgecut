@@ -173,6 +173,14 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
 }
+.preview-buffering {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.preview-buffering + .preview-scale {
+  margin-left: 12px;
+}
 .preview-scale {
   margin-left: auto;
   color: var(--text-secondary);
