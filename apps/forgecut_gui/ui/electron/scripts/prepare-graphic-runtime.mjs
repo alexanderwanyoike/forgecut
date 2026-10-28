@@ -24,15 +24,10 @@ await rm(resolve(runtime, "browser"), { recursive: true, force: true });
 await cp(dirname(browser.path), resolve(runtime, "browser"), {
   recursive: true,
 });
-const suffix =
-  process.platform === "win32"
-    ? "-msvc"
-    : process.platform === "linux"
-      ? process.report.getReport().header.glibcVersionRuntime
-        ? "-gnu"
-        : "-musl"
-      : "";
-const compositor = `@remotion/compositor-${process.platform}-${process.arch}${suffix}`;
+const suffix = process.report.getReport().header.glibcVersionRuntime
+  ? "-gnu"
+  : "-musl";
+const compositor = `@remotion/compositor-linux-${process.arch}${suffix}`;
 await rm(resolve(runtime, "compositor"), { recursive: true, force: true });
 await cp(
   dirname(require.resolve(`${compositor}/package.json`)),
@@ -135,15 +130,10 @@ notices.push(
   "Remotion native compositor/FFmpeg sources and build scripts: https://github.com/remotion-dev/rust-ffmpeg-splitter . Chromium's bundled notices remain alongside its executable.",
 );
 notices.push(
-  execFileSync(
-    resolve(
-      runtime,
-      "compositor",
-      process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg",
-    ),
-    ["-L"],
-    { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-  ),
+  execFileSync(resolve(runtime, "compositor", "ffmpeg"), ["-L"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  }),
 );
 await writeFile(
   resolve(runtime, "THIRD_PARTY_NOTICES.txt"),
