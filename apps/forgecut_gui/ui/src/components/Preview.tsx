@@ -56,7 +56,8 @@ export default function Preview(props: PreviewProps) {
         ) ?? [],
       ).every(
         (media) =>
-          media.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA &&
+          (media.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA ||
+            media.ended) &&
           !media.seeking &&
           media.style.visibility !== "hidden",
       ),
