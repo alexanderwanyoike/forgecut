@@ -20,6 +20,7 @@ import type { PreviewProps } from "../lib/preview/types";
 import { formatTimeUs } from "../lib/preview/time-utils";
 import { usePlayback } from "../hooks/usePlayback";
 import { useGraphicPlayback } from "../hooks/useGraphicPlayback";
+import { useMediaProxies } from "../hooks/useMediaProxies";
 import { useCompositionSize } from "../hooks/useCompositionSize";
 import { upcomingLayers } from "../lib/preview/preroll";
 import { usePlayheadUs, type Playhead } from "../lib/playhead";
@@ -65,6 +66,7 @@ export default function Preview(props: PreviewProps) {
     settings.height,
   );
   const graphicRender = useGraphicPlayback(props.project, props.projectVersion);
+  const playable = useMediaProxies(props.project);
   const layerKey = (layer: { item: TimelineItem }) =>
     `${itemData(layer.item).id}:${props.projectVersion}`;
   const presented = useRef(new Set<string>());
@@ -143,7 +145,7 @@ export default function Preview(props: PreviewProps) {
                   key={key}
                   mixer={mixer}
                   audioGain={layer.audioGain}
-                  path={asset.path}
+                  path={playable(asset)}
                   timeUs={
                     (precise ? layer.sourceTimeUs : layer.playbackTimeUs) ?? 0
                   }

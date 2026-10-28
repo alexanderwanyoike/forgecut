@@ -6,6 +6,7 @@ import type { Project, TimelineItem } from "../../electron/shared/ipc-contract";
 vi.mock("../lib/bridge", () => ({
   mediaUrl: (path: string) =>
     `forgecut-media://source?path=${encodeURIComponent(path)}`,
+  invoke: () => new Promise(() => {}),
 }));
 
 function clip(
