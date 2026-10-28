@@ -25,9 +25,17 @@ const job = (format: GraphicRenderJob["format"]): GraphicRenderJob => ({
 });
 
 it("captures preview frames in parallel within a larger CPU share than export", async () => {
-  await renderGraphic(job("webm"), "/job");
-  await renderGraphic(job("prores"), "/job");
-  expect(worker.run.mock.calls.map((call) => call.at(-1))).toEqual([400, 150]);
-  expect(renderEncoding(job("webm")).concurrency).toBe(3);
-  expect(renderEncoding(job("prores")).concurrency).toBe(1);
+  const descriptor = Object.getOwnPropertyDescriptor(process, "platform")!;
+  try {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    await renderGraphic(job("webm"), "/job");
+    await renderGraphic(job("prores"), "/job");
+    expect(worker.run.mock.calls.map((call) => call.at(-1))).toEqual([
+      400, 150,
+    ]);
+    expect(renderEncoding(job("webm")).concurrency).toBe(3);
+    expect(renderEncoding(job("prores")).concurrency).toBe(1);
+  } finally {
+    Object.defineProperty(process, "platform", descriptor);
+  }
 });
