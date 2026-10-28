@@ -16,7 +16,8 @@ test("atomically replaces the existing AppImage path and preserves it on a missi
     await writeFile(downloaded, "new");
     expect((await replaceAppImage(installed, downloaded)).ok).toBe(true);
     expect(await readFile(installed, "utf8")).toBe("new");
-    expect((await stat(installed)).mode & 0o777).toBe(0o755);
+    if (process.platform !== "win32")
+      expect((await stat(installed)).mode % 0o1000).toBe(0o755);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

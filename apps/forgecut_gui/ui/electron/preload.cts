@@ -1,5 +1,5 @@
-import type { UpdateResult } from "./shared/updates.js";
 import { contextBridge, ipcRenderer } from "electron";
+import type { UpdateResult } from "./shared/updates.js";
 import type { McpStatus } from "./shared/ipc-contract.js";
 
 contextBridge.exposeInMainWorld("forgecut", {

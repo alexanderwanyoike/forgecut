@@ -145,7 +145,7 @@ ipcMain.handle(
 
 void app.whenReady().then(async () => {
   updates = createApplicationUpdates(async () => {
-    const revision = state.revision;
+    const { revision } = state;
     const session = state.sessionId;
     const choice = await dialog.showMessageBox({
       type: "question",
@@ -164,7 +164,9 @@ void app.whenReady().then(async () => {
     );
   });
   if (app.isPackaged) {
-    const timer = setTimeout(() => void updates?.check(), 30_000);
+    const timer = setTimeout(() => {
+      void updates?.check();
+    }, 30_000);
     timer.unref();
   }
   protocol.handle("forgecut-app", (request) =>

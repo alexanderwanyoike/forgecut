@@ -10,7 +10,7 @@ export async function replaceAppImage(
   try {
     const original = await stat(installed);
     await copyFile(downloaded, temporary);
-    await chmod(temporary, original.mode & 0o777);
+    await chmod(temporary, original.mode % 0o1000);
     // Same-directory rename preserves the original executable until the complete replacement is ready.
     await rename(temporary, installed);
     return { ok: true, value: undefined };

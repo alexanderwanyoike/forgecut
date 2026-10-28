@@ -1,4 +1,3 @@
-import ApplicationFooter from "./components/ApplicationFooter";
 import * as Popover from "@radix-ui/react-popover";
 import {
   Clapperboard,
@@ -18,6 +17,7 @@ import {
   lazy,
   Suspense,
 } from "react";
+import ApplicationFooter from "./components/ApplicationFooter";
 import BatchExportDialog from "./components/BatchExportDialog";
 import ProjectCollectionDialog from "./components/ProjectCollectionDialog";
 import CreditsDialog from "./components/CreditsDialog";

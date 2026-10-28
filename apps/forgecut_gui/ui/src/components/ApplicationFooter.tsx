@@ -27,7 +27,9 @@ export default function ApplicationFooter({ beforeInstall }: Props) {
       }
     };
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 1000);
+    const timer = window.setInterval(() => {
+      void refresh();
+    }, 1000);
     return () => {
       active = false;
       window.clearInterval(timer);
