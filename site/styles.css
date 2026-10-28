@@ -607,14 +607,25 @@ figcaption {
   padding-top: 25px;
   min-width: 0;
 }
+.platform-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.platform-heading svg {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  fill: currentColor;
+}
 .downloads h3 {
   font-size: 28px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
-.downloads article > p {
+.platform-heading p {
   color: var(--muted);
   font-size: 14px;
-  margin-bottom: 25px;
 }
 .downloads .button {
   width: 100%;
