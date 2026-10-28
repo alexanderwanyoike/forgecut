@@ -30,7 +30,9 @@ A planner regression checks that reversed source cuts request only their own ran
 
 ## Export jobs and publication
 
-Both UI and MCP start exports through the same serial queue, retaining the owner's immutable project revision. Editing or opening another project does not change a queued export, and scoped job reads/cancellation remain valid for its original session. Exports have a 15-minute deadline; import/frame deadlines remain two minutes. The dialog can be closed while work continues and reopened with the same job state.
+Both UI and MCP start exports through the same serial queue, retaining the owner's immutable project revision. Editing or opening another project does not change a queued export, and scoped job reads/cancellation remain valid for its original session. Exports have a 30-minute deadline; import/frame deadlines remain two minutes. The dialog can be closed while work continues and reopened with the same job state.
+
+The full 60 fps portrait Octane trailer continued making progress but exceeded the initial 15-minute allowance under the unchanged CPU and memory policy. Exports now have a 30-minute deadline, shared with the advertised MCP capability. Collection retains 15 minutes. The longer wall-clock allowance preserves resolution, frame rate, encoding quality, cancellation and the resource limits. Private measurements showed that an encoder-preset change or off-canvas clipping alone did not account for the complete composition cost, so those experimental changes are not retained.
 
 Rendering stages an MP4 beside its destination, syncs it and atomically renames it only after successful completion. Cancellation stops the actual FFmpeg process and cleans staging before releasing its queue slot. The short final publication has an explicit `committing` state: cancellation returns `COMMITTING` rather than claiming that a published file was cancelled. Application shutdown awaits that publication. Typed Results describe export and process failures. The obsolete progress-event forwarding and Electron-specific backend IPC wrapper were removed; the shell now calls the pure service directly.
 

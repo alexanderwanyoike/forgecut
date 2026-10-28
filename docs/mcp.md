@@ -72,7 +72,7 @@ Edits remain independent. To deliberately copy current source timing to selected
 
 ## Export jobs
 
-`start_export` takes `sessionId`, `expectedRevision`, `requestId` and an absolute `outputPath`. It captures that immutable revision immediately and returns a job, so manual editing and project switches cannot alter its output. Identical retained requests return the same job. `get_job` and `cancel_job` use the job's original session identity. Export rendering has a 15-minute deadline; the shared queue remains serial.
+`start_export` takes `sessionId`, `expectedRevision`, `requestId` and an absolute `outputPath`. It captures that immutable revision immediately and returns a job, so manual editing and project switches cannot alter its output. Identical retained requests return the same job. `get_job` and `cancel_job` use the job's original session identity. Export rendering has a 30-minute deadline; the shared queue remains serial.
 
 A render writes staging files beside its destination and publishes the complete MP4 by atomic rename. Cancel before publication to preserve an existing destination. A `committing` job is finishing publication; cancellation returns `COMMITTING`, and callers should poll for its final result. Normal application shutdown cancels active renders and waits for publication already in progress.
 

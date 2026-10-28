@@ -1,5 +1,7 @@
 import type { Result } from "./result.js";
 
+export const EXPORT_TIMEOUT_MS = 30 * 60 * 1000;
+
 export type JobKind =
   | "collect"
   | "import"
