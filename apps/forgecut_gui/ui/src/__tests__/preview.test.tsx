@@ -244,7 +244,9 @@ describe("Preview component", () => {
     const { rerender } = render(
       <Preview {...idle} project={project} playheadUs={500000} />,
     );
-    const prepared = document.querySelector<HTMLVideoElement>("video[data-preroll]");
+    const prepared = document.querySelector<HTMLVideoElement>(
+      "video[data-preroll]",
+    );
     expect(prepared).not.toBeNull();
     expect(prepared?.currentTime).toBe(4);
     expect(prepared?.style.visibility).toBe("hidden");
@@ -253,6 +255,20 @@ describe("Preview component", () => {
     rerender(<Preview {...idle} project={project} playheadUs={1000000} />);
     expect(document.querySelector("video:not([data-preroll])")).toBe(prepared);
     expect(prepared?.style.visibility).toBe("visible");
+  });
+  it("does not issue another seek when playback waits for a pending frame", () => {
+    let tick: FrameRequestCallback = () => {};
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((callback) => {
+      tick = callback;
+      return 1;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    render(<Preview {...idle} project={videoProject()} playheadUs={1245000} playing />);
+    const video = document.querySelector("video")!;
+    expect(video.currentTime).toBe(1.245);
+    act(() => tick(100));
+    expect(video.currentTime).toBe(1.245);
   });
   it("pauses immediately while a source is still buffering", () => {
     const ready = vi
@@ -280,7 +296,9 @@ describe("Preview component", () => {
     if (!("VideoClip" in clip)) throw new Error("Invalid video fixture");
     clip.VideoClip.timeline_start_us = 2000000;
     render(<Preview {...idle} project={project} />);
-    expect(document.querySelector(".preview-viewport video:not([data-preroll])")).toBeNull();
+    expect(
+      document.querySelector(".preview-viewport video:not([data-preroll])"),
+    ).toBeNull();
   });
   it("renders active text from the current project snapshot", () => {
     const project = videoProject();
