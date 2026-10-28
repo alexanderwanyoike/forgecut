@@ -8,6 +8,7 @@ import {
 import type { AudioMixer } from "../lib/preview/AudioMixer";
 import { mediaUrl } from "../lib/bridge";
 import { usToSeconds } from "../lib/preview/time-utils";
+import { mediaSync } from "../lib/preview/media-sync";
 
 type Props = {
   path: string;
@@ -43,22 +44,22 @@ export default function PreviewMedia(props: Props) {
     if (!media) return;
     if (gain.current) props.mixer.setGain(gain.current, props.audioGain ?? 0);
     if (!props.playing) media.pause();
-    if (media.readyState < 1) return;
-    const target = usToSeconds(props.timeUs);
-    // Playing sources run on their own decoder clock; seeking for small drift drops frames.
-    const tolerance = props.precise ? 0.001 : 0.15;
-    if (Math.abs(media.currentTime - target) > tolerance) {
-      // Matroska index reads may still be in flight after loadeddata.
-      if (
-        media.readyState < 2 ||
-        media.networkState === HTMLMediaElement.NETWORK_LOADING
-      )
-        return;
+    const sync = mediaSync(
+      {
+        readyState: media.readyState,
+        currentTime: media.currentTime,
+        loading: media.networkState === HTMLMediaElement.NETWORK_LOADING,
+        seekPending: pendingSeek.current,
+      },
+      usToSeconds(props.timeUs),
+      props.precise,
+    );
+    if (sync.wait) return;
+    if (sync.seekTo !== undefined) {
       pendingSeek.current = true;
-      media.currentTime = target;
+      media.currentTime = sync.seekTo;
     }
-    // A fresh element shows its first decoded frame, not the requested one, until our seek lands.
-    if (!pendingSeek.current && media.readyState >= 2) setPresented(true);
+    if (sync.presentable) setPresented(true);
     if (props.playing && media.paused) {
       const { current } = epoch;
       void props.mixer.resume().then((result) => {
