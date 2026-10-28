@@ -41,3 +41,51 @@ test("checks, downloads with progress, and installs only after confirmation", as
   await updates.install();
   expect(install).toHaveBeenCalledOnce();
 });
+
+test("failed checks and downloads can be retried without losing the offered update", async () => {
+  const check = vi
+    .fn()
+    .mockResolvedValueOnce({
+      ok: false,
+      error: { code: "OFFLINE", message: "Offline" },
+    })
+    .mockResolvedValue({ ok: true, value: "1.1.0" });
+  const download = vi
+    .fn()
+    .mockResolvedValueOnce({
+      ok: false,
+      error: { code: "OFFLINE", message: "Offline" },
+    })
+    .mockResolvedValue({ ok: true, value: undefined });
+  const updates = createUpdateService(
+    "1.0.1",
+    { check, download, install: vi.fn() },
+    async () => true,
+  );
+  expect((await updates.check()).ok).toBe(false);
+  expect(updates.status().stage).toBe("idle");
+  await updates.check();
+  expect((await updates.download()).ok).toBe(false);
+  expect(updates.status().stage).toBe("available");
+  await updates.download();
+  expect(updates.status().stage).toBe("ready");
+  await updates.check();
+  expect(check).toHaveBeenCalledTimes(2);
+});
+
+test.each(["1.0.1", "0.9.9", "1.1.0-beta.1", "invalid"])(
+  "does not offer an unsafe or non-newer version: %s",
+  async (version) => {
+    const updates = createUpdateService(
+      "1.0.1",
+      {
+        check: async () => ({ ok: true, value: version }),
+        download: vi.fn(),
+        install: vi.fn(),
+      },
+      async () => true,
+    );
+    await updates.check();
+    expect(updates.status().stage).toBe("idle");
+  },
+);
