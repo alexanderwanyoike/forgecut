@@ -25,11 +25,11 @@ test("development builds do not construct an updater or contact the feed", async
   await updates.check();
   expect(mocked.client).not.toHaveBeenCalled();
 });
-test("only installed x64 AppImages and Windows use in-app installation", () => {
+test("only installed x64 AppImages use in-app installation until other native lifecycles are verified", () => {
   expect(automaticUpdatesSupported(true, "linux", "x64", "/app.AppImage")).toBe(
     true,
   );
-  expect(automaticUpdatesSupported(true, "win32", "x64")).toBe(true);
+  expect(automaticUpdatesSupported(true, "win32", "x64")).toBe(false);
   expect(
     automaticUpdatesSupported(false, "linux", "x64", "/app.AppImage"),
   ).toBe(false);
