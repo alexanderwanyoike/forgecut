@@ -139,6 +139,32 @@ describe("Preview component", () => {
     fireEvent.seeked(video);
     expect(video.currentTime).toBe(4);
   });
+  it("waits for the initial stream read to suspend before seeking", () => {
+    const network = vi
+      .spyOn(HTMLMediaElement.prototype, "networkState", "get")
+      .mockReturnValue(HTMLMediaElement.NETWORK_LOADING);
+    render(<Preview {...idle} project={videoProject()} playheadUs={4000000} />);
+    const video = document.querySelector("video")!;
+    fireEvent.loadedData(video);
+    expect(video.currentTime).toBe(0);
+    network.mockReturnValue(HTMLMediaElement.NETWORK_IDLE);
+    fireEvent.suspend(video);
+    expect(video.currentTime).toBe(4);
+  });
+  it("pauses immediately while a source is still buffering", () => {
+    const ready = vi
+      .spyOn(HTMLMediaElement.prototype, "readyState", "get")
+      .mockReturnValue(4);
+    const project = videoProject();
+    const { rerender } = render(
+      <Preview {...idle} project={project} playing />,
+    );
+    const pause = vi.mocked(HTMLMediaElement.prototype.pause);
+    pause.mockClear();
+    ready.mockReturnValue(1);
+    rerender(<Preview {...idle} project={project} playing={false} />);
+    expect(pause).toHaveBeenCalled();
+  });
   it("keeps unprobed source audio silent until it can match export", () => {
     const project = videoProject();
     project.assets[0].probe = null;
