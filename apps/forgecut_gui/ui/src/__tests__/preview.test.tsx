@@ -279,6 +279,28 @@ describe("Preview component", () => {
     act(() => tick(100));
     expect(video.currentTime).toBe(1.245);
   });
+  it("holds playback when only the current frame remains and resumes when future data returns", () => {
+    let tick: FrameRequestCallback = () => {};
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((callback) => {
+      tick = callback;
+      return 1;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const ready = vi.spyOn(HTMLMediaElement.prototype, "readyState", "get").mockReturnValue(4);
+    const onPlayheadChange = vi.fn();
+    render(<Preview {...idle} project={videoProject()} playing onPlayheadChange={onPlayheadChange} />);
+    act(() => tick(100));
+    expect(onPlayheadChange).toHaveBeenLastCalledWith(100000);
+    ready.mockReturnValue(2);
+    act(() => tick(200));
+    expect(onPlayheadChange).toHaveBeenCalledTimes(1);
+    ready.mockReturnValue(3);
+    act(() => tick(900));
+    expect(onPlayheadChange).toHaveBeenCalledTimes(1);
+    act(() => tick(1000));
+    expect(onPlayheadChange).toHaveBeenLastCalledWith(200000);
+  });
   it("pauses immediately while a source is still buffering", () => {
     const ready = vi
       .spyOn(HTMLMediaElement.prototype, "readyState", "get")
