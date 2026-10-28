@@ -66,7 +66,7 @@ export default function PreviewMedia(props: Props) {
     setFrameReady(
       !pendingSeek.current && !media.seeking && media.readyState >= 2,
     );
-    if (playing && media.paused) {
+    if (playing && media.paused && !media.ended) {
       const { current } = epoch;
       void props.mixer.resume().then((result) => {
         if (!result.ok && current === epoch.current)
