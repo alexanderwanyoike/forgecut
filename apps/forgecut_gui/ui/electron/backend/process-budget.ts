@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 export async function budgetedMediaCommand(
   executable: string,
   args: string[],
-  cpuPercent = 150,
+  { cpuPercent = 150 }: { cpuPercent?: number } = {},
 ): Promise<{ command: string; args: string[]; unit?: string }> {
   const supported =
     process.platform === "linux" &&

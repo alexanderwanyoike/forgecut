@@ -30,7 +30,7 @@ export async function runGraphicWorker(
       join(runtime, "worker.cjs"),
       jobPath,
     ],
-    cpuPercent,
+    { cpuPercent },
   );
   if (requiresBudget && !invocation.unit)
     return {

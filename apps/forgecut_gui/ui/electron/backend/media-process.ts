@@ -15,7 +15,9 @@ export async function runMediaProcess(
   } = {},
 ): Promise<Result<Buffer>> {
   const invocation = options.budget
-    ? await budgetedMediaCommand(executable, args, options.cpuPercent)
+    ? await budgetedMediaCommand(executable, args, {
+        cpuPercent: options.cpuPercent,
+      })
     : { command: executable, args };
   return new Promise((resolve) => {
     const cancelled = (): Result<Buffer> => ({
