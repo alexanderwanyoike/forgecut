@@ -7,6 +7,7 @@ import type {
   CommandMetadata,
   CommandResponse,
 } from "../../electron/shared/ipc-contract";
+import { createPlayhead } from "../lib/playhead";
 let service: EditingService | undefined;
 afterEach(async () => {
   cleanup();
@@ -89,7 +90,7 @@ it("does not publish a displayed sequence's playhead into a newly selected seque
   const { useEditingContext } = await import("../hooks/useEditingContext");
   function Probe() {
     const { snapshot } = useProject();
-    useEditingContext(snapshot, null, 1000000);
+    useEditingContext(snapshot, null, createPlayhead(1000000), false);
     return createElement(
       "output",
       { role: "status" },

@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "../lib/bridge";
+import type { Playhead } from "../lib/playhead";
 import type { Timeline } from "../lib/timeline/items";
 
 export interface TimelineShortcutOptions {
   selectedClipId: string | null;
-  playheadUs: number;
+  playhead: Playhead;
   setTimeline: (timeline: Timeline) => void;
   onSelectClip: (id: string | null) => void;
   zoomIn: () => void;
@@ -86,7 +87,7 @@ export function useTimelineShortcuts(options: TimelineShortcutOptions) {
         options.setTimeline(
           await invoke("split_clip", {
             itemId: sel,
-            splitTimeUs: options.playheadUs,
+            splitTimeUs: options.playhead.get(),
           }),
         );
       } catch (err) {

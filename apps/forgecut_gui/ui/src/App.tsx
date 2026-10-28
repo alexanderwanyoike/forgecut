@@ -31,7 +31,7 @@ import AssetBin from "./components/AssetBin";
 import SourceWorkspace from "./components/SourceWorkspace";
 import ExportDialog, { type ExportTarget } from "./components/ExportDialog";
 import Inspector from "./components/Inspector";
-import Preview from "./components/Preview";
+import { PlayheadPreview } from "./components/Preview";
 import Timeline from "./components/Timeline";
 import { useProject } from "./hooks/useProject";
 
@@ -58,7 +58,7 @@ export default function App() {
   const { snapshot, error, setError } = useProject();
   const editor = useSequenceEditor(snapshot);
   const {
-    playheadUs,
+    playhead,
     setPlayheadUs,
     playing,
     setPlaying,
@@ -241,7 +241,7 @@ export default function App() {
               if (!snapshot || !project?.default_sequence) return;
               setExportTarget({
                 durationUs: sequenceDurationUs(project),
-                playheadUs,
+                playheadUs: playhead.get(),
                 sessionId: snapshot.sessionId,
                 sequenceId: project.default_sequence.id,
                 name: project.default_sequence.name,
@@ -331,7 +331,7 @@ export default function App() {
       )}
 
       {!sourceItemId && !sourceAssetId && editor.ready && (
-        <Preview
+        <PlayheadPreview
           key={`preview:${editor.key}`}
           sessionId={snapshot?.sessionId}
           selectedClipId={selectedClipId}
@@ -341,7 +341,7 @@ export default function App() {
             setSelectedLayerId(layerId);
           }}
           project={project ?? undefined}
-          playheadUs={playheadUs}
+          playhead={playhead}
           playing={playing}
           onPlayingChange={setPlaying}
           onPlayheadChange={setPlayheadUs}
@@ -388,7 +388,7 @@ export default function App() {
       {editor.ready && (
         <Timeline
           key={`timeline:${editor.key}`}
-          playheadUs={playheadUs}
+          playhead={playhead}
           playing={playing}
           onPlayheadChange={setPlayheadUs}
           onPlayingChange={setPlaying}

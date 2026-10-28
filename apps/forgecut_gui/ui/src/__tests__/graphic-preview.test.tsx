@@ -14,6 +14,7 @@ import Preview from "../components/Preview";
 import Inspector from "../components/Inspector";
 import Timeline from "../components/Timeline";
 import { invoke } from "../lib/bridge";
+import { createPlayhead } from "../lib/playhead";
 
 const { update } = vi.hoisted(() => ({
   update: vi.fn().mockResolvedValue(null),
@@ -129,7 +130,7 @@ it("shows isolated custom frames without evaluating source in the editor", async
 it("adds a title at the playhead through the shared service command", async () => {
   render(
     <Timeline
-      playheadUs={750000}
+      playhead={createPlayhead(750000)}
       playing={false}
       onPlayingChange={vi.fn()}
       onPlayheadChange={vi.fn()}

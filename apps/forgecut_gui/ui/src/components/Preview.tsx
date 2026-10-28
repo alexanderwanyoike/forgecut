@@ -22,6 +22,7 @@ import { usePlayback } from "../hooks/usePlayback";
 import { useGraphicPlayback } from "../hooks/useGraphicPlayback";
 import { useCompositionSize } from "../hooks/useCompositionSize";
 import { upcomingLayers } from "../lib/preview/preroll";
+import { usePlayheadUs, type Playhead } from "../lib/playhead";
 import PreviewMedia from "./PreviewMedia";
 import { AudioMixer } from "../lib/preview/AudioMixer";
 import type {
@@ -30,6 +31,14 @@ import type {
 } from "../../electron/shared/ipc-contract";
 
 const GraphicPreview = lazy(() => import("./GraphicCanvas"));
+
+/** The live editor's preview, redrawn by the playhead without the rest of the editor. */
+export function PlayheadPreview({
+  playhead,
+  ...props
+}: Omit<PreviewProps, "playheadUs"> & { playhead: Playhead }) {
+  return <Preview {...props} playheadUs={usePlayheadUs(playhead)} />;
+}
 
 export default function Preview(props: PreviewProps) {
   const [mixer] = useState(() => new AudioMixer());

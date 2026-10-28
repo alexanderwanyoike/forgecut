@@ -10,18 +10,17 @@ import { resolveGraphicInstance } from "../../electron/domain/graphic-instance";
 import { itemData } from "../../electron/domain/timeline-item";
 import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
 import { bindEditorContext, invoke } from "../lib/bridge";
+import { createPlayhead } from "../lib/playhead";
 import { useEditingContext } from "./useEditingContext";
 
 type Controls = {
   selectedClipId: string | null;
   selectedLayerId: string | null;
-  playheadUs: number;
   playing: boolean;
 };
 const empty: Controls = {
   selectedClipId: null,
   selectedLayerId: null,
-  playheadUs: 0,
   playing: false,
 };
 
@@ -33,6 +32,7 @@ export function useSequenceEditor(snapshot: ProjectSnapshot | null) {
   const key = `${snapshot?.sessionId ?? ""}:${sequenceId ?? ""}:${snapshot?.sequenceRevision ?? 0}`;
   const [context, setContext] = useState({ ...empty, key: "", ready: false });
   const [error, setError] = useState<string | null>(null);
+  const [playhead] = useState(() => createPlayhead());
   const [attempt, setAttempt] = useState(0);
   const project = useMemo(() => {
     if (!snapshot || !sequenceId) return null;
@@ -52,7 +52,8 @@ export function useSequenceEditor(snapshot: ProjectSnapshot | null) {
   useEditingContext(
     displayedSnapshot,
     controls.selectedClipId,
-    controls.playheadUs,
+    playhead,
+    controls.playing,
     controls.selectedLayerId,
   );
 
@@ -70,11 +71,11 @@ export function useSequenceEditor(snapshot: ProjectSnapshot | null) {
             restored.activeSequenceId !== sequenceId)
         )
           return;
+        playhead.set(restored.playheadUs);
         setContext({
           key,
           ready: true,
           playing: false,
-          playheadUs: restored.playheadUs,
           selectedClipId: restored.selectedItemIds[0] ?? null,
           selectedLayerId: restored.selectedLayerIds?.[0] ?? null,
         });
@@ -137,10 +138,6 @@ export function useSequenceEditor(snapshot: ProjectSnapshot | null) {
     (id: string | null) => update({ selectedLayerId: id }),
     [update],
   );
-  const setPlayheadUs = useCallback(
-    (value: number) => update({ playheadUs: value }),
-    [update],
-  );
   const setPlaying = useCallback(
     (value: boolean) => update({ playing: value }),
     [update],
@@ -150,10 +147,11 @@ export function useSequenceEditor(snapshot: ProjectSnapshot | null) {
     project,
     ready,
     key,
+    playhead,
     error,
     selectClip,
     setSelectedLayerId,
-    setPlayheadUs,
+    setPlayheadUs: playhead.set,
     setPlaying,
     retry: () => setAttempt((value) => value + 1),
   };

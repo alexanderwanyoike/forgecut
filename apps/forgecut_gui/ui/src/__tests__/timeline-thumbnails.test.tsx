@@ -16,10 +16,11 @@ class MockResizeObserver {
 vi.stubGlobal("ResizeObserver", MockResizeObserver);
 
 import Timeline from "../components/Timeline";
+import { createPlayhead } from "../lib/playhead";
 
 describe("Timeline thumbnails", () => {
   const defaultProps = {
-    playheadUs: 0,
+    playhead: createPlayhead(0),
     playing: false,
     onPlayheadChange: () => {},
     onPlayingChange: () => {},

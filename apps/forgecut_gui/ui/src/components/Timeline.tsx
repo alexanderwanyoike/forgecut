@@ -35,9 +35,10 @@ import { useTimelineInteractions } from "../hooks/useTimelineInteractions";
 import { useTimelineShortcuts } from "../hooks/useTimelineShortcuts";
 import GraphicPicker from "./GraphicPicker";
 import TimelineClip from "./TimelineClip";
+import { usePlayheadUs, type Playhead } from "../lib/playhead";
 
 interface TimelineProps {
-  playheadUs: number;
+  playhead: Playhead;
   playing: boolean;
   onPlayheadChange: (us: number) => void;
   onPlayingChange: (playing: boolean) => void;
@@ -103,7 +104,7 @@ export default function Timeline(props: TimelineProps) {
 
   useTimelineShortcuts({
     selectedClipId: props.selectedClipId,
-    playheadUs: props.playheadUs,
+    playhead: props.playhead,
     setTimeline,
     onSelectClip: props.onSelectedClipChange,
     zoomIn: () => setPixelsPerSecond(zoomInLevel),
@@ -159,7 +160,8 @@ export default function Timeline(props: TimelineProps) {
 
   const scrollToPlayhead = () => {
     if (!timelineRef.current) return;
-    const playheadPx = usToPixels(props.playheadUs, pixelsPerSecond) + LABEL_W;
+    const playheadPx =
+      usToPixels(props.playhead.get(), pixelsPerSecond) + LABEL_W;
     const vw = timelineRef.current.clientWidth;
     timelineRef.current.scrollLeft = playheadPx - vw / 2;
   };
@@ -167,7 +169,8 @@ export default function Timeline(props: TimelineProps) {
   // Auto-scroll to playhead on zoom change if it left the visible area
   useEffect(() => {
     if (!timelineRef.current) return;
-    const playheadPx = usToPixels(props.playheadUs, pixelsPerSecond) + LABEL_W;
+    const playheadPx =
+      usToPixels(props.playhead.get(), pixelsPerSecond) + LABEL_W;
     const vw = timelineRef.current.clientWidth;
     const currentScroll = timelineRef.current.scrollLeft;
     if (playheadPx < currentScroll || playheadPx > currentScroll + vw) {
@@ -259,7 +262,7 @@ export default function Timeline(props: TimelineProps) {
         trackId:
           timeline.tracks.find((track) => track.kind === "OverlayText")?.id ??
           crypto.randomUUID(),
-        timelineStartUs: props.playheadUs,
+        timelineStartUs: props.playhead.get(),
         durationUs: 3_000_000,
         text: "Hello World",
         fontSize: 48,
@@ -297,7 +300,7 @@ export default function Timeline(props: TimelineProps) {
         <div className="control-group">
           <GraphicPicker
             timeline={timeline}
-            playheadUs={props.playheadUs}
+            playhead={props.playhead}
             styles={props.projectStylePresets ?? []}
             origin={
               props.projectSessionId
@@ -425,11 +428,9 @@ export default function Timeline(props: TimelineProps) {
             ))}
           </div>
 
-          <div
-            className="playhead"
-            style={{
-              left: `${usToPixels(props.playheadUs, pixelsPerSecond) + LABEL_W}px`,
-            }}
+          <PlayheadMarker
+            playhead={props.playhead}
+            pixelsPerSecond={pixelsPerSecond}
           />
 
           {timeline.duration_us !== undefined && (
@@ -512,5 +513,20 @@ export default function Timeline(props: TimelineProps) {
         </div>
       </div>
     </section>
+  );
+}
+
+function PlayheadMarker(props: {
+  playhead: Playhead;
+  pixelsPerSecond: number;
+}) {
+  const playheadUs = usePlayheadUs(props.playhead);
+  return (
+    <div
+      className="playhead"
+      style={{
+        left: `${usToPixels(playheadUs, props.pixelsPerSecond) + LABEL_W}px`,
+      }}
+    />
   );
 }

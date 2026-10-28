@@ -8,17 +8,18 @@ import type { StylePreset } from "../../electron/shared/style-presets";
 import { graphicPresets } from "../../electron/domain/graphic-presets";
 import { invoke } from "../lib/bridge";
 import ActionButton from "./ActionButton";
+import type { Playhead } from "../lib/playhead";
 
 type Props = {
   timeline: Timeline;
-  playheadUs: number;
+  playhead: Playhead;
   styles: StylePreset[];
   origin?: Pick<ProjectSnapshot, "sessionId" | "revision">;
   onTimelineChange: (timeline: Timeline) => void;
 };
 export default function GraphicPicker({
   timeline,
-  playheadUs,
+  playhead,
   styles,
   origin,
   onTimelineChange,
@@ -36,7 +37,7 @@ export default function GraphicPicker({
       trackId:
         timeline.tracks.find((track) => track.kind === "Graphics")?.id ??
         crypto.randomUUID(),
-      timelineStartUs: playheadUs,
+      timelineStartUs: playhead.get(),
       durationUs: 3000000,
     };
     try {
