@@ -85,6 +85,11 @@ export class GraphicRenderCache {
     return task;
   }
 
+  /** Settles once every render queued so far has finished. */
+  async idle(): Promise<void> {
+    await this.queue;
+  }
+
   owns(path: string): boolean {
     return [...this.files.values()].includes(path);
   }

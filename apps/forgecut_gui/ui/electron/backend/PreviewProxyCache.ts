@@ -14,6 +14,8 @@ type Options = {
   root?: string;
   capBytes?: number;
   probe?: (source: string, signal?: AbortSignal) => Promise<Result<number[]>>;
+  /** Work a viewer is waiting on, which runs before a proxy encode starts. */
+  yieldTo?: () => Promise<void>;
   encode?: (
     source: string,
     output: string,
@@ -44,6 +46,8 @@ export class PreviewProxyCache {
 
   private readonly encode: NonNullable<Options["encode"]>;
 
+  private readonly yieldTo: NonNullable<Options["yieldTo"]>;
+
   private readonly preparing = new Map<
     string,
     Promise<Result<string | undefined>>
@@ -68,6 +72,7 @@ export class PreviewProxyCache {
     this.capBytes = options.capBytes ?? 20 * 1024 ** 3;
     this.probe = options.probe ?? probeKeyframes;
     this.encode = options.encode ?? encodePreviewProxy;
+    this.yieldTo = options.yieldTo ?? (() => Promise.resolve());
   }
 
   /** The proxy to play instead of `source`, or none when it seeks well already. */
@@ -134,6 +139,7 @@ export class PreviewProxyCache {
       ok: false as const,
       error: { code: "CANCELLED", message: "Preview proxies are closed" },
     };
+    await this.yieldTo();
     if (signal.aborted) return cancelled;
     await mkdir(this.root, { recursive: true });
     const partial = `${path}.partial`;

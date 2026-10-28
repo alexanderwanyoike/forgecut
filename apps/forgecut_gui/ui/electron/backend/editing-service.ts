@@ -94,7 +94,9 @@ export class EditingService {
 
   readonly renders = new GraphicRenderCache();
 
-  readonly proxies = new PreviewProxyCache();
+  readonly proxies = new PreviewProxyCache({
+    yieldTo: () => this.renders.idle(),
+  });
 
   private readonly drafts = new GraphicDraftStore();
 
