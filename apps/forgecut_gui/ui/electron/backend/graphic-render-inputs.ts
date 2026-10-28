@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 import { validateGraphicDependencies } from "../domain/graphic-dependencies.js";
 import { itemFrameRange } from "../domain/sequence.js";
 import type { Project, ProjectSettings } from "../shared/ipc-contract.js";
-import type { RemotionGraphicItem } from "../shared/graphics.js";
+import type {
+  GraphicComponent,
+  RemotionGraphicItem,
+} from "../shared/graphics.js";
 import type { Result } from "../shared/result.js";
 import { graphicTemplates } from "./graphic-catalog.js";
 import { componentVersion } from "./graphic-component.js";
@@ -37,33 +40,8 @@ export async function graphicRenderInputs(
     };
   const dependencies = validateGraphicDependencies(component);
   if (!dependencies.ok) return dependencies;
-  let code: string | undefined;
-  if (
-    !graphicTemplates().some(
-      (template) => template.version === component.version,
-    )
-  ) {
-    const checked = await checkGraphicSource(
-      component.source,
-      signal,
-      component.properties,
-    );
-    if (!checked.ok) return checked;
-    if (!checked.value.ok)
-      return {
-        ok: false,
-        error: {
-          code: "INVALID_SOURCE",
-          message: checked.value.error.diagnostics
-            .map(
-              (diagnostic) =>
-                `${diagnostic.file}:${diagnostic.line}:${diagnostic.column} ${diagnostic.message}`,
-            )
-            .join("\n"),
-        },
-      };
-    code = checked.value.value.code;
-  }
+  const code = await projectCode(component, signal);
+  if (!code.ok) return code;
   const resources = await graphicResourceInputs(
     project,
     component,
@@ -79,7 +57,7 @@ export async function graphicRenderInputs(
         sourceHash: createHash("sha256")
           .update(component.source.files[component.source.entry])
           .digest("hex"),
-        code,
+        code: code.value,
         width: settings.width,
         height: settings.height,
         fps: settings.fps,
@@ -90,4 +68,37 @@ export async function graphicRenderInputs(
       },
     },
   };
+}
+
+/** Packaged templates run prepared runtime code; project source is compiled. */
+async function projectCode(
+  component: GraphicComponent,
+  signal?: AbortSignal,
+): Promise<Result<string | undefined>> {
+  if (
+    graphicTemplates().some(
+      (template) => template.version === component.version,
+    )
+  )
+    return { ok: true, value: undefined };
+  const checked = await checkGraphicSource(
+    component.source,
+    signal,
+    component.properties,
+  );
+  if (!checked.ok) return checked;
+  if (!checked.value.ok)
+    return {
+      ok: false,
+      error: {
+        code: "INVALID_SOURCE",
+        message: checked.value.error.diagnostics
+          .map(
+            (diagnostic) =>
+              `${diagnostic.file}:${diagnostic.line}:${diagnostic.column} ${diagnostic.message}`,
+          )
+          .join("\n"),
+      },
+    };
+  return { ok: true, value: checked.value.value.code };
 }
