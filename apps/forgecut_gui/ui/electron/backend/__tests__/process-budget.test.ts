@@ -12,7 +12,7 @@ const available =
   spawnSync("ffmpeg", ["-version"]).status === 0;
 
 it.skipIf(!available)(
-  "applies the proven process memory and CPU budget to real media work",
+  "keeps media work at 150% CPU inside the shared 400% media slice",
   async () => {
     const controller = new AbortController();
     let resolveLimits!: (value: {
@@ -113,7 +113,7 @@ it.skipIf(!available)(
       const limits = await observed;
       expect(limits).toMatchObject({
         parentMemory: "3221225472",
-        parentCpu: "150000 100000",
+        parentCpu: "400000 100000",
         parent: expect.stringContaining("forgecut-media.slice"),
         memory: "3221225472",
         high: "2147483648",
