@@ -11,9 +11,9 @@ Updates must preserve the project and remain separate from ordinary quit.
 ## Decision
 
 Use electron-updater 6.8.11 with the fixed public GitHub feed
-`alexanderwanyoike/forgecut`. Installed x64 AppImages and Windows NSIS builds
-support check, download with progress, and explicit restart to install.
-Development builds, unsigned macOS, and Linux package installations offer the
+`alexanderwanyoike/forgecut`. Installed x64 AppImages support checks, downloads with progress, and explicit
+restart to install. Development builds, Windows, unsigned macOS, and Linux
+package installations offer the
 latest release's manual installers. Development builds never contact the feed.
 
 Disable unattended downloads, installation on quit, downgrades, prereleases and
@@ -29,7 +29,8 @@ revision or session change during that confirmation cancels installation.
 Use the upstream client to download and verify SHA-512 checksums. On Linux, copy
 the verified file beside the installed AppImage, preserve permissions, then rename
 it over the original path before relaunching. This keeps shortcuts valid and
-leaves the old executable intact if copying fails. Windows uses the NSIS client.
+leaves the old executable intact if copying fails. Windows uses the manual installer until its asynchronous native launch and
+relaunch lifecycle can be verified on Windows.
 
 Packaging generates and uploads update YAML and companion blockmaps alongside
 installers. Release PRs build installers as workflow artifacts without creating a

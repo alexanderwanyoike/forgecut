@@ -1,7 +1,6 @@
 import { app, ipcMain, shell } from "electron";
 import type { BrowserWindow } from "electron";
 import electronUpdater from "electron-updater";
-import type { Result } from "../shared/result.js";
 import type { UpdateResult } from "../shared/updates.js";
 import { createNativeUpdateBackend } from "./native-backend.js";
 import { createUpdateService } from "./service.js";
@@ -16,9 +15,7 @@ export function automaticUpdatesSupported(
   appImage?: string,
 ): boolean {
   return (
-    packaged &&
-    arch === "x64" &&
-    (platform === "win32" || (platform === "linux" && Boolean(appImage)))
+    packaged && arch === "x64" && platform === "linux" && Boolean(appImage)
   );
 }
 
@@ -37,40 +34,15 @@ export function createApplicationUpdates(confirm: () => Promise<boolean>) {
       owner: "alexanderwanyoike",
       repo: "forgecut",
     };
-    const client =
-      process.platform === "linux"
-        ? new electronUpdater.AppImageUpdater(feed)
-        : new electronUpdater.NsisUpdater(feed);
+    const client = new electronUpdater.AppImageUpdater(feed);
     client.logger = null;
-    backend = createNativeUpdateBackend(
-      client,
-      async (file): Promise<Result<undefined>> => {
-        if (image && process.platform === "linux") {
-          const replaced = await replaceAppImage(image, file);
-          if (!replaced.ok) return replaced;
-          app.relaunch({ execPath: image });
-          app.quit();
-        } else {
-          let failed = false;
-          const onError = () => {
-            failed = true;
-          };
-          client.once("error", onError);
-          client.quitAndInstall(true, true);
-          client.removeListener("error", onError);
-          if (failed)
-            return {
-              ok: false,
-              error: {
-                code: "UPDATE_INSTALL_FAILED",
-                message:
-                  "The installer could not start. Download the installer manually.",
-              },
-            };
-        }
-        return { ok: true, value: undefined };
-      },
-    );
+    backend = createNativeUpdateBackend(client, async (file) => {
+      const replaced = await replaceAppImage(image!, file);
+      if (!replaced.ok) return replaced;
+      app.relaunch({ execPath: image });
+      app.quit();
+      return { ok: true, value: undefined };
+    });
   }
   return createUpdateService(app.getVersion(), backend, confirm);
 }

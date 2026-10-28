@@ -65,7 +65,7 @@ export default function ApplicationFooter({ beforeInstall }: Props) {
     icon = ExternalLink;
     operation = bridge?.releases;
     detail =
-      "Use the latest installer for this installation. In-app updates are supported in AppImage and Windows builds.";
+      "Use the latest installer for this installation. In-app updates are supported in AppImage builds.";
   } else if (status?.stage === "available") {
     label = `Download v${status.version}`;
     icon = ArrowDownToLine;
