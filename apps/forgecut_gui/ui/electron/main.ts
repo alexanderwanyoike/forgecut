@@ -12,11 +12,17 @@ import { graphicResourceResponse } from "./backend/graphic-resource-response.js"
 import { mediaResponseInit } from "./backend/media-protocol.js";
 import { appAssetResponse } from "./backend/app-assets.js";
 
+import {
+  createApplicationUpdates,
+  registerUpdateHandlers,
+} from "./updates/runtime.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const state = new AppState();
 const editing = new EditingService(state);
 let localBridge: Awaited<ReturnType<typeof startLocalBridge>> | undefined;
+let updates: ReturnType<typeof createApplicationUpdates> | undefined;
 let quitting = false;
 app.on("before-quit", (event) => {
   if (quitting) return;
@@ -101,6 +107,8 @@ function createWindow(): void {
     },
   });
 
+  if (updates) registerUpdateHandlers(win, updates);
+
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
   if (rendererUrl) {
     void win.loadURL(rendererUrl);
@@ -136,6 +144,29 @@ ipcMain.handle(
 );
 
 void app.whenReady().then(async () => {
+  updates = createApplicationUpdates(async () => {
+    const revision = state.revision;
+    const session = state.sessionId;
+    const choice = await dialog.showMessageBox({
+      type: "question",
+      message: "Restart ForgeCut to install the update?",
+      detail:
+        "Your project must be saved first. Playback will stop and any active imports or exports will be cancelled.",
+      buttons: ["Keep working", "Restart to update"],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+    });
+    return (
+      choice.response === 1 &&
+      state.revision === revision &&
+      state.sessionId === session
+    );
+  });
+  if (app.isPackaged) {
+    const timer = setTimeout(() => void updates?.check(), 30_000);
+    timer.unref();
+  }
   protocol.handle("forgecut-app", (request) =>
     appAssetResponse(join(__dirname, "../../dist"), request.url),
   );
