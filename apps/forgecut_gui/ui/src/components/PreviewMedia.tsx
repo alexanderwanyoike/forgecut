@@ -18,6 +18,7 @@ type Props = {
   fps: number;
   style?: CSSProperties;
   audioOnly?: boolean;
+  preroll?: boolean;
   mixer: AudioMixer;
   audioGain?: number;
   onError: (message: string) => void;
@@ -133,12 +134,16 @@ export default function PreviewMedia(props: Props) {
       ref={setMedia}
       className={props.audioOnly ? undefined : "preview-video"}
       hidden={props.audioOnly}
+      data-preroll={props.preroll || undefined}
       crossOrigin="anonymous"
       muted={!audible}
       src={mediaUrl(props.path)}
       playsInline
       preload="auto"
-      style={{ ...props.style, visibility: frameReady ? "visible" : "hidden" }}
+      style={{
+        ...props.style,
+        visibility: frameReady && !props.preroll ? "visible" : "hidden",
+      }}
       onError={() => props.onError("Unable to play this source.")}
     />
   );

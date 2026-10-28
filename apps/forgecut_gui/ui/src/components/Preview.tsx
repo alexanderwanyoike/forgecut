@@ -12,6 +12,7 @@ import { formatTimeUs } from "../lib/preview/time-utils";
 import { usePlayback } from "../hooks/usePlayback";
 import { useCompositionSize } from "../hooks/useCompositionSize";
 import PreviewMedia from "./PreviewMedia";
+import { nextVideoLayer } from "../lib/preview/preroll";
 import { AudioMixer } from "../lib/preview/AudioMixer";
 import type { VisualPlacement } from "../../electron/shared/ipc-contract";
 
@@ -33,6 +34,10 @@ export default function Preview(props: PreviewProps) {
   const frame = props.project
     ? resolveSequenceFrame(props.project, props.playheadUs)
     : null;
+  const upcoming = props.project
+    ? nextVideoLayer(props.project, props.playheadUs)
+    : undefined;
+  const layers = [...(frame?.layers ?? []), ...(upcoming ? [upcoming] : [])];
   const sourceKey = `${props.projectVersion}:${frame?.layers.map((layer) => itemData(layer.item).id).join(":") ?? ""}`;
   const reportError = (message: string) =>
     setError({ key: sourceKey, message });
@@ -82,23 +87,25 @@ export default function Preview(props: PreviewProps) {
             background: "#000",
           }}
         >
-          {frame?.layers.map((layer) => {
+          {layers.map((layer) => {
             const { item, asset, placement } = layer;
             const data = itemData(item);
+            const preroll = layer === upcoming;
             const key = `${data.id}:${props.projectVersion}`;
             if ("VideoClip" in item && asset && placement) {
               return (
                 <PreviewMedia
                   key={key}
                   mixer={mixer}
-                  audioGain={layer.audioGain}
+                  audioGain={preroll ? undefined : layer.audioGain}
+                  preroll={preroll}
                   path={asset.path}
                   timeUs={
-                    (playback.playing
+                    (!preroll && playback.playing
                       ? layer.playbackTimeUs
                       : layer.sourceTimeUs) ?? 0
                   }
-                  playing={playback.playing}
+                  playing={!preroll && playback.playing}
                   version={props.projectVersion}
                   fps={settings.fps}
                   style={visualStyle(placement)}
@@ -155,7 +162,7 @@ export default function Preview(props: PreviewProps) {
                       component={component}
                       item={graphic}
                       frame={
-                        frame.frame -
+                        (frame?.frame ?? 0) -
                         frameAtOrAfter(graphic.timeline_start_us, settings.fps)
                       }
                       settings={settings}
