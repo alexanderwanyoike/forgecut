@@ -163,7 +163,10 @@ void app.whenReady().then(async () => {
     const url = new URL(request.url);
     const path = url.searchParams.get("path");
     if (!path) return new Response("Missing media path", { status: 400 });
-    if (!state.project.assets.some((asset) => asset.path === path)) {
+    if (
+      !state.project.assets.some((asset) => asset.path === path) &&
+      !editing.renders.owns(path)
+    ) {
       return new Response("Media path is not part of the current project", {
         status: 403,
       });
