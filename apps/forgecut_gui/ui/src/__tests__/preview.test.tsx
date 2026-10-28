@@ -110,6 +110,20 @@ describe("Preview component", () => {
       ).toBe(4),
     );
   });
+  it("conceals the recorder's opening frame until the selected source seek finishes", () => {
+    const ready = vi
+      .spyOn(HTMLMediaElement.prototype, "readyState", "get")
+      .mockReturnValue(1);
+    render(<Preview {...idle} project={videoProject()} playheadUs={4000000} />);
+    const video = document.querySelector("video")!;
+    expect(video.style.visibility).toBe("hidden");
+    ready.mockReturnValue(2);
+    fireEvent.loadedData(video);
+    expect(video.currentTime).toBe(4);
+    expect(video.style.visibility).toBe("hidden");
+    fireEvent.seeked(video);
+    expect(video.style.visibility).toBe("visible");
+  });
   it("waits for decoded data before seeking a newly loaded source", () => {
     const ready = vi
       .spyOn(HTMLMediaElement.prototype, "readyState", "get")
