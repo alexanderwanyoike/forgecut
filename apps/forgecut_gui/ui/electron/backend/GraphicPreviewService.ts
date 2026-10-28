@@ -118,7 +118,9 @@ export class GraphicPreviewService {
         if (compiled.value.ok) {
           this.compilations.set(component.version, compiled.value);
           while (this.compilations.size > 4)
-            this.compilations.delete(this.compilations.keys().next().value ?? "");
+            this.compilations.delete(
+              this.compilations.keys().next().value ?? "",
+            );
         }
         if (!compiled.value.ok)
           return {

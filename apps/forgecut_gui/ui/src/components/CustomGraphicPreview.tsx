@@ -63,7 +63,10 @@ export default function CustomGraphicPreview({
   }, [input]);
   const fit = graphicFit(placement, settings);
   return (
-    <div data-graphic-ready={ready && !error} style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
+    <div
+      data-graphic-ready={ready && !error}
+      style={{ position: "absolute", inset: 0, overflow: "hidden" }}
+    >
       {image ? (
         <img
           alt="Graphic preview"

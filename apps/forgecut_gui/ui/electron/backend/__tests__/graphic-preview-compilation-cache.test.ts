@@ -16,10 +16,12 @@ it("reuses unchanged source compilation across cards while retaining separate re
     ok: true,
     value: { ok: true, value: { code: "compiled component" } },
   });
-  const render = vi.spyOn(GraphicPreviewHost.prototype, "render").mockResolvedValue({
-    ok: true,
-    value: { mimeType: "image/png", data: "AA==", width: 64, height: 36 },
-  });
+  const render = vi
+    .spyOn(GraphicPreviewHost.prototype, "render")
+    .mockResolvedValue({
+      ok: true,
+      value: { mimeType: "image/png", data: "AA==", width: 64, height: 36 },
+    });
   try {
     for (const [index, title] of ["First card", "Second card"].entries()) {
       const added = await editor.execute("add_graphic_item", {
@@ -31,11 +33,21 @@ it("reuses unchanged source compilation across cards while retaining separate re
       });
       if (!added.ok) throw new Error(added.error.message);
     }
-    const cards = state.project.timeline.tracks.flatMap((track) => track.items)
-      .flatMap((item) => "RemotionGraphic" in item ? [item.RemotionGraphic] : []);
+    const cards = state.project.timeline.tracks
+      .flatMap((track) => track.items)
+      .flatMap((item) =>
+        "RemotionGraphic" in item ? [item.RemotionGraphic] : [],
+      );
     for (const card of cards) {
-      expect(await preview.render(state.project, state.sessionId, card.id, undefined, 0))
-        .toMatchObject({ ok: true });
+      expect(
+        await preview.render(
+          state.project,
+          state.sessionId,
+          card.id,
+          undefined,
+          0,
+        ),
+      ).toMatchObject({ ok: true });
     }
     expect(compile).toHaveBeenCalledTimes(1);
     expect(render).toHaveBeenCalledTimes(2);
