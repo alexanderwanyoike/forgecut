@@ -34,11 +34,7 @@ function cancelled(message: string): Result<string> {
   return { ok: false, error: { code: "CANCELLED", message } };
 }
 
-/**
- * Renders whole graphics to WebM so playback never waits on per-frame
- * isolated rendering. Renders are keyed by content, so identical cards and
- * undo share a file, and run one at a time inside the existing media budget.
- */
+/** Whole-card playback renders; see ADR 0006, Playback renders. */
 export class GraphicRenderCache {
   private readonly renders = new Map<string, Promise<Result<string>>>();
 
