@@ -64,7 +64,6 @@ async function main() {
       composition,
       ...renderEncoding(job),
       imageFormat: "png",
-      concurrency: 1,
       muted: true,
       frameRange: [0, Math.min(job.duration, job.renderFrames) - 1],
       outputLocation: job.output,

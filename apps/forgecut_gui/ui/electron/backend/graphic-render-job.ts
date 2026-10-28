@@ -55,12 +55,18 @@ export function renderEncoding(
         codec: "vp9" as const,
         pixelFormat: "yuva420p" as const,
         scale: previewScale(job.width, job.height),
+        concurrency: 3,
       }
     : {
         codec: "prores" as const,
         proResProfile: "4444" as const,
         pixelFormat: "yuva444p10le" as const,
+        concurrency: 1,
       };
+}
+
+export function renderCpuPercent(format: GraphicRenderJob["format"]): number {
+  return format === "webm" ? 400 : 150;
 }
 
 /** Preview output stays within 960 pixels per side and 518400 pixels total. */
