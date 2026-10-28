@@ -141,6 +141,22 @@ describe("Preview component", () => {
     fireEvent.seeked(video);
     expect(video.style.visibility).toBe("visible");
   });
+  it("keeps decoded playback visible while a stream read defers drift correction", () => {
+    const network = vi
+      .spyOn(HTMLMediaElement.prototype, "networkState", "get")
+      .mockReturnValue(HTMLMediaElement.NETWORK_IDLE);
+    const project = videoProject();
+    const { rerender } = render(
+      <Preview {...idle} project={project} playheadUs={1000000} />,
+    );
+    const video = document.querySelector("video")!;
+    fireEvent.seeked(video);
+    expect(video.style.visibility).toBe("visible");
+    network.mockReturnValue(HTMLMediaElement.NETWORK_LOADING);
+    rerender(<Preview {...idle} project={project} playheadUs={1100000} playing />);
+    expect(video.currentTime).toBe(1);
+    expect(video.style.visibility).toBe("visible");
+  });
   it("reveals a decoded source-start frame when the cut intentionally starts there", () => {
     const ready = vi
       .spyOn(HTMLMediaElement.prototype, "readyState", "get")
