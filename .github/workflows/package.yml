@@ -4,7 +4,13 @@ on:
   push:
     tags: ["v*"]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
+    paths:
+      - ".github/workflows/package.yml"
+      - "apps/forgecut_gui/ui/package.json"
+      - "apps/forgecut_gui/ui/yarn.lock"
+      - "apps/forgecut_gui/ui/electron-builder.yml"
+      - "apps/forgecut_gui/ui/electron/scripts/prepare-graphic-runtime.mjs"
   workflow_dispatch:
     inputs:
       tag:
