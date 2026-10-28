@@ -157,3 +157,22 @@ it("holds the clock until the active source presents its frame", async () => {
     expect(current.onPlayheadChange).toHaveBeenCalledWith(expect.any(Number)),
   );
 });
+
+it("prepares upcoming clips one at a time, nearest first", () => {
+  render(
+    <Preview
+      {...props(
+        project(
+          clip("current", "/current.mp4", 0, 0),
+          clip("later", "/recording.mkv", 1500000, 9000000),
+          clip("next", "/next.mkv", 1000000, 5000000),
+        ),
+        500000,
+        true,
+      )}
+    />,
+  );
+  expect(document.querySelector('video[src*="recording.mkv"]')).toBeNull();
+  fireEvent.seeked(video("/next.mkv"));
+  expect(video("/recording.mkv").currentTime).toBe(9);
+});
