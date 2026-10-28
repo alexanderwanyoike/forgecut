@@ -1,3 +1,4 @@
+import semver from "semver";
 import type { Result } from "../shared/result.js";
 import type { UpdateResult, UpdateStatus } from "../shared/updates.js";
 
@@ -34,9 +35,13 @@ export function createUpdateService(
         state = previous;
         return result;
       }
-      state = result.value
-        ? { stage: "available", currentVersion, version: result.value }
-        : { stage: "idle", currentVersion };
+      state =
+        result.value &&
+        /^\d+\.\d+\.\d+$/.test(result.value) &&
+        semver.valid(result.value) &&
+        semver.gt(result.value, currentVersion)
+          ? { stage: "available", currentVersion, version: result.value }
+          : { stage: "idle", currentVersion };
       return current();
     },
     async download(): Promise<UpdateResult> {
