@@ -258,13 +258,22 @@ describe("Preview component", () => {
   });
   it("does not issue another seek when playback waits for a pending frame", () => {
     let tick: FrameRequestCallback = () => {};
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((callback) => {
-      tick = callback;
-      return 1;
-    });
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation(
+      (callback) => {
+        tick = callback;
+        return 1;
+      },
+    );
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
     vi.spyOn(performance, "now").mockReturnValue(0);
-    render(<Preview {...idle} project={videoProject()} playheadUs={1245000} playing />);
+    render(
+      <Preview
+        {...idle}
+        project={videoProject()}
+        playheadUs={1245000}
+        playing
+      />,
+    );
     const video = document.querySelector("video")!;
     expect(video.currentTime).toBe(1.245);
     act(() => tick(100));
