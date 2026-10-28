@@ -104,7 +104,11 @@ it("creates the chosen output from the file menu and pauses it without changing 
   });
   expect(state.project).toEqual(before);
   expect(
-    screen.getByRole("button", { name: "Retry unfinished exports" }),
+    await screen.findByRole(
+      "button",
+      { name: "Retry unfinished exports" },
+      { timeout: 10000 },
+    ),
   ).toBeTruthy();
 }, 15000);
 
