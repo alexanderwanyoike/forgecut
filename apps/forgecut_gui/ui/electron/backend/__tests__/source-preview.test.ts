@@ -128,7 +128,7 @@ it.skipIf(
     } finally {
       vi.unstubAllEnvs();
       await service.jobs.close();
-      await service.closeGraphicsPreview();
+      await service.closePreviews();
       await rm(directory, { recursive: true, force: true });
     }
   },
@@ -227,7 +227,7 @@ it
       expect(state.snapshot()).toEqual(before);
     } finally {
       await service.jobs.close();
-      await service.closeGraphicsPreview();
+      await service.closePreviews();
       await rm(directory, { recursive: true, force: true });
     }
   },

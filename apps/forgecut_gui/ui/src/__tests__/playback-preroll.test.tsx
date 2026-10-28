@@ -6,6 +6,7 @@ import type { Project, TimelineItem } from "../../electron/shared/ipc-contract";
 vi.mock("../lib/bridge", () => ({
   mediaUrl: (path: string) =>
     `forgecut-media://source?path=${encodeURIComponent(path)}`,
+  invoke: () => new Promise(() => {}),
 }));
 
 function clip(
@@ -187,4 +188,13 @@ it("pauses ready sources in place while the clock waits for another", async () =
   expect(screen.getByRole("status").textContent).toBe("Buffering");
   view.rerender(<Preview {...props(value, 40000, true)} />);
   expect(video("/ready.mp4").currentTime).toBe(0);
+});
+
+it("plays on past a source that cannot load", async () => {
+  const current = props(project(recording()), 0, true);
+  render(<Preview {...current} />);
+  fireEvent.error(video("/recording.mkv"));
+  await vi.waitFor(() =>
+    expect(current.onPlayheadChange).toHaveBeenCalledWith(expect.any(Number)),
+  );
 });

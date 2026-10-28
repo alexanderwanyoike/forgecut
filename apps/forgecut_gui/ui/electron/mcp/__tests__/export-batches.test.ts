@@ -116,7 +116,7 @@ it("creates, reads, resumes and cancels a durable batch through the official MCP
     await client.close();
     await server.close();
     await bridge.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(root, { recursive: true, force: true });
   }
 });

@@ -107,7 +107,7 @@ it("collects a captured project through MCP and replays the same request after l
   } finally {
     release();
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await client.close();
     await server.close();
     await bridge.close();

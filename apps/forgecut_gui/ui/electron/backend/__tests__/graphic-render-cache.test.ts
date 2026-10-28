@@ -211,3 +211,20 @@ it("removes its renders when closed", async () => {
     error: { code: "UNAVAILABLE" },
   });
 });
+
+it("reports idle only once queued renders have finished", async () => {
+  const project = await projectWithCards(1);
+  const [card] = cards(project);
+  const renderer = fakeRenderer();
+  const renders = cache(renderer);
+  renderer.hold();
+  void renders.prepare(project, card.id);
+  let idle = false;
+  void renders.idle().then(() => {
+    idle = true;
+  });
+  await vi.waitFor(() => expect(renderer.render).toHaveBeenCalled());
+  expect(idle).toBe(false);
+  renderer.release();
+  await vi.waitFor(() => expect(idle).toBe(true));
+});

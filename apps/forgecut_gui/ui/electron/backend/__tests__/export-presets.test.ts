@@ -79,7 +79,7 @@ it.skipIf(
       expect(state.snapshot()).toEqual(before);
     } finally {
       await service.jobs.close();
-      await service.closeGraphicsPreview();
+      await service.closePreviews();
       await rm(directory, { recursive: true, force: true });
     }
   },
@@ -103,7 +103,7 @@ it("rejects a mismatched preset extension before replacing a file or creating st
     expect(await readdir(directory)).toEqual(["keep.mp4"]);
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(directory, { recursive: true, force: true });
   }
 });

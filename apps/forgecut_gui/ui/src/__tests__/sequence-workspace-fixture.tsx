@@ -13,7 +13,7 @@ export async function cleanupSequenceWorkspace() {
   delete window.forgecut;
   if (service) {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
   }
   vi.restoreAllMocks();
   vi.resetModules();

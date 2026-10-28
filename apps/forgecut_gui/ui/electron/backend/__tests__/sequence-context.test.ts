@@ -66,7 +66,7 @@ it("switches sequence context without creative edits and restores each playhead"
   ).toMatchObject({ ok: false, error: { code: "PROJECT_CHANGED" } });
   expect(state.revision).toBe(before.revision);
   await service.jobs.close();
-  await service.closeGraphicsPreview();
+  await service.closePreviews();
 });
 it("edits an explicit sequence without changing the human active sequence", async () => {
   const state = new AppState();
@@ -158,7 +158,7 @@ it("edits an explicit sequence without changing the human active sequence", asyn
     value: { selectedItemIds: [item.TextOverlay.id], playheadUs: 250000 },
   });
   await service.jobs.close();
-  await service.closeGraphicsPreview();
+  await service.closePreviews();
 });
 it("creates and resolves graphics using the explicitly targeted sequence settings", async () => {
   const state = new AppState();
@@ -220,7 +220,7 @@ it("creates and resolves graphics using the explicitly targeted sequence setting
     },
   });
   await service.jobs.close();
-  await service.closeGraphicsPreview();
+  await service.closePreviews();
 });
 
 it("rejects stale context writes after the human selects a different sequence", async () => {
@@ -258,7 +258,7 @@ it("rejects stale context writes after the human selects a different sequence", 
   ).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
   expect(state.getEditingContext()).toEqual(before);
   await service.jobs.close();
-  await service.closeGraphicsPreview();
+  await service.closePreviews();
 });
 it("targets chronological undo explicitly and never groups edits across sequences", async () => {
   const state = new AppState();
@@ -321,7 +321,7 @@ it("targets chronological undo explicitly and never groups edits across sequence
   expect(state.project.timeline.tracks).toEqual([]);
   expect(state.project.sequences).toHaveLength(1);
   await service.jobs.close();
-  await service.closeGraphicsPreview();
+  await service.closePreviews();
 });
 it("rolls back a batch that deletes its target before a later timeline operation", async () => {
   const state = new AppState();
@@ -354,5 +354,5 @@ it("rolls back a batch that deletes its target before a later timeline operation
   expect(result).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
   expect(state.snapshot()).toEqual(before);
   await service.jobs.close();
-  await service.closeGraphicsPreview();
+  await service.closePreviews();
 });

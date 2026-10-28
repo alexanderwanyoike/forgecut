@@ -29,7 +29,7 @@ it("returns prepared package declarations without host Node or duplicate standar
     ),
   ).toBe(true);
   await service.jobs.close();
-  await service.closeGraphicsPreview();
+  await service.closePreviews();
 });
 it("previews a recoverable draft separately and rejects a changed project before returning its frame", async () => {
   const directory = await mkdtemp(join(tmpdir(), "forgecut-editor-preflight-"));
@@ -106,7 +106,7 @@ it("previews a recoverable draft separately and rejects a changed project before
     ).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     await rm(directory, { recursive: true, force: true });

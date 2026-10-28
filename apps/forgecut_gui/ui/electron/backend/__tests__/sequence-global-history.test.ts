@@ -36,6 +36,6 @@ it("keeps a project rename global even when another sequence is active", async (
     expect(state.project).toEqual(before);
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
   }
 });

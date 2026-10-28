@@ -39,5 +39,5 @@ it("checks typed component properties against the supplied schema in the isolate
     },
   });
   await service.jobs.close();
-  await service.closeGraphicsPreview();
+  await service.closePreviews();
 }, 15000);

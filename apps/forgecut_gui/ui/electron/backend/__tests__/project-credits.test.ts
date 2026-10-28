@@ -68,7 +68,7 @@ it("retains recording and music credits across sequences, global undo and projec
     expect(state.project.assets[0]).toMatchObject({ license });
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(directory, { recursive: true, force: true });
   }
 });
@@ -160,6 +160,6 @@ it("updates artwork and font attribution without changing content identity and r
     ).toMatchObject({ ok: true });
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
   }
 });

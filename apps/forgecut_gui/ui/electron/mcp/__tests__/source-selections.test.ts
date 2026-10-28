@@ -141,7 +141,7 @@ it("pages source selections through MCP and preserves a manually edited note dur
     await server.close();
     await bridge.close();
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(directory, { recursive: true, force: true });
   }
 });

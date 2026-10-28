@@ -7,7 +7,7 @@ import { EditingService } from "../editing-service";
 const services: EditingService[] = [];
 afterEach(async () => {
   await Promise.all(
-    services.splice(0).map((service) => service.closeGraphicsPreview()),
+    services.splice(0).map((service) => service.closePreviews()),
   );
 });
 

@@ -1,41 +1,42 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 
+const MEMORY = [
+  "MemoryMax=3221225472",
+  "MemoryHigh=2147483648",
+  "MemorySwapMax=268435456",
+];
+
 export async function budgetedMediaCommand(
   executable: string,
   args: string[],
-  cpuPercent = 150,
+  {
+    cpuPercent = 150,
+    cpuWeight,
+  }: {
+    cpuPercent?: number;
+    /** Below the default 100, the scope yields CPU to busier siblings in the slice. */
+    cpuWeight?: number;
+  } = {},
 ): Promise<{ command: string; args: string[]; unit?: string }> {
-  const supported =
-    process.platform === "linux" &&
-    (await new Promise<boolean>((resolve) => {
-      execFile(
-        "systemctl",
-        ["--user", "is-active", "--quiet", "default.target"],
-        { timeout: 1000, maxBuffer: 4096 },
-        (error) => resolve(!error),
-      );
-    }));
-  if (!supported) return { command: executable, args };
-  const aggregate = await new Promise<boolean>((resolve) => {
-    execFile(
-      "systemctl",
-      [
-        "--user",
-        "set-property",
-        "--runtime",
-        "forgecut-media.slice",
-        "MemoryMax=3221225472",
-        "MemoryHigh=2147483648",
-        "MemorySwapMax=268435456",
-        "CPUQuota=400%",
-      ],
-      { timeout: 1000, maxBuffer: 4096 },
-      (error) => resolve(!error),
-    );
-  });
-  if (!aggregate) return { command: executable, args };
+  if (
+    process.platform !== "linux" ||
+    !(await systemctl(["is-active", "--quiet", "default.target"])) ||
+    !(await systemctl([
+      "set-property",
+      "--runtime",
+      "forgecut-media.slice",
+      ...MEMORY,
+      "CPUQuota=400%",
+    ]))
+  )
+    return { command: executable, args };
   const unit = `forgecut-media-${randomUUID()}.scope`;
+  const properties = [
+    ...MEMORY,
+    `CPUQuota=${cpuPercent}%`,
+    ...(cpuWeight === undefined ? [] : [`CPUWeight=${cpuWeight}`]),
+  ];
   return {
     unit,
     command: "systemd-run",
@@ -46,13 +47,21 @@ export async function budgetedMediaCommand(
       "--collect",
       "--slice=forgecut-media.slice",
       `--unit=${unit}`,
-      "--property=MemoryMax=3221225472",
-      "--property=MemoryHigh=2147483648",
-      "--property=MemorySwapMax=268435456",
-      `--property=CPUQuota=${cpuPercent}%`,
+      ...properties.map((property) => `--property=${property}`),
       "--",
       executable,
       ...args,
     ],
   };
+}
+
+function systemctl(args: string[]): Promise<boolean> {
+  return new Promise((resolve) => {
+    execFile(
+      "systemctl",
+      ["--user", ...args],
+      { timeout: 1000, maxBuffer: 4096 },
+      (error) => resolve(!error),
+    );
+  });
 }

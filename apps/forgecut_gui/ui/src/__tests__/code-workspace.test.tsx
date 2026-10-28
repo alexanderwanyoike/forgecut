@@ -51,7 +51,7 @@ afterEach(async () => {
   cleanup();
   if (service) {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
   }
   vi.restoreAllMocks();
   vi.clearAllMocks();

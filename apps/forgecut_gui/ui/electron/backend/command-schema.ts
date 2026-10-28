@@ -330,6 +330,7 @@ export const commandSchemas = {
     frame: time,
     props: graphicValuesSchema.optional(),
   }),
+  get_preview_proxy: z.strictObject({ assetId: id }),
   get_graphic_playback: z.strictObject({
     itemId: id,
     revision: z.number().int().nonnegative(),

@@ -12,12 +12,44 @@ type PlaybackOptions = {
   canAdvance?: () => boolean;
 };
 
+type Clock = { anchorMs: number; anchorUs: number; emittedUs: number };
+
+/** Advances the playhead each frame from `clock`, holding while layers cannot present. */
+function runClock(
+  clock: Clock,
+  latest: { current: PlaybackOptions },
+  setBuffering: (buffering: boolean) => void,
+): () => void {
+  let request = 0;
+  const tick = (now: number) => {
+    const { current } = latest;
+    if (current.canAdvance && !current.canAdvance()) {
+      clock.anchorUs = clock.emittedUs;
+      clock.anchorMs = now;
+      setBuffering(true);
+      request = requestAnimationFrame(tick);
+      return;
+    }
+    setBuffering(false);
+    const next = Math.min(
+      current.durationUs,
+      clock.anchorUs + secondsToUs((now - clock.anchorMs) / 1000),
+    );
+    clock.emittedUs = next;
+    current.onPlayheadChange(next);
+    if (next >= current.durationUs) current.onPlayingChange(false);
+    else request = requestAnimationFrame(tick);
+  };
+  request = requestAnimationFrame(tick);
+  return () => cancelAnimationFrame(request);
+}
+
 export function usePlayback(options: PlaybackOptions) {
   const [buffering, setBuffering] = useState(false);
   const latest = useRef(options);
   latest.current = options;
   const version = useRef(options.projectVersion);
-  const clock = useRef({
+  const clock = useRef<Clock>({
     anchorMs: 0,
     anchorUs: 0,
     emittedUs: options.playheadUs,
@@ -39,29 +71,7 @@ export function usePlayback(options: PlaybackOptions) {
       anchorUs: options.playheadUs,
       emittedUs: options.playheadUs,
     };
-    let request = 0;
-    const tick = (now: number) => {
-      const { current } = latest;
-      if (current.canAdvance && !current.canAdvance()) {
-        clock.current.anchorUs = clock.current.emittedUs;
-        clock.current.anchorMs = now;
-        setBuffering(true);
-        request = requestAnimationFrame(tick);
-        return;
-      }
-      setBuffering(false);
-      const next = Math.min(
-        current.durationUs,
-        clock.current.anchorUs +
-          secondsToUs((now - clock.current.anchorMs) / 1000),
-      );
-      clock.current.emittedUs = next;
-      current.onPlayheadChange(next);
-      if (next >= current.durationUs) current.onPlayingChange(false);
-      else request = requestAnimationFrame(tick);
-    };
-    request = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(request);
+    return runClock(clock.current, latest, setBuffering);
   }, [options.playing, options.projectVersion]);
 
   useEffect(() => {

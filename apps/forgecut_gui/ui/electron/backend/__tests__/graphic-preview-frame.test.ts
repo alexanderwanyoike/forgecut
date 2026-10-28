@@ -152,7 +152,7 @@ it.skipIf(!available)(
         )[1],
       ).toBeGreaterThan(240);
     } finally {
-      await service.closeGraphicsPreview?.();
+      await service.closePreviews?.();
       await service.jobs.close();
     }
   },
@@ -203,7 +203,7 @@ it.skipIf(!available)(
       });
       expect(state.snapshot()).toEqual(before);
     } finally {
-      await service.closeGraphicsPreview();
+      await service.closePreviews();
       await service.jobs.close();
       vi.unstubAllEnvs();
       await rm(directory, { recursive: true, force: true });
@@ -260,7 +260,7 @@ it.skipIf(!available)(
       });
       expect(state.snapshot()).toEqual(before);
     } finally {
-      await service.closeGraphicsPreview();
+      await service.closePreviews();
       await service.jobs.close();
     }
   },
@@ -322,7 +322,7 @@ it.skipIf(!available)(
       ).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
       expect(state.snapshot()).toEqual(before);
     } finally {
-      await service.closeGraphicsPreview();
+      await service.closePreviews();
       await service.jobs.close();
     }
   },

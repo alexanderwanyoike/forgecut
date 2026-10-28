@@ -120,7 +120,7 @@ it.skipIf(!available)(
       expect(state.project).toEqual(before);
     } finally {
       await service.jobs.close();
-      await service.closeGraphicsPreview();
+      await service.closePreviews();
       vi.unstubAllEnvs();
       await rm(directory, { recursive: true, force: true });
     }

@@ -20,6 +20,7 @@ import type { PreviewProps } from "../lib/preview/types";
 import { formatTimeUs } from "../lib/preview/time-utils";
 import { usePlayback } from "../hooks/usePlayback";
 import { useGraphicPlayback } from "../hooks/useGraphicPlayback";
+import { useMediaProxies } from "../hooks/useMediaProxies";
 import { useCompositionSize } from "../hooks/useCompositionSize";
 import { upcomingLayers } from "../lib/preview/preroll";
 import { usePlayheadUs, type Playhead } from "../lib/playhead";
@@ -65,15 +66,16 @@ export default function Preview(props: PreviewProps) {
     settings.height,
   );
   const graphicRender = useGraphicPlayback(props.project, props.projectVersion);
+  const playable = useMediaProxies(props.project);
   const layerKey = (layer: { item: TimelineItem }) =>
     `${itemData(layer.item).id}:${props.projectVersion}`;
-  const presented = useRef(new Set<string>());
-  const [, presentedChanged] = useReducer((count: number) => count + 1, 0);
-  const onPresentedChange = (key: string) => (value: boolean) => {
-    if (value === presented.current.has(key)) return;
-    if (value) presented.current.add(key);
-    else presented.current.delete(key);
-    presentedChanged();
+  const ready = useRef(new Set<string>());
+  const [, readyChanged] = useReducer((count: number) => count + 1, 0);
+  const onReadyChange = (key: string) => (value: boolean) => {
+    if (value === ready.current.has(key)) return;
+    if (value) ready.current.add(key);
+    else ready.current.delete(key);
+    readyChanged();
   };
   const awaited = useRef<string[]>([]);
   awaited.current = (frame?.layers ?? []).flatMap((layer) => {
@@ -89,8 +91,7 @@ export default function Preview(props: PreviewProps) {
   const playback = usePlayback({
     ...props,
     durationUs: frame?.durationUs ?? 0,
-    canAdvance: () =>
-      awaited.current.every((key) => presented.current.has(key)),
+    canAdvance: () => awaited.current.every((key) => ready.current.has(key)),
   });
   const scheduled = [
     ...(frame?.layers ?? []).map((layer) => ({ layer, standby: false })),
@@ -103,7 +104,7 @@ export default function Preview(props: PreviewProps) {
           !("RemotionGraphic" in layer.item) ||
           graphicRender(layer.item.RemotionGraphic).path,
       ),
-      (layer) => presented.current.has(layerKey(layer)),
+      (layer) => ready.current.has(layerKey(layer)),
     ).map((layer) => ({ layer, standby: true })),
   ];
   return (
@@ -143,14 +144,14 @@ export default function Preview(props: PreviewProps) {
                   key={key}
                   mixer={mixer}
                   audioGain={layer.audioGain}
-                  path={asset.path}
+                  path={playable(asset)}
                   timeUs={
                     (precise ? layer.sourceTimeUs : layer.playbackTimeUs) ?? 0
                   }
                   playing={playing}
                   precise={precise}
                   standby={standby}
-                  onPresentedChange={onPresentedChange(key)}
+                  onReadyChange={onReadyChange(key)}
                   version={props.projectVersion}
                   fps={settings.fps}
                   style={visualStyle(placement)}
@@ -172,7 +173,7 @@ export default function Preview(props: PreviewProps) {
                   playing={playing}
                   precise={precise}
                   standby={standby}
-                  onPresentedChange={onPresentedChange(key)}
+                  onReadyChange={onReadyChange(key)}
                   version={props.projectVersion}
                   fps={settings.fps}
                   onError={reportError}
@@ -239,7 +240,7 @@ export default function Preview(props: PreviewProps) {
                             playing={playing}
                             precise={precise}
                             standby={standby}
-                            onPresentedChange={onPresentedChange(key)}
+                            onReadyChange={onReadyChange(key)}
                             version={props.projectVersion}
                             fps={settings.fps}
                             style={{

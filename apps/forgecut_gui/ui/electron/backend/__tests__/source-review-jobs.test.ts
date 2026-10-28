@@ -162,7 +162,7 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       ).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
     } finally {
       await service.jobs.close();
-      await service.closeGraphicsPreview();
+      await service.closePreviews();
       await rm(directory, { recursive: true, force: true });
     }
   },
