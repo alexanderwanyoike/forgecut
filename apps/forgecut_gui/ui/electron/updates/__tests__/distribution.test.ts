@@ -17,3 +17,11 @@ test("release artifacts include updater metadata and keep new releases in draft"
   expect(workflow).toContain("dist-installers/*.blockmap");
   expect(workflow).toContain("draft: true");
 });
+
+test("manual packaging checks out the requested release tag", () => {
+  const workflow = readFileSync(
+    "../../../.github/workflows/package.yml",
+    "utf8",
+  );
+  expect(workflow).toContain("ref: ${{ inputs.tag || github.ref }}");
+});
