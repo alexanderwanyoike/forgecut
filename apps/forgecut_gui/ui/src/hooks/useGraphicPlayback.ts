@@ -13,6 +13,9 @@ export type GraphicPlayback = { path?: string; pending: boolean };
 
 const RETRYABLE = new Set(["CONFLICT", "CANCELLED", "PROJECT_CHANGED"]);
 
+// A conflicting edit may land before its snapshot reaches the editor, so retry after a pause.
+const RETRY_MS = 250;
+
 /**
  * Keeps a whole-card render ready for every graphic in the sequence; a render
  * only counts while it matches the card's current content.
@@ -25,6 +28,7 @@ export function useGraphicPlayback(
     () => new Map(),
   );
   const pending = useRef(new Set<string>());
+  const [attempt, retry] = useState(0);
   useEffect(() => {
     if (!project) return;
     for (const item of graphics(project)) {
@@ -44,14 +48,16 @@ export function useGraphicPlayback(
         )
         .catch((failure: unknown) => {
           const code = (failure as { code?: unknown } | null)?.code;
-          if (typeof code !== "string" || !RETRYABLE.has(code))
+          if (typeof code === "string" && RETRYABLE.has(code))
+            setTimeout(() => retry((value) => value + 1), RETRY_MS);
+          else
             setRenders((current) =>
               new Map(current).set(item.id, { fingerprint }),
             );
         })
         .finally(() => pending.current.delete(request));
     }
-  }, [project, revision, renders]);
+  }, [project, revision, renders, attempt]);
   return useCallback(
     (item) => {
       const render = renders.get(item.id);
