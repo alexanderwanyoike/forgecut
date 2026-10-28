@@ -187,7 +187,7 @@ it("copies an independent portrait variant and explicitly syncs selected timing 
     expect(reopened.project).toEqual(state.project);
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(directory, { recursive: true, force: true });
   }
 });

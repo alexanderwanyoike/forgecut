@@ -24,7 +24,7 @@ let release = () => {};
 afterEach(async () => {
   release();
   await service?.jobs.close();
-  await service?.closeGraphicsPreview();
+  await service?.closePreviews();
   vi.unstubAllEnvs();
   if (directory)
     await rm(directory, {

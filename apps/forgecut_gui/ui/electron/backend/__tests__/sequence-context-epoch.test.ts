@@ -32,6 +32,6 @@ it("rejects a context packet from an earlier activation of the same sequence", a
     expect(state.getEditingContext()).toEqual(before);
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
   }
 });

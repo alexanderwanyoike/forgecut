@@ -62,7 +62,7 @@ it("captures an export batch on disk without changing the editor or overwriting 
     expect(await readFile(join(directory, "batch.json"), "utf8")).toBe(saved);
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -174,7 +174,7 @@ it.skipIf(
     } finally {
       await service.batches?.close();
       await service.jobs.close();
-      await service.closeGraphicsPreview();
+      await service.closePreviews();
       await rm(root, { recursive: true, force: true });
     }
   },
@@ -253,8 +253,8 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       await recovered.batches.close();
       await original.jobs.close();
       await recovered.jobs.close();
-      await original.closeGraphicsPreview();
-      await recovered.closeGraphicsPreview();
+      await original.closePreviews();
+      await recovered.closePreviews();
       await rm(root, { recursive: true, force: true });
     }
   },

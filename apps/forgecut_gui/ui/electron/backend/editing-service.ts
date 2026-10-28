@@ -100,7 +100,7 @@ export class EditingService {
 
   private readonly drafts = new GraphicDraftStore();
 
-  async closeGraphicsPreview(): Promise<void> {
+  async closePreviews(): Promise<void> {
     await Promise.all([
       this.preview.close(),
       this.renders.close(),

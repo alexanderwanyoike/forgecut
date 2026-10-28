@@ -72,7 +72,7 @@ it("reads five maximum-length escaped text properties within the authenticated t
   } finally {
     await bridge.close();
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(directory, { recursive: true, force: true });
   }
 });

@@ -42,7 +42,7 @@ it.skipIf(!available)(
     const state = new AppState();
     const service = new EditingService(state);
     cleanups.push(async () => {
-      await service.closeGraphicsPreview();
+      await service.closePreviews();
       await rm(directory, { recursive: true, force: true });
     });
     const sparse = join(directory, "recording.mkv");

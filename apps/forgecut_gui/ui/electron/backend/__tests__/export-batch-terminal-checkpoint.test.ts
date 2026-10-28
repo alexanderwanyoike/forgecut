@@ -63,7 +63,7 @@ it.skipIf(
       await chmod(directory, 0o700).catch(() => {});
       await service.batches.close();
       await service.jobs.close();
-      await service.closeGraphicsPreview();
+      await service.closePreviews();
       await rm(root, { recursive: true, force: true });
     }
   },

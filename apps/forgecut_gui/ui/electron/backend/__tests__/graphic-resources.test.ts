@@ -76,7 +76,7 @@ it("assigns imported artwork to a graphic in another sequence as one scoped acti
     expect(state.project).toEqual(before);
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(directory, { recursive: true, force: true });
   }
 });

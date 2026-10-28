@@ -62,6 +62,6 @@ it("retains the exact component version captured by a preset when shared source 
     });
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
   }
 });

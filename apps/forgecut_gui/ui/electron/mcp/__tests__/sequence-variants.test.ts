@@ -145,7 +145,7 @@ it("discovers variant origins and syncs timing through MCP while retaining manua
     await server.close();
     await bridge.close();
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(directory, { recursive: true, force: true });
   }
 });

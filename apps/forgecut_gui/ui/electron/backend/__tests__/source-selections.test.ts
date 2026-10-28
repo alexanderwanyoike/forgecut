@@ -106,7 +106,7 @@ it("retains source ranges and editorial notes independently of sequences through
     expect(state.project).toEqual(saved.project);
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(directory, { recursive: true, force: true });
   }
 });

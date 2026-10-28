@@ -105,8 +105,8 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
       await other.batches.close();
       await owner.jobs.close();
       await other.jobs.close();
-      await owner.closeGraphicsPreview();
-      await other.closeGraphicsPreview();
+      await owner.closePreviews();
+      await other.closePreviews();
       await rm(root, { recursive: true, force: true });
     }
   },
@@ -145,7 +145,7 @@ it("does not begin rendering if shutdown starts while a batch is being resumed",
   } finally {
     await service.batches.close();
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -212,7 +212,7 @@ it("finishes shutdown during entry preparation without waiting for another media
     release();
     await service.batches.close();
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(root, { recursive: true, force: true });
   }
 });

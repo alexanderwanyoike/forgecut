@@ -25,7 +25,7 @@ app.on("before-quit", (event) => {
   void Promise.allSettled([
     editing.batches.close(),
     editing.jobs.close(),
-    editing.closeGraphicsPreview(),
+    editing.closePreviews(),
     localBridge?.close(),
   ]).then((results) => {
     for (const result of results) {

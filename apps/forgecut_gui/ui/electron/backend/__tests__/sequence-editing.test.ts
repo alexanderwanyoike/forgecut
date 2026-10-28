@@ -29,7 +29,7 @@ it("creates a named sequence with independent settings and one undo action", asy
   expect(await service.execute("redo")).toMatchObject({ ok: true });
   expect(state.project.sequences).toHaveLength(1);
   await service.jobs.close();
-  await service.closeGraphicsPreview();
+  await service.closePreviews();
 });
 it("renames default and standalone sequences by stable identity in one guarded batch", async () => {
   const state = new AppState();
@@ -68,7 +68,7 @@ it("renames default and standalone sequences by stable identity in one guarded b
   expect(await service.execute("undo")).toMatchObject({ ok: true });
   expect(state.project).toEqual(before.project);
   await service.jobs.close();
-  await service.closeGraphicsPreview();
+  await service.closePreviews();
 });
 it("deletes an additional sequence reversibly while retaining the default sequence and shared assets", async () => {
   const state = new AppState();
@@ -93,5 +93,5 @@ it("deletes an additional sequence reversibly while retaining the default sequen
   expect(await service.execute("undo")).toMatchObject({ ok: true });
   expect(state.project).toEqual(before.project);
   await service.jobs.close();
-  await service.closeGraphicsPreview();
+  await service.closePreviews();
 });

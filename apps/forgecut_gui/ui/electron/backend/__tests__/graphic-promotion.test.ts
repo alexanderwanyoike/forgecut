@@ -28,7 +28,7 @@ beforeEach(async () => {
 afterEach(async () => {
   for (const service of services.splice(0)) {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
   }
   vi.restoreAllMocks();
   vi.unstubAllEnvs();

@@ -8,7 +8,7 @@ const services: EditingService[] = [];
 afterEach(async () => {
   for (const service of services.splice(0)) {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
   }
 });
 async function fixture() {

@@ -159,7 +159,7 @@ it("reads bounded asset credit details and updates them through guarded MCP hist
     await server.close();
     await bridge.close();
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(directory, { recursive: true, force: true });
   }
 });

@@ -161,7 +161,7 @@ it.skipIf(
       expect(state.snapshot()).toEqual(before);
     } finally {
       await service.jobs.close();
-      await service.closeGraphicsPreview();
+      await service.closePreviews();
       await rm(directory, { recursive: true, force: true });
     }
   },
@@ -204,7 +204,7 @@ it("preserves existing files and leaves no staging output for invalid or empty r
     }
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(directory, { recursive: true, force: true });
   }
 });

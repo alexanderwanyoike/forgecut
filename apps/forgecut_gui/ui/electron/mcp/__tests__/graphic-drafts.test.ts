@@ -196,7 +196,7 @@ it("reads bounded source, detects manual draft conflicts and applies through the
     await server.close();
     await bridge.close();
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     await rm(directory, { recursive: true, force: true });

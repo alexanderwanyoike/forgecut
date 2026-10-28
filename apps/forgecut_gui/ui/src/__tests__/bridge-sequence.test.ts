@@ -14,7 +14,7 @@ afterEach(async () => {
   delete window.forgecut;
   if (service) {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
   }
   vi.resetModules();
 });

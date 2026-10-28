@@ -94,11 +94,11 @@ it("saves a project card style and creates independently editable instances with
       expect(reopened.snapshot()).toEqual(published);
     } finally {
       await owner.jobs.close();
-      await owner.closeGraphicsPreview();
+      await owner.closePreviews();
     }
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
     await rm(directory, { recursive: true, force: true });
   }
 });
@@ -186,6 +186,6 @@ it("adapts a saved ending style to portrait while keeping explicit instance layo
     expect(state.project).toMatchObject({ style_presets: [saved.value] });
   } finally {
     await service.jobs.close();
-    await service.closeGraphicsPreview();
+    await service.closePreviews();
   }
 });
