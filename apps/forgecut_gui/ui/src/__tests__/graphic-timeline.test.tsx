@@ -5,6 +5,7 @@ import Timeline from "../components/Timeline";
 import Inspector from "../components/Inspector";
 import { AppState } from "../../electron/backend/state";
 import { EditingService } from "../../electron/backend/editing-service";
+import { createPlayhead } from "../lib/playhead";
 
 vi.mock("../lib/bridge", () => ({
   invoke: vi.fn().mockResolvedValue(null),
@@ -37,7 +38,7 @@ it("names and selects a pinned graphic instance in the timeline and Inspector", 
         projectVersion={state.revision}
         selectedClipId={item.RemotionGraphic.id}
         onSelectedClipChange={select}
-        playheadUs={0}
+        playhead={createPlayhead(0)}
         playing={false}
         onPlayingChange={() => {}}
         onPlayheadChange={() => {}}

@@ -17,6 +17,7 @@ vi.stubGlobal("ResizeObserver", MockResizeObserver);
 
 import AssetBin from "../components/AssetBin";
 import Timeline from "../components/Timeline";
+import { createPlayhead } from "../lib/playhead";
 
 const emptyTimeline = { tracks: [], markers: [] };
 
@@ -59,7 +60,7 @@ const mockAssets = [
 ];
 
 const timelineProps = {
-  playheadUs: 0,
+  playhead: createPlayhead(0),
   playing: false,
   onPlayheadChange: () => {},
   onPlayingChange: () => {},

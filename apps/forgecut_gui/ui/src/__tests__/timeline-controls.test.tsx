@@ -25,10 +25,11 @@ import {
   zoomInLevel,
   zoomOutLevel,
 } from "../lib/timeline/geometry";
+import { createPlayhead } from "../lib/playhead";
 
 describe("Timeline controls", () => {
   const defaultProps = {
-    playheadUs: 0,
+    playhead: createPlayhead(0),
     playing: false,
     onPlayheadChange: () => {},
     onPlayingChange: () => {},

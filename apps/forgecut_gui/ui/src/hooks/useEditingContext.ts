@@ -1,19 +1,20 @@
-import { useEffect } from "react";
-import type {
-  ProjectSnapshot,
-  TimeUs,
-} from "../../electron/shared/ipc-contract";
+import { useEffect, useRef } from "react";
+import type { ProjectSnapshot } from "../../electron/shared/ipc-contract";
 import { invoke } from "../lib/bridge";
+import type { Playhead } from "../lib/playhead";
 import { getItemData } from "../lib/timeline/items";
 
+/** Shares the editor's selection and playhead; during playback only once it stops. */
 export function useEditingContext(
   snapshot: ProjectSnapshot | null,
   selectedItemId: string | null,
-  playheadUs: TimeUs,
+  playhead: Playhead,
+  playing: boolean,
   selectedLayerId?: string | null,
 ): void {
-  useEffect(() => {
-    if (!snapshot) return;
+  const report = useRef<() => void>(() => {});
+  report.current = () => {
+    if (!snapshot || playing) return;
     const sequenceId =
       snapshot.project.default_sequence?.id ?? snapshot.project.id;
     if (snapshot.activeSequenceId && snapshot.activeSequenceId !== sequenceId)
@@ -28,7 +29,11 @@ export function useEditingContext(
       sequenceId,
       selectedItemIds,
       selectedLayerIds: selectedLayerId ? [selectedLayerId] : [],
-      playheadUs,
+      playheadUs: playhead.get(),
     }).catch(() => {});
-  }, [snapshot, selectedItemId, playheadUs, selectedLayerId]);
+  };
+  useEffect(() => {
+    report.current();
+  }, [snapshot, selectedItemId, selectedLayerId, playing]);
+  useEffect(() => playhead.subscribe(() => report.current()), [playhead]);
 }
