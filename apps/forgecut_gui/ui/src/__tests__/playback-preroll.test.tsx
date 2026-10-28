@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import Preview from "../components/Preview";
 import type { Project, TimelineItem } from "../../electron/shared/ipc-contract";
@@ -175,4 +175,16 @@ it("prepares upcoming clips one at a time, nearest first", () => {
   expect(document.querySelector('video[src*="recording.mkv"]')).toBeNull();
   fireEvent.seeked(video("/next.mkv"));
   expect(video("/recording.mkv").currentTime).toBe(9);
+});
+
+it("pauses ready sources in place while the clock waits for another", async () => {
+  const value = project(
+    clip("ready", "/ready.mp4", 0, 0),
+    clip("parking", "/recording.mkv", 0, 5000000),
+  );
+  const view = render(<Preview {...props(value, 0, true)} />);
+  await new Promise((done) => setTimeout(done, 50));
+  expect(screen.getByRole("status").textContent).toBe("Buffering");
+  view.rerender(<Preview {...props(value, 40000, true)} />);
+  expect(video("/ready.mp4").currentTime).toBe(0);
 });
