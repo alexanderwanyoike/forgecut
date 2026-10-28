@@ -189,3 +189,12 @@ it("pauses ready sources in place while the clock waits for another", async () =
   view.rerender(<Preview {...props(value, 40000, true)} />);
   expect(video("/ready.mp4").currentTime).toBe(0);
 });
+
+it("plays on past a source that cannot load", async () => {
+  const current = props(project(recording()), 0, true);
+  render(<Preview {...current} />);
+  fireEvent.error(video("/recording.mkv"));
+  await vi.waitFor(() =>
+    expect(current.onPlayheadChange).toHaveBeenCalledWith(expect.any(Number)),
+  );
+});
