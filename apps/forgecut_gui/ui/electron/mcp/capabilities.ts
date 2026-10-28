@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EXPORT_TIMEOUT_MS } from "../shared/jobs.js";
 import { sourceReadSchema, draftFileSchema } from "./draft-schema.js";
 import {
   sourceReviewRequestSchema,
@@ -99,7 +100,7 @@ export const editingCapabilities = {
     maxRetained: 64,
     retainedBytes: 8 * 1024 * 1024,
     timeoutMs: 120000,
-    exportTimeoutMs: 900000,
+    exportTimeoutMs: EXPORT_TIMEOUT_MS,
   },
   operations: Object.fromEntries(
     Object.entries(editSchemas).map(([command, schema]) => [

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { Result } from "../shared/result.js";
 import type { JobRequest, JobSnapshot } from "../shared/jobs.js";
+import { EXPORT_TIMEOUT_MS } from "../shared/jobs.js";
 
 type Runner = (
   signal: AbortSignal,
@@ -157,17 +158,14 @@ export class JobQueue {
     while (this.pending.length > 0) {
       const work = this.pending.shift()!;
       work.entry.snapshot.status = "running";
-      const timeout = setTimeout(
-        () => {
-          if (work.entry.snapshot.status === "committing") return;
-          work.entry.timedOut = true;
-          work.entry.controller.abort();
-        },
-        this.options.timeoutMs ??
-          (["export", "collect"].includes(work.entry.snapshot.kind)
-            ? 900000
-            : 120000),
-      );
+      let timeoutMs = 120000;
+      if (work.entry.snapshot.kind === "collect") timeoutMs = 900000;
+      if (work.entry.snapshot.kind === "export") timeoutMs = EXPORT_TIMEOUT_MS;
+      const timeout = setTimeout(() => {
+        if (work.entry.snapshot.status === "committing") return;
+        work.entry.timedOut = true;
+        work.entry.controller.abort();
+      }, this.options.timeoutMs ?? timeoutMs);
       timeout.unref();
       try {
         const result = await work.run(
