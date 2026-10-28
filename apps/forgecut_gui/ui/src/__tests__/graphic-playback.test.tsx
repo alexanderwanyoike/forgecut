@@ -45,15 +45,19 @@ function retitled(project: Project, title: string): Project {
   return next;
 }
 
-function preview(project: Project, projectVersion: number) {
+function preview(
+  project: Project,
+  projectVersion: number,
+  playback = { playing: false, onPlayheadChange: vi.fn() },
+) {
   return (
     <Preview
       project={project}
       projectVersion={projectVersion}
       playheadUs={500000}
-      playing={false}
+      playing={playback.playing}
       onPlayingChange={vi.fn()}
-      onPlayheadChange={vi.fn()}
+      onPlayheadChange={playback.onPlayheadChange}
     />
   );
 }
@@ -101,4 +105,23 @@ it("reuses the render again when an edit is undone", async () => {
   await waitFor(() => expect(renderedVideo()).toBeNull());
   view.rerender(preview(project, 3));
   await waitFor(() => expect(renderedVideo()).toBeTruthy());
+});
+
+it("holds playback while a card's render is still preparing", async () => {
+  const { project } = await titled("Pending");
+  vi.mocked(invoke).mockReturnValue(new Promise(() => {}));
+  const clock = vi.fn();
+  render(preview(project, 1, { playing: true, onPlayheadChange: clock }));
+  await new Promise((done) => setTimeout(done, 120));
+  expect(clock).not.toHaveBeenCalled();
+});
+
+it("plays on with the live graphic when a card cannot render", async () => {
+  const { project } = await titled("Broken");
+  vi.mocked(invoke).mockRejectedValue(
+    Object.assign(new Error("Render failed"), { code: "RENDER_FAILED" }),
+  );
+  const clock = vi.fn();
+  render(preview(project, 1, { playing: true, onPlayheadChange: clock }));
+  await vi.waitFor(() => expect(clock).toHaveBeenCalled());
 });

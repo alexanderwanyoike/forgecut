@@ -6,23 +6,25 @@ import type {
 import type { RemotionGraphicItem } from "../../electron/shared/graphics";
 import { invoke } from "../lib/bridge";
 
-type Render = { fingerprint: string; path: string };
+type Render = { fingerprint: string; path?: string };
+
+/** A card's render, or whether one is still worth waiting for. */
+export type GraphicPlayback = { path?: string; pending: boolean };
 
 const RETRYABLE = new Set(["CONFLICT", "CANCELLED", "PROJECT_CHANGED"]);
 
 /**
- * Keeps a whole-card render ready for every graphic in the sequence and
- * returns its path only while it matches the card's current content.
+ * Keeps a whole-card render ready for every graphic in the sequence; a render
+ * only counts while it matches the card's current content.
  */
 export function useGraphicPlayback(
   project: Project | undefined,
   revision: number,
-): (item: RemotionGraphicItem) => string | undefined {
+): (item: RemotionGraphicItem) => GraphicPlayback {
   const [renders, setRenders] = useState<ReadonlyMap<string, Render>>(
     () => new Map(),
   );
   const pending = useRef(new Set<string>());
-  const failed = useRef(new Set<string>());
   useEffect(() => {
     if (!project) return;
     for (const item of graphics(project)) {
@@ -30,8 +32,7 @@ export function useGraphicPlayback(
       const request = `${item.id}:${fingerprint}`;
       if (
         renders.get(item.id)?.fingerprint === fingerprint ||
-        pending.current.has(request) ||
-        failed.current.has(request)
+        pending.current.has(request)
       )
         continue;
       pending.current.add(request);
@@ -44,7 +45,9 @@ export function useGraphicPlayback(
         .catch((failure: unknown) => {
           const code = (failure as { code?: unknown } | null)?.code;
           if (typeof code !== "string" || !RETRYABLE.has(code))
-            failed.current.add(request);
+            setRenders((current) =>
+              new Map(current).set(item.id, { fingerprint }),
+            );
         })
         .finally(() => pending.current.delete(request));
     }
@@ -54,8 +57,8 @@ export function useGraphicPlayback(
       const render = renders.get(item.id);
       return project &&
         render?.fingerprint === renderFingerprint(item, project.settings)
-        ? render.path
-        : undefined;
+        ? { path: render.path, pending: false }
+        : { pending: true };
     },
     [project, renders],
   );

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import type { AudioMixer } from "../lib/preview/AudioMixer";
 import { mediaUrl } from "../lib/bridge";
 import { usToSeconds } from "../lib/preview/time-utils";
@@ -7,6 +13,8 @@ type Props = {
   path: string;
   timeUs: number;
   playing: boolean;
+  /** Paused by the user or parked: seek to the exact requested frame. */
+  precise: boolean;
   version: number;
   fps: number;
   style?: CSSProperties;
@@ -14,6 +22,9 @@ type Props = {
   mixer: AudioMixer;
   audioGain?: number;
   onError: (message: string) => void;
+  onPresentedChange?: (presented: boolean) => void;
+  /** Parked at its first frame, hidden and paused, until its cut arrives. */
+  standby?: boolean;
 };
 
 export default function PreviewMedia(props: Props) {
@@ -25,6 +36,8 @@ export default function PreviewMedia(props: Props) {
   const synchronize = useRef(() => {});
   const epoch = useRef(0);
   const previousPlaying = useRef(props.playing);
+  const pendingSeek = useRef(false);
+  const [presented, setPresented] = useState(false);
   synchronize.current = () => {
     const media = mediaRef.current;
     if (!media) return;
@@ -32,9 +45,8 @@ export default function PreviewMedia(props: Props) {
     if (!props.playing) media.pause();
     if (media.readyState < 1) return;
     const target = usToSeconds(props.timeUs);
-    const tolerance = props.playing
-      ? Math.max(0.03, Math.min(0.05, 1 / props.fps))
-      : 0.001;
+    // Playing sources run on their own decoder clock; seeking for small drift drops frames.
+    const tolerance = props.precise ? 0.001 : 0.15;
     if (Math.abs(media.currentTime - target) > tolerance) {
       // Matroska index reads may still be in flight after loadeddata.
       if (
@@ -42,8 +54,11 @@ export default function PreviewMedia(props: Props) {
         media.networkState === HTMLMediaElement.NETWORK_LOADING
       )
         return;
+      pendingSeek.current = true;
       media.currentTime = target;
     }
+    // A fresh element shows its first decoded frame, not the requested one, until our seek lands.
+    if (!pendingSeek.current && media.readyState >= 2) setPresented(true);
     if (props.playing && media.paused) {
       const { current } = epoch;
       void props.mixer.resume().then((result) => {
@@ -76,15 +91,21 @@ export default function PreviewMedia(props: Props) {
     const media = mediaRef.current;
     if (!media) return undefined;
     epoch.current += 1;
+    pendingSeek.current = false;
+    setPresented(false);
     const loaded = () => synchronize.current();
+    const seeked = () => {
+      pendingSeek.current = false;
+      synchronize.current();
+    };
     media.addEventListener("loadeddata", loaded);
-    media.addEventListener("seeked", loaded);
+    media.addEventListener("seeked", seeked);
     media.addEventListener("suspend", loaded);
     synchronize.current();
     return () => {
       epoch.current += 1;
       media.removeEventListener("loadeddata", loaded);
-      media.removeEventListener("seeked", loaded);
+      media.removeEventListener("seeked", seeked);
       media.removeEventListener("suspend", loaded);
       media.pause();
     };
@@ -96,6 +117,12 @@ export default function PreviewMedia(props: Props) {
     }
     synchronize.current();
   }, [props.playing, props.timeUs, props.audioGain]);
+  const report = useRef(props.onPresentedChange);
+  report.current = props.onPresentedChange;
+  useEffect(() => {
+    report.current?.(presented);
+  }, [presented]);
+  useEffect(() => () => report.current?.(false), []);
   const Media = props.audioOnly ? "audio" : "video";
   return (
     <Media
@@ -107,7 +134,10 @@ export default function PreviewMedia(props: Props) {
       src={mediaUrl(props.path)}
       playsInline
       preload="auto"
-      style={props.style}
+      style={{
+        ...props.style,
+        visibility: presented && !props.standby ? "visible" : "hidden",
+      }}
       onError={() => props.onError("Unable to play this source.")}
     />
   );

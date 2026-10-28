@@ -1,5 +1,13 @@
 import { Clapperboard, MonitorPlay, Pause, Play } from "lucide-react";
-import { lazy, Suspense, useEffect, useState, type CSSProperties } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import ActionButton from "./ActionButton";
 import {
   frameAtOrAfter,
@@ -13,9 +21,13 @@ import { formatTimeUs } from "../lib/preview/time-utils";
 import { usePlayback } from "../hooks/usePlayback";
 import { useGraphicPlayback } from "../hooks/useGraphicPlayback";
 import { useCompositionSize } from "../hooks/useCompositionSize";
+import { upcomingLayers } from "../lib/preview/preroll";
 import PreviewMedia from "./PreviewMedia";
 import { AudioMixer } from "../lib/preview/AudioMixer";
-import type { VisualPlacement } from "../../electron/shared/ipc-contract";
+import type {
+  TimelineItem,
+  VisualPlacement,
+} from "../../electron/shared/ipc-contract";
 
 const GraphicPreview = lazy(() => import("./GraphicCanvas"));
 
@@ -43,11 +55,48 @@ export default function Preview(props: PreviewProps) {
     settings.width,
     settings.height,
   );
+  const graphicRender = useGraphicPlayback(props.project, props.projectVersion);
+  const layerKey = (layer: { item: TimelineItem }) =>
+    `${itemData(layer.item).id}:${props.projectVersion}`;
+  const presented = useRef(new Set<string>());
+  const [, presentedChanged] = useReducer((count: number) => count + 1, 0);
+  const onPresentedChange = (key: string) => (value: boolean) => {
+    if (value === presented.current.has(key)) return;
+    if (value) presented.current.add(key);
+    else presented.current.delete(key);
+    presentedChanged();
+  };
+  const awaited = useRef<string[]>([]);
+  awaited.current = (frame?.layers ?? []).flatMap((layer) => {
+    const { item, asset, placement } = layer;
+    if ("VideoClip" in item) return asset && placement ? [layerKey(layer)] : [];
+    if ("AudioClip" in item) return asset ? [layerKey(layer)] : [];
+    if ("RemotionGraphic" in item && placement) {
+      const render = graphicRender(item.RemotionGraphic);
+      return render.path || render.pending ? [layerKey(layer)] : [];
+    }
+    return [];
+  });
   const playback = usePlayback({
     ...props,
     durationUs: frame?.durationUs ?? 0,
+    canAdvance: () =>
+      awaited.current.every((key) => presented.current.has(key)),
   });
-  const graphicRender = useGraphicPlayback(props.project, props.projectVersion);
+  const scheduled = [
+    ...(frame?.layers ?? []).map((layer) => ({ layer, standby: false })),
+    ...admitted(
+      (props.project && frame
+        ? upcomingLayers(props.project, frame.frame)
+        : []
+      ).filter(
+        (layer) =>
+          !("RemotionGraphic" in layer.item) ||
+          graphicRender(layer.item.RemotionGraphic).path,
+      ),
+      (layer) => presented.current.has(layerKey(layer)),
+    ).map((layer) => ({ layer, standby: true })),
+  ];
   return (
     <section className="panel preview">
       <div className="panel-header">
@@ -74,10 +123,11 @@ export default function Preview(props: PreviewProps) {
             background: "#000",
           }}
         >
-          {frame?.layers.map((layer) => {
+          {scheduled.map(({ layer, standby }) => {
             const { item, asset, placement } = layer;
-            const data = itemData(item);
-            const key = `${data.id}:${props.projectVersion}`;
+            const playing = playback.playing && !playback.buffering && !standby;
+            const precise = !playback.playing || standby;
+            const key = layerKey(layer);
             if ("VideoClip" in item && asset && placement) {
               return (
                 <PreviewMedia
@@ -86,11 +136,12 @@ export default function Preview(props: PreviewProps) {
                   audioGain={layer.audioGain}
                   path={asset.path}
                   timeUs={
-                    (playback.playing
-                      ? layer.playbackTimeUs
-                      : layer.sourceTimeUs) ?? 0
+                    (precise ? layer.sourceTimeUs : layer.playbackTimeUs) ?? 0
                   }
-                  playing={playback.playing}
+                  playing={playing}
+                  precise={precise}
+                  standby={standby}
+                  onPresentedChange={onPresentedChange(key)}
                   version={props.projectVersion}
                   fps={settings.fps}
                   style={visualStyle(placement)}
@@ -106,14 +157,20 @@ export default function Preview(props: PreviewProps) {
                   audioOnly
                   audioGain={layer.audioGain}
                   path={asset.path}
-                  timeUs={layer.playbackTimeUs ?? 0}
-                  playing={playback.playing}
+                  timeUs={
+                    (standby ? layer.sourceTimeUs : layer.playbackTimeUs) ?? 0
+                  }
+                  playing={playing}
+                  precise={precise}
+                  standby={standby}
+                  onPresentedChange={onPresentedChange(key)}
                   version={props.projectVersion}
                   fps={settings.fps}
                   onError={reportError}
                 />
               );
             }
+            if (standby && !("RemotionGraphic" in item)) return null;
             if ("ImageOverlay" in item && asset && placement) {
               return (
                 <img
@@ -130,7 +187,9 @@ export default function Preview(props: PreviewProps) {
                 graphic.timeline_start_us,
                 settings.fps,
               );
-              const render = graphicRender(graphic);
+              const render = graphicRender(graphic).path;
+              if (standby && !render) return null;
+              const localFrame = Math.max(0, (frame?.frame ?? 0) - startFrame);
               const component = props.project?.components?.find(
                 (candidate) =>
                   candidate.id === graphic.component_id &&
@@ -145,13 +204,17 @@ export default function Preview(props: PreviewProps) {
                       revision={props.projectVersion}
                       selected={props.selectedClipId === graphic.id}
                       selectedLayerId={props.selectedLayerId}
-                      editable={!playback.playing && !!props.onGraphicSelection}
+                      editable={
+                        !playback.playing &&
+                        !standby &&
+                        !!props.onGraphicSelection
+                      }
                       onSelect={props.onGraphicSelection}
                       resources={props.project?.resources ?? []}
                       placement={placement}
                       component={component}
                       item={graphic}
-                      frame={frame.frame - startFrame}
+                      frame={localFrame}
                       settings={settings}
                       picture={
                         render && (
@@ -159,15 +222,15 @@ export default function Preview(props: PreviewProps) {
                             mixer={mixer}
                             path={render}
                             timeUs={
-                              playback.playing
-                                ? props.playheadUs -
+                              precise
+                                ? frameMidpointUs(localFrame, settings.fps)
+                                : props.playheadUs -
                                   frameTimeUs(startFrame, settings.fps)
-                                : frameMidpointUs(
-                                    frame.frame - startFrame,
-                                    settings.fps,
-                                  )
                             }
-                            playing={playback.playing}
+                            playing={playing}
+                            precise={precise}
+                            standby={standby}
+                            onPresentedChange={onPresentedChange(key)}
                             version={props.projectVersion}
                             fps={settings.fps}
                             style={{
@@ -233,10 +296,21 @@ export default function Preview(props: PreviewProps) {
         <span className="preview-duration">
           / {formatTimeUs(frame?.durationUs ?? 0)}
         </span>
+        {playback.buffering && (
+          <span className="preview-buffering" role="status">
+            Buffering
+          </span>
+        )}
         <span className="preview-scale">Fit · {Math.round(scale * 100)}%</span>
       </div>
     </section>
   );
+}
+
+// Sources sharing one file contend for its index while seeking, so the next cut parks first.
+function admitted<T>(upcoming: T[], parked: (layer: T) => boolean): T[] {
+  const waiting = upcoming.findIndex((layer) => !parked(layer));
+  return waiting === -1 ? upcoming : upcoming.slice(0, waiting + 1);
 }
 
 // A frame's start can round below its exact timestamp, which shows the previous frame.
