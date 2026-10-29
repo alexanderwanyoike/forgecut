@@ -2,7 +2,7 @@
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { expect, test } from "vitest";
 import { integrateAppImage } from "../appimage-menu";
@@ -153,6 +153,64 @@ test.skipIf(process.platform !== "linux")(
       expect(await readdir(join(options.dataHome, "applications"))).toEqual([
         "forgecut.desktop",
       ]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
+test.skipIf(process.platform !== "linux").each([undefined, "", "relative"])(
+  "uses the default XDG location when data home is %s",
+  async (configured) => {
+    const directory = await mkdtemp(join(tmpdir(), "forgecut-menu-default-"));
+    try {
+      const dataHome =
+        configured === "relative"
+          ? relative(process.cwd(), join(directory, "relative"))
+          : configured;
+      expect(
+        await integrateAppImage({
+          platform: "linux",
+          packaged: true,
+          appImage: process.execPath,
+          dataHome,
+          home: directory,
+          icon: resolve("electron/assets/icon.png"),
+        }),
+      ).toMatchObject({ ok: true });
+      expect(
+        await readFile(
+          join(directory, ".local/share/applications/forgecut.desktop"),
+          "utf8",
+        ),
+      ).toContain("Name=ForgeCut");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
+test
+  .skipIf(process.platform !== "linux")
+  .each([
+    "relative.AppImage",
+    "/tmp/ForgeCut\ninjected.AppImage",
+    "/tmp/ForgeCut=bad.AppImage",
+  ])(
+  "rejects unsafe launcher path %j without writing an entry",
+  async (appImage) => {
+    const directory = await mkdtemp(join(tmpdir(), "forgecut-menu-invalid-"));
+    try {
+      expect(
+        await integrateAppImage({
+          platform: "linux",
+          packaged: true,
+          appImage,
+          home: directory,
+          icon: resolve("electron/assets/icon.png"),
+        }),
+      ).toMatchObject({ ok: false, error: { code: "MENU_INVALID_PATH" } });
+      expect(await readdir(directory)).toEqual([]);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
