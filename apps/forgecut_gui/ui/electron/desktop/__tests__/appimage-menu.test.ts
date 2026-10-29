@@ -13,7 +13,7 @@ test.skipIf(process.platform !== "linux")(
   async () => {
     const directory = await mkdtemp(join(tmpdir(), "forgecut-menu-"));
     try {
-      const appImage = join(directory, "ForgeCut stable.AppImage");
+      const appImage = join(directory, 'ForgeCut "mix" $cash `test` 100%\\.AppImage');
       const marker = join(directory, "launched");
       await writeFile(appImage, `#!/bin/sh\nprintf '%s' "$0" > "${marker}"\n`, {
         mode: 0o755,
@@ -31,7 +31,7 @@ test.skipIf(process.platform !== "linux")(
         }),
       ).toEqual({ ok: true, value: "registered" });
       await run(
-        "python3",
+        "/usr/bin/python3",
         [
           "-c",
           [
