@@ -6,9 +6,10 @@ import {
   readFile,
   rename,
   rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import type { Result } from "../shared/result.js";
 
 interface MenuOptions {
@@ -28,15 +29,41 @@ function quoteExecutable(value: string): string {
 
 export async function integrateAppImage(
   options: MenuOptions,
-): Promise<Result<string>> {
+): Promise<Result<"registered" | "existing" | "skipped">> {
   if (options.platform !== "linux" || !options.packaged || !options.appImage)
     return { ok: true, value: "skipped" };
-  const dataHome = options.dataHome ?? join(options.home, ".local/share");
+  const dataHome =
+    options.dataHome && isAbsolute(options.dataHome)
+      ? options.dataHome
+      : join(options.home, ".local/share");
+  if (
+    ![options.appImage, dataHome, options.icon].every(
+      (path) => isAbsolute(path) && !/[\u0000-\u001f\u007f]/.test(path),
+    ) ||
+    options.appImage.includes("=")
+  )
+    return {
+      ok: false,
+      error: {
+        code: "MENU_INVALID_PATH",
+        message:
+          "The AppImage or menu location cannot be used in a desktop launcher.",
+      },
+    };
   const directory = join(dataHome, "applications");
   const icon = join(dataHome, "icons/forgecut.png");
   const entry = join(directory, "forgecut.desktop");
   const temporary = `${entry}.${randomUUID()}.tmp`;
   try {
+    if (!(await stat(options.appImage)).isFile())
+      return {
+        ok: false,
+        error: {
+          code: "MENU_REGISTRATION_FAILED",
+          message:
+            "The AppImage file could not be found for the application menu.",
+        },
+      };
     let existing: string | undefined;
     try {
       existing = await readFile(entry, "utf8");
@@ -64,7 +91,7 @@ export async function integrateAppImage(
         "Name=ForgeCut",
         "Comment=Lightweight timeline video editor",
         `Exec=env -- ${quoteExecutable(options.appImage)}`,
-        `Icon=${icon}`,
+        `Icon=${icon.replaceAll("\\", "\\\\")}`,
         "Terminal=false",
         "Categories=AudioVideo;Video;",
         "StartupWMClass=forgecut",
