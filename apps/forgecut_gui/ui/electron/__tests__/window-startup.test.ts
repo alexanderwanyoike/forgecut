@@ -13,6 +13,7 @@ vi.mock("electron", () => ({
   app: {
     isPackaged: false,
     getVersion: () => "1.0.1",
+    getPath: () => "/test/home",
     on: vi.fn((event: string, listener: () => void) => {
       desktop.events.set(event, listener);
     }),
