@@ -11,16 +11,27 @@ interface TimelineClipProps {
   thumbnailsLoading: boolean;
   waveform?: number[][];
   onClipMouseDown: (e: React.MouseEvent) => void;
-  onTrimMouseDown: (e: React.MouseEvent, edge: "left" | "right", currentUs: number) => void;
+  onTrimMouseDown: (
+    e: React.MouseEvent,
+    edge: "left" | "right",
+    currentUs: number,
+  ) => void;
 }
 
 function clipLabel(data: ItemView): string {
   switch (data.variant) {
-    case "AudioClip": return "Audio";
-    case "VideoClip": return "Video";
-    case "ImageOverlay": return "Image";
-    case "TextOverlay": return data.text || "Text";
-    default: return data.variant;
+    case "AudioClip":
+      return "Audio";
+    case "VideoClip":
+      return "Video";
+    case "ImageOverlay":
+      return "Image";
+    case "RemotionGraphic":
+      return data.text || "Graphic";
+    case "TextOverlay":
+      return data.text || "Text";
+    default:
+      return data.variant;
   }
 }
 
@@ -35,9 +46,12 @@ export default function TimelineClip({
   onClipMouseDown,
   onTrimMouseDown,
 }: TimelineClipProps) {
-  const isSourceClip = data.variant === "VideoClip" || data.variant === "AudioClip";
+  const isSourceClip =
+    data.variant === "VideoClip" || data.variant === "AudioClip";
   const trimLeftUs = isSourceClip ? data.source_in_us! : data.startUs;
-  const trimRightUs = isSourceClip ? data.source_out_us! : data.startUs + data.durationUs;
+  const trimRightUs = isSourceClip
+    ? data.source_out_us!
+    : data.startUs + data.durationUs;
   const showThumbnailShimmer =
     data.variant === "VideoClip" && thumbnailsLoading && !thumbnails;
 
@@ -60,7 +74,10 @@ export default function TimelineClip({
           {thumbnails
             .filter((t) => {
               const tUs = t.time_seconds * 1_000_000;
-              return tUs >= (data.source_in_us || 0) && tUs < (data.source_out_us || Infinity);
+              return (
+                tUs >= (data.source_in_us || 0) &&
+                tUs < (data.source_out_us || Infinity)
+              );
             })
             .map((t) => (
               <img
@@ -68,7 +85,7 @@ export default function TimelineClip({
                 className="clip-thumbnail"
                 src={t.url}
                 style={{
-                  left: `${usToPixels((t.time_seconds * 1_000_000) - (data.source_in_us || 0), pixelsPerSecond)}px`,
+                  left: `${usToPixels(t.time_seconds * 1_000_000 - (data.source_in_us || 0), pixelsPerSecond)}px`,
                 }}
                 draggable={false}
               />

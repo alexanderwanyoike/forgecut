@@ -1,0 +1,70 @@
+import { randomUUID } from "node:crypto";
+import {
+  projectSequences,
+  findProjectSequence,
+} from "../../domain/project-sequences.js";
+import { EditingError } from "../editing-error.js";
+import type { CommandMap, ProjectSequence } from "../../shared/ipc-contract.js";
+import type { CommandRegistry } from "./types.js";
+
+export const sequenceCommands = {
+  get_sequence_timeline: (args, { state }) => {
+    const input = args as CommandMap["get_sequence_timeline"]["args"];
+    return state.sequenceIn(state.project, input.sequenceId).timeline;
+  },
+  select_sequence: (args, { state }) => {
+    const input = args as CommandMap["select_sequence"]["args"];
+    return state.selectSequence(input.sessionId, input.sequenceId);
+  },
+  delete_sequence: (args, { state }) => {
+    const input = args as CommandMap["delete_sequence"]["args"];
+    state.executeProjectChange((project) => {
+      if (project.default_sequence?.id === input.sequenceId)
+        throw new EditingError(
+          "INVALID_INPUT",
+          "The default sequence cannot be deleted",
+        );
+      const found = findProjectSequence(project, input.sequenceId);
+      if (!found.ok) throw new EditingError("NOT_FOUND", found.error.message);
+      project.sequences = project.sequences!.filter(
+        (sequence) => sequence.id !== input.sequenceId,
+      );
+    });
+  },
+  get_sequences: (_args, { state }) =>
+    projectSequences(state.project).map(
+      ({ id, name, settings, variant_source }) => ({
+        id,
+        name,
+        settings,
+        ...(variant_source ? { variant_source } : {}),
+      }),
+    ),
+  rename_sequence: (args, { state }) => {
+    const input = args as CommandMap["rename_sequence"]["args"];
+    state.executeProjectChange((project) => {
+      const found = findProjectSequence(project, input.sequenceId);
+      if (!found.ok) throw new EditingError("NOT_FOUND", found.error.message);
+      if (project.default_sequence?.id === input.sequenceId)
+        project.default_sequence.name = input.name;
+      else found.value.name = input.name;
+    });
+    return projectSequences(state.project).find(
+      (sequence) => sequence.id === input.sequenceId,
+    )!;
+  },
+  create_sequence: (args, { state }) => {
+    const input = args as CommandMap["create_sequence"]["args"];
+    const sequence: ProjectSequence = {
+      id: randomUUID(),
+      name: input.name,
+      settings: { ...state.activeSequence.settings, ...input.settings },
+      timeline: { tracks: [], markers: [] },
+    };
+    state.executeProjectChange((project) => {
+      project.sequences ??= [];
+      project.sequences.push(sequence);
+    });
+    return state.project.sequences!.at(-1)!;
+  },
+} satisfies CommandRegistry;

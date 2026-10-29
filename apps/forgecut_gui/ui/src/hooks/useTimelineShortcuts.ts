@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "../lib/bridge";
+import type { Playhead } from "../lib/playhead";
 import type { Timeline } from "../lib/timeline/items";
 
 export interface TimelineShortcutOptions {
   selectedClipId: string | null;
-  playheadUs: number;
+  playhead: Playhead;
   setTimeline: (timeline: Timeline) => void;
   onSelectClip: (id: string | null) => void;
   zoomIn: () => void;
@@ -17,23 +18,33 @@ export interface TimelineShortcutOptions {
  * The handler is kept in a ref reassigned each render to avoid stale closures.
  */
 export function useTimelineShortcuts(options: TimelineShortcutOptions) {
-  const handleKeyDownRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  const handleKeyDownRef = useRef<(e: KeyboardEvent) => void | Promise<void>>(
+    () => {},
+  );
   handleKeyDownRef.current = async (e: KeyboardEvent) => {
+    if (
+      e.target instanceof HTMLElement &&
+      e.target.closest("input, textarea, select, [contenteditable=true]")
+    )
+      return;
     // Undo: Ctrl+Z
     if (e.key === "z" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
       e.preventDefault();
       try {
         options.setTimeline(await invoke("undo"));
-      } catch (_) {}
+      } catch {}
       return;
     }
 
     // Redo: Ctrl+Shift+Z
-    if (e.key === "Z" && (e.ctrlKey || e.metaKey) && e.shiftKey) {
+    if (
+      ((e.key === "Z" && e.shiftKey) || e.key.toLowerCase() === "y") &&
+      (e.ctrlKey || e.metaKey)
+    ) {
       e.preventDefault();
       try {
         options.setTimeline(await invoke("redo"));
-      } catch (_) {}
+      } catch {}
       return;
     }
 
@@ -74,17 +85,21 @@ export function useTimelineShortcuts(options: TimelineShortcutOptions) {
       e.preventDefault();
       try {
         options.setTimeline(
-          await invoke("split_clip", { itemId: sel, splitTimeUs: options.playheadUs }),
+          await invoke("split_clip", {
+            itemId: sel,
+            splitTimeUs: options.playhead.get(),
+          }),
         );
       } catch (err) {
         console.error("split_clip failed:", err);
       }
-      return;
     }
   };
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => handleKeyDownRef.current(e);
+    const handler = (e: KeyboardEvent) => {
+      void handleKeyDownRef.current(e);
+    };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);

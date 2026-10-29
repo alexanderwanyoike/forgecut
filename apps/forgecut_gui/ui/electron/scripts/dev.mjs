@@ -1,7 +1,8 @@
 import electronPath from "electron";
 import { spawn } from "node:child_process";
 
-const rendererUrl = process.env.ELECTRON_RENDERER_URL ?? "http://localhost:5173";
+const rendererUrl =
+  process.env.ELECTRON_RENDERER_URL ?? "http://localhost:5173";
 const children = [];
 
 function spawnChecked(command, args, options = {}) {

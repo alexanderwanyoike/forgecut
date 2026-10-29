@@ -1,71 +1,80 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "../lib/bridge";
 import { getItemData, type Timeline } from "../lib/timeline/items";
 
 export type ThumbnailView = { time_seconds: number; url: string };
 
-/**
- * Caches per-asset thumbnails and waveforms for the clips currently on the
- * timeline, and invalidates the caches when the project changes.
- */
-export function useClipMedia(timeline: Timeline, projectVersion: number) {
-  // asset_id -> [min, max] peak pairs
+export function useClipMedia(
+  timeline: Timeline,
+  mediaVersion: number | string,
+) {
   const [waveforms, setWaveforms] = useState<Record<string, number[][]>>({});
-  // asset_id -> thumbnail strip
-  const [thumbnails, setThumbnails] = useState<Record<string, ThumbnailView[]>>({});
-  // reactive loading flags (drives the shimmer UI)
-  const [thumbnailsLoading, setThumbnailsLoading] = useState<Record<string, boolean>>({});
-  // in-flight guard to avoid duplicate fetches
-  const thumbnailsLoadingRef = useRef<Record<string, boolean>>({});
+  const [thumbnails, setThumbnails] = useState<Record<string, ThumbnailView[]>>(
+    {},
+  );
+  const [thumbnailsLoading, setThumbnailsLoading] = useState<
+    Record<string, boolean>
+  >({});
+  const generation = useRef(0);
+  const requested = useRef(new Set<string>());
 
-  const fetchWaveform = useCallback(async (assetId: string) => {
-    if (waveforms[assetId]) return;
-    try {
-      const data = await invoke("get_waveform", { assetId });
-      setWaveforms((prev) => ({ ...prev, [assetId]: data.peaks }));
-    } catch (_) {
-      // Waveform extraction may fail for non-audio files; silently ignore
-    }
-  }, [waveforms]);
-
-  const fetchThumbnails = useCallback(async (assetId: string) => {
-    if (thumbnails[assetId] || thumbnailsLoadingRef.current[assetId]) return;
-    thumbnailsLoadingRef.current[assetId] = true;
-    setThumbnailsLoading((prev) => ({ ...prev, [assetId]: true }));
-    try {
-      const data = await invoke("get_clip_thumbnails", { assetId });
-      const mapped = data.map((t) => ({ time_seconds: t.time_seconds, url: t.data_uri }));
-      setThumbnails((prev) => ({ ...prev, [assetId]: mapped }));
-    } catch (_) {
-    } finally {
-      thumbnailsLoadingRef.current[assetId] = false;
-      setThumbnailsLoading((prev) => ({ ...prev, [assetId]: false }));
-    }
-  }, [thumbnails]);
-
-  // Fetch media for clips whenever the timeline changes
   useEffect(() => {
-    for (const track of timeline.tracks) {
-      for (const item of track.items) {
-        const data = getItemData(item);
-        if (track.kind === "Video" && data.variant === "VideoClip" && data.asset_id) {
-          fetchThumbnails(data.asset_id);
-        }
-        if (track.kind === "Audio" && data.variant === "AudioClip" && data.asset_id) {
-          fetchWaveform(data.asset_id);
-        }
-      }
-    }
-  }, [timeline, fetchThumbnails, fetchWaveform]);
-
-  // Clear stale caches when the project changes
-  useEffect(() => {
-    if (projectVersion === 0) return;
+    generation.current += 1;
+    requested.current.clear();
     setThumbnails({});
     setWaveforms({});
     setThumbnailsLoading({});
-    thumbnailsLoadingRef.current = {};
-  }, [projectVersion]);
+    return () => {
+      generation.current += 1;
+    };
+  }, [mediaVersion]);
+
+  useEffect(() => {
+    const epoch = generation.current;
+    for (const track of timeline.tracks) {
+      for (const item of track.items) {
+        const data = getItemData(item);
+        if (!data.asset_id) continue;
+        const assetId = data.asset_id;
+        const key = `${data.variant}:${assetId}`;
+        if (requested.current.has(key)) continue;
+        if (data.variant === "VideoClip") {
+          requested.current.add(key);
+          setThumbnailsLoading((current) => ({ ...current, [assetId]: true }));
+          invoke("get_clip_thumbnails", { assetId })
+            .then((values) => {
+              if (generation.current === epoch)
+                setThumbnails((current) => ({
+                  ...current,
+                  [assetId]: values.map((value) => ({
+                    time_seconds: value.time_seconds,
+                    url: value.data_uri,
+                  })),
+                }));
+            })
+            .catch(() => {})
+            .finally(() => {
+              if (generation.current === epoch)
+                setThumbnailsLoading((current) => ({
+                  ...current,
+                  [assetId]: false,
+                }));
+            });
+        } else if (data.variant === "AudioClip") {
+          requested.current.add(key);
+          invoke("get_waveform", { assetId })
+            .then((value) => {
+              if (generation.current === epoch)
+                setWaveforms((current) => ({
+                  ...current,
+                  [assetId]: value.peaks,
+                }));
+            })
+            .catch(() => {});
+        }
+      }
+    }
+  }, [timeline, mediaVersion]);
 
   return { waveforms, thumbnails, thumbnailsLoading };
 }

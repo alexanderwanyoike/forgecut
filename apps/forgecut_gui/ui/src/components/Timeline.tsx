@@ -1,4 +1,15 @@
+import {
+  Layers3,
+  Magnet,
+  Maximize2,
+  Minus,
+  Plus,
+  ScanLine,
+  Type,
+} from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
+import ActionButton from "./ActionButton";
+import type { StylePreset } from "../../electron/shared/style-presets";
 import { invoke } from "../lib/bridge";
 import {
   LABEL_W,
@@ -22,30 +33,47 @@ import {
 import { useClipMedia } from "../hooks/useClipMedia";
 import { useTimelineInteractions } from "../hooks/useTimelineInteractions";
 import { useTimelineShortcuts } from "../hooks/useTimelineShortcuts";
+import GraphicPicker from "./GraphicPicker";
 import TimelineClip from "./TimelineClip";
+import { usePlayheadUs, type Playhead } from "../lib/playhead";
 
 interface TimelineProps {
-  playheadUs: number;
+  playhead: Playhead;
   playing: boolean;
   onPlayheadChange: (us: number) => void;
   onPlayingChange: (playing: boolean) => void;
   selectedClipId: string | null;
   onSelectedClipChange: (id: string | null) => void;
   projectVersion: number;
+  projectTimeline?: TimelineData;
+  projectStylePresets?: StylePreset[];
+  projectSessionId?: string;
+  projectMediaVersion?: string;
 }
 
 export default function Timeline(props: TimelineProps) {
-  const [timeline, setTimeline] = useState<TimelineData>({ tracks: [], markers: [] });
+  const [localTimeline, setLocalTimeline] = useState<TimelineData>({
+    tracks: [],
+    markers: [],
+  });
+  const timeline = props.projectTimeline ?? localTimeline;
+  const setTimeline = useCallback(
+    (next: TimelineData) => {
+      if (!props.projectTimeline) setLocalTimeline(next);
+    },
+    [props.projectTimeline],
+  );
   const [pixelsPerSecond, setPixelsPerSecond] = useState(100);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [viewWidth, setViewWidth] = useState(0);
+  const [newTrackKind, setNewTrackKind] = useState<"Video" | "Audio">("Video");
   const [snapping, setSnapping] = useState(true);
 
   const timelineRef = useRef<HTMLDivElement>(null);
 
   const { waveforms, thumbnails, thumbnailsLoading } = useClipMedia(
     timeline,
-    props.projectVersion,
+    props.projectMediaVersion ?? props.projectVersion,
   );
 
   const {
@@ -60,6 +88,7 @@ export default function Timeline(props: TimelineProps) {
     snapping,
     timeline,
     setTimeline,
+    projectVersion: props.projectVersion,
     playing: props.playing,
     onPlayingChange: props.onPlayingChange,
     onPlayheadChange: props.onPlayheadChange,
@@ -75,7 +104,7 @@ export default function Timeline(props: TimelineProps) {
 
   useTimelineShortcuts({
     selectedClipId: props.selectedClipId,
-    playheadUs: props.playheadUs,
+    playhead: props.playhead,
     setTimeline,
     onSelectClip: props.onSelectedClipChange,
     zoomIn: () => setPixelsPerSecond(zoomInLevel),
@@ -91,11 +120,13 @@ export default function Timeline(props: TimelineProps) {
 
   useEffect(() => {
     const el = timelineRef.current;
-    if (!el) return;
+    if (!el) return undefined;
 
     updateViewportMetrics();
     const resizeObserver =
-      typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateViewportMetrics) : null;
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(updateViewportMetrics)
+        : null;
     resizeObserver?.observe(el);
     window.addEventListener("resize", updateViewportMetrics);
 
@@ -107,21 +138,30 @@ export default function Timeline(props: TimelineProps) {
 
   // Init default tracks on mount and after project load
   useEffect(() => {
+    if (props.projectTimeline) return undefined;
+    let cancelled = false;
     (async () => {
-      setTimeline(await invoke("init_default_tracks"));
-    })();
-  }, [props.projectVersion]);
+      const next = await invoke("init_default_tracks");
+      if (!cancelled) setTimeline(next);
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [props.projectVersion, props.projectTimeline, setTimeline]);
 
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      setPixelsPerSecond((p) => (e.deltaY > 0 ? zoomOutLevel(p) : zoomInLevel(p)));
+      setPixelsPerSecond((p) =>
+        e.deltaY > 0 ? zoomOutLevel(p) : zoomInLevel(p),
+      );
     }
   };
 
   const scrollToPlayhead = () => {
     if (!timelineRef.current) return;
-    const playheadPx = usToPixels(props.playheadUs, pixelsPerSecond) + LABEL_W;
+    const playheadPx =
+      usToPixels(props.playhead.get(), pixelsPerSecond) + LABEL_W;
     const vw = timelineRef.current.clientWidth;
     timelineRef.current.scrollLeft = playheadPx - vw / 2;
   };
@@ -129,7 +169,8 @@ export default function Timeline(props: TimelineProps) {
   // Auto-scroll to playhead on zoom change if it left the visible area
   useEffect(() => {
     if (!timelineRef.current) return;
-    const playheadPx = usToPixels(props.playheadUs, pixelsPerSecond) + LABEL_W;
+    const playheadPx =
+      usToPixels(props.playhead.get(), pixelsPerSecond) + LABEL_W;
     const vw = timelineRef.current.clientWidth;
     const currentScroll = timelineRef.current.scrollLeft;
     if (playheadPx < currentScroll || playheadPx > currentScroll + vw) {
@@ -141,29 +182,45 @@ export default function Timeline(props: TimelineProps) {
     e.preventDefault();
     const assetJson = e.dataTransfer?.getData("application/forgecut-asset");
     if (!assetJson) return;
-    const asset = JSON.parse(assetJson);
+    const asset: unknown = JSON.parse(assetJson);
+    if (
+      !asset ||
+      typeof asset !== "object" ||
+      !("id" in asset) ||
+      typeof asset.id !== "string"
+    )
+      return;
 
-    const trackContent = (e.currentTarget as HTMLElement).querySelector(".track-content") as HTMLElement;
+    const trackContent = (e.currentTarget as HTMLElement).querySelector(
+      ".track-content",
+    ) as HTMLElement;
     const rect = trackContent.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const startUs = Math.max(0, Math.round((x / pixelsPerSecond) * 1_000_000));
 
     const tl = await invoke("add_clip_to_timeline", {
       assetId: asset.id,
-      trackId: trackId,
+      trackId,
       timelineStartUs: startUs,
     });
     setTimeline(tl);
   };
 
   const trackColor = (kind: string, isPip?: boolean) => {
-    if (isPip) return "#9b59b6";
+    if (isPip) return "var(--clip-video)";
     switch (kind) {
-      case "Video": return "#4a9eff";
-      case "Audio": return "#4aff7f";
-      case "OverlayImage": return "#c840e9";
-      case "OverlayText": return "#e9a840";
-      default: return "#ff9f4a";
+      case "Video":
+        return "var(--clip-video)";
+      case "Audio":
+        return "var(--clip-audio)";
+      case "OverlayImage":
+        return "var(--clip-image)";
+      case "OverlayText":
+        return "var(--clip-text)";
+      case "Graphics":
+        return "var(--clip-graphic)";
+      default:
+        return "var(--clip-video)";
     }
   };
 
@@ -176,17 +233,24 @@ export default function Timeline(props: TimelineProps) {
   const trackLabel = (track: Track, pip: boolean) => {
     if (pip) return "PiP";
     switch (track.kind) {
-      case "Video": return "V";
-      case "Audio": return "A";
-      case "OverlayImage": return "Img";
-      case "OverlayText": return "T";
-      default: return "?";
+      case "Video":
+        return "V";
+      case "Audio":
+        return "A";
+      case "OverlayImage":
+        return "Img";
+      case "OverlayText":
+        return "T";
+      case "Graphics":
+        return "G";
+      default:
+        return "?";
     }
   };
 
-  const handleAddPipTrack = async () => {
+  const handleAddTrack = async () => {
     try {
-      setTimeline(await invoke("add_track", { kind: "Video" }));
+      setTimeline(await invoke("add_track", { kind: newTrackKind }));
     } catch (err) {
       console.error("add_track failed:", err);
     }
@@ -195,8 +259,10 @@ export default function Timeline(props: TimelineProps) {
   const handleAddText = async () => {
     try {
       const tl = await invoke("add_text_overlay", {
-        trackId: "00000000-0000-0000-0000-000000000000",
-        timelineStartUs: props.playheadUs,
+        trackId:
+          timeline.tracks.find((track) => track.kind === "OverlayText")?.id ??
+          crypto.randomUUID(),
+        timelineStartUs: props.playhead.get(),
         durationUs: 3_000_000,
         text: "Hello World",
         fontSize: 48,
@@ -213,56 +279,130 @@ export default function Timeline(props: TimelineProps) {
   const timelineWidth = timelineContentWidth(timeline, pixelsPerSecond);
   const rulerInterval = timelineRulerInterval(pixelsPerSecond);
   const rulerTicks = [];
-  for (let sec = 0; sec * pixelsPerSecond + LABEL_W < timelineWidth; sec += rulerInterval) {
+  for (
+    let sec = 0;
+    sec * pixelsPerSecond + LABEL_W < timelineWidth;
+    sec += rulerInterval
+  ) {
     rulerTicks.push(sec);
   }
 
-  const { leftPercent: minimapLeft, widthPercent: minimapWidth } = minimapViewport(
-    viewWidth,
-    timelineWidth,
-    scrollLeft,
-  );
+  const { leftPercent: minimapLeft, widthPercent: minimapWidth } =
+    minimapViewport(viewWidth, timelineWidth, scrollLeft);
 
   return (
     <section className="panel timeline">
       <div className="timeline-controls">
-        <span className="timeline-label">Timeline</span>
+        <span className="timeline-label">
+          <Layers3 size={15} aria-hidden="true" />
+          Timeline
+        </span>
         <div className="control-group">
-          <button className="add-text-btn" onClick={handleAddText}>+ Text</button>
-          <button className="add-text-btn" onClick={handleAddPipTrack}>+ PiP</button>
+          <GraphicPicker
+            timeline={timeline}
+            playhead={props.playhead}
+            styles={props.projectStylePresets ?? []}
+            origin={
+              props.projectSessionId
+                ? {
+                    sessionId: props.projectSessionId,
+                    revision: props.projectVersion,
+                  }
+                : undefined
+            }
+            onTimelineChange={setTimeline}
+          />
+          <ActionButton
+            icon={Type}
+            aria-label="Add text"
+            tooltip="Add text at the playhead"
+            onClick={handleAddText}
+          >
+            Text
+          </ActionButton>
         </div>
         <div className="control-group">
-          <button className="timeline-nav-btn" onClick={scrollToPlayhead} title="Scroll to playhead">Playhead</button>
-          <button className="timeline-nav-btn" onClick={fitAll} title="Fit all">Fit</button>
+          <select
+            aria-label="New track type"
+            value={newTrackKind}
+            onChange={(event) =>
+              setNewTrackKind(
+                event.currentTarget.value === "Audio" ? "Audio" : "Video",
+              )
+            }
+          >
+            <option value="Video">Video</option>
+            <option value="Audio">Audio</option>
+          </select>
+          <ActionButton
+            icon={Plus}
+            aria-label="Add track"
+            tooltip="Add a track of the selected type"
+            onClick={handleAddTrack}
+          >
+            Track
+          </ActionButton>
         </div>
         <div className="control-group">
-          <button
-            className={`snap-toggle-btn${snapping ? " snap-active" : ""}`}
+          <ActionButton
+            icon={ScanLine}
+            tooltip="Scroll to playhead"
+            onClick={scrollToPlayhead}
+          >
+            Playhead
+          </ActionButton>
+          <ActionButton
+            icon={Maximize2}
+            tooltip="Fit the entire sequence (Ctrl+0)"
+            onClick={fitAll}
+          >
+            Fit
+          </ActionButton>
+          <ActionButton
+            icon={Magnet}
+            aria-pressed={snapping}
+            tooltip={snapping ? "Snapping on" : "Snapping off"}
             onClick={() => setSnapping((s) => !s)}
-            title={snapping ? "Snapping on" : "Snapping off"}
-          >Snap</button>
+          >
+            Snap
+          </ActionButton>
         </div>
         <div className="control-group zoom-control">
-          <button onClick={() => setPixelsPerSecond(zoomOutLevel)}>-</button>
+          <ActionButton
+            icon={Minus}
+            iconOnly
+            tooltip="Zoom out"
+            onClick={() => setPixelsPerSecond(zoomOutLevel)}
+          />
           <input
             type="range"
             className="zoom-slider"
+            aria-label="Timeline zoom"
             min={TIMELINE_ZOOM_MIN}
             max={TIMELINE_ZOOM_MAX}
             value={pixelsPerSecond}
-            onChange={(e) => setPixelsPerSecond(clampZoom(Number(e.target.value)))}
+            onChange={(e) =>
+              setPixelsPerSecond(clampZoom(Number(e.target.value)))
+            }
           />
-          <button onClick={() => setPixelsPerSecond(zoomInLevel)}>+</button>
+          <ActionButton
+            icon={Plus}
+            iconOnly
+            tooltip="Zoom in"
+            onClick={() => setPixelsPerSecond(zoomInLevel)}
+          />
           <span className="zoom-label">{Math.round(pixelsPerSecond)}%</span>
         </div>
-        <span className="shortcut-hints">S: Split | Del: Delete | Ctrl+Z/Y: Undo/Redo</span>
       </div>
 
       <div className="timeline-minimap">
-        <div className="minimap-viewport" style={{
-          left: `${minimapLeft}%`,
-          width: `${minimapWidth}%`,
-        }} />
+        <div
+          className="minimap-viewport"
+          style={{
+            left: `${minimapLeft}%`,
+            width: `${minimapWidth}%`,
+          }}
+        />
       </div>
 
       <div
@@ -272,19 +412,45 @@ export default function Timeline(props: TimelineProps) {
         onScroll={updateViewportMetrics}
         onMouseDown={() => props.onSelectedClipChange(null)}
       >
-        <div className="timeline-content" style={{ width: `${timelineWidth}px` }}>
+        <div
+          className="timeline-content"
+          style={{ width: `${timelineWidth}px` }}
+        >
           <div className="time-ruler" onMouseDown={handleRulerMouseDown}>
             {rulerTicks.map((sec) => (
-              <div key={sec} className="ruler-tick" style={{ left: `${sec * pixelsPerSecond + LABEL_W}px` }}>
+              <div
+                key={sec}
+                className="ruler-tick"
+                style={{ left: `${sec * pixelsPerSecond + LABEL_W}px` }}
+              >
                 <span className="ruler-label">{formatTimecode(sec)}</span>
               </div>
             ))}
           </div>
 
-          <div className="playhead" style={{ left: `${usToPixels(props.playheadUs, pixelsPerSecond) + LABEL_W}px` }} />
+          <PlayheadMarker
+            playhead={props.playhead}
+            pixelsPerSecond={pixelsPerSecond}
+          />
 
+          {timeline.duration_us !== undefined && (
+            <div
+              className="sequence-end"
+              title="Sequence end"
+              style={{
+                left: `${usToPixels(timeline.duration_us, pixelsPerSecond) + LABEL_W}px`,
+              }}
+            >
+              <span>End</span>
+            </div>
+          )}
           {snapLineUs !== null && (
-            <div className="snap-line" style={{ left: `${usToPixels(snapLineUs, pixelsPerSecond) + LABEL_W}px` }} />
+            <div
+              className="snap-line"
+              style={{
+                left: `${usToPixels(snapLineUs, pixelsPerSecond) + LABEL_W}px`,
+              }}
+            />
           )}
 
           <div className="track-lanes">
@@ -311,11 +477,27 @@ export default function Timeline(props: TimelineProps) {
                           color={trackColor(track.kind, pip)}
                           selected={props.selectedClipId === data.id}
                           pixelsPerSecond={pixelsPerSecond}
-                          thumbnails={data.asset_id ? thumbnails[data.asset_id] : undefined}
-                          thumbnailsLoading={data.asset_id ? !!thumbnailsLoading[data.asset_id] : false}
-                          waveform={data.asset_id ? waveforms[data.asset_id] : undefined}
+                          thumbnails={
+                            data.asset_id
+                              ? thumbnails[data.asset_id]
+                              : undefined
+                          }
+                          thumbnailsLoading={
+                            data.asset_id
+                              ? !!thumbnailsLoading[data.asset_id]
+                              : false
+                          }
+                          waveform={
+                            data.asset_id ? waveforms[data.asset_id] : undefined
+                          }
                           onClipMouseDown={(e) =>
-                            handleClipMouseDown(e, data.id, data.startUs, track.id, track.kind)
+                            handleClipMouseDown(
+                              e,
+                              data.id,
+                              data.startUs,
+                              track.id,
+                              track.kind,
+                            )
                           }
                           onTrimMouseDown={(e, edge, currentUs) =>
                             handleTrimMouseDown(e, data.id, edge, currentUs)
@@ -331,5 +513,20 @@ export default function Timeline(props: TimelineProps) {
         </div>
       </div>
     </section>
+  );
+}
+
+function PlayheadMarker(props: {
+  playhead: Playhead;
+  pixelsPerSecond: number;
+}) {
+  const playheadUs = usePlayheadUs(props.playhead);
+  return (
+    <div
+      className="playhead"
+      style={{
+        left: `${usToPixels(playheadUs, props.pixelsPerSecond) + LABEL_W}px`,
+      }}
+    />
   );
 }

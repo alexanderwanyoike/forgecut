@@ -9,12 +9,31 @@ directories:
 files:
   - dist/**
   - electron/dist/**
+  - "!electron/dist/graphic-runtime/**"
+  - "!electron/dist/code-runtime/**"
   - electron/assets/**
   - package.json
+
+extraResources:
+  - from: electron/dist/code-runtime
+    to: code-runtime
+  - from: electron/dist/mcp-adapter.cjs
+    to: mcp-adapter.cjs
+  - from: electron/dist/mcp-notices.txt
+    to: mcp-notices.txt
+
+publish:
+  provider: github
+  owner: alexanderwanyoike
+  repo: forgecut
+  releaseType: draft
 
 npmRebuild: false
 
 linux:
+  extraResources:
+    - from: electron/dist/graphic-runtime
+      to: graphic-runtime
   target:
     - AppImage
     - deb
@@ -27,10 +46,12 @@ linux:
 deb:
   depends:
     - ffmpeg
+    - bubblewrap
 
 rpm:
   depends:
     - ffmpeg
+    - bubblewrap
 
 mac:
   target:

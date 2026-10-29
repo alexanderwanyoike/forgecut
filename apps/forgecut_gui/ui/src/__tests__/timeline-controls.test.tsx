@@ -25,10 +25,11 @@ import {
   zoomInLevel,
   zoomOutLevel,
 } from "../lib/timeline/geometry";
+import { createPlayhead } from "../lib/playhead";
 
 describe("Timeline controls", () => {
   const defaultProps = {
-    playheadUs: 0,
+    playhead: createPlayhead(0),
     playing: false,
     onPlayheadChange: () => {},
     onPlayingChange: () => {},
@@ -83,7 +84,7 @@ describe("Timeline controls", () => {
 
   it("zooms out gradually without losing the overview range", () => {
     render(<Timeline {...defaultProps} />);
-    const zoomOut = screen.getByText("-");
+    const zoomOut = screen.getByRole("button", { name: "Zoom out" });
     const slider = screen.getByRole("slider") as HTMLInputElement;
 
     fireEvent.click(zoomOut);
@@ -151,9 +152,9 @@ describe("Timeline controls", () => {
         {...defaultProps}
         onPlayheadChange={onPlayheadChange}
         onSelectedClipChange={onSelectedClipChange}
-      />
+      />,
     );
-    const clip = await screen.findByText("Video");
+    const clip = await screen.findByText("Video", { selector: ".clip-label" });
 
     for (const zoom of [25, 90, 180]) {
       const slider = screen.getByRole("slider") as HTMLInputElement;
@@ -170,12 +171,30 @@ describe("Timeline controls", () => {
     }
   });
 
+  it("keeps an explicit end visible and aligned while zooming beyond the last item", () => {
+    const { container } = render(
+      <Timeline
+        {...defaultProps}
+        projectTimeline={{ tracks: [], markers: [], duration_us: 60000000 }}
+      />,
+    );
+    const end = screen.getByTitle("Sequence end");
+    expect(end.style.left).toBe("6048px");
+    expect(
+      container.querySelector<HTMLElement>(".timeline-content")?.style.width,
+    ).toBe("6548px");
+    fireEvent.change(screen.getByRole("slider"), { target: { value: "50" } });
+    expect(end.style.left).toBe("3048px");
+    expect(
+      container.querySelector<HTMLElement>(".timeline-content")?.style.width,
+    ).toBe("3298px");
+  });
   it("renders control group buttons", () => {
     render(<Timeline {...defaultProps} />);
     expect(screen.getByText("Playhead")).toBeTruthy();
     expect(screen.getByText("Fit")).toBeTruthy();
     expect(screen.getByText("Snap")).toBeTruthy();
-    expect(screen.getByText("+ Text")).toBeTruthy();
-    expect(screen.getByText("+ PiP")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add text" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add track" })).toBeTruthy();
   });
 });

@@ -3,6 +3,7 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
+import { createHash } from "node:crypto";
 
 const execFileAsync = promisify(execFile);
 
@@ -25,16 +26,30 @@ export async function extractThumbnailsBase64(
   thumbWidth = 320,
 ): Promise<Thumbnail[]> {
   // Cache per width so quality changes don't serve stale small thumbnails
-  const assetDir = join(tmpdir(), "forgecut-thumbnails", `${assetId}-w${thumbWidth}`);
+  const cacheId = await mediaCacheId(sourcePath, assetId);
+  const assetDir = join(
+    tmpdir(),
+    "forgecut-thumbnails",
+    `${cacheId}-w${thumbWidth}`,
+  );
   await mkdir(assetDir, { recursive: true });
 
   const results: Thumbnail[] = [];
-  for (let timeSeconds = 0; timeSeconds < durationSeconds; timeSeconds += intervalSeconds) {
+  for (
+    let timeSeconds = 0;
+    timeSeconds < durationSeconds;
+    timeSeconds += intervalSeconds
+  ) {
     const timeUs = Math.trunc(timeSeconds * 1_000_000);
     const thumbnailPath = join(assetDir, `${timeUs}.jpg`);
 
     if (!(await exists(thumbnailPath))) {
-      await extractThumbnail(sourcePath, thumbnailPath, timeSeconds, thumbWidth);
+      await extractThumbnail(
+        sourcePath,
+        thumbnailPath,
+        timeSeconds,
+        thumbWidth,
+      );
     }
 
     const bytes = await readFile(thumbnailPath);
@@ -53,7 +68,8 @@ export async function extractWaveform(
   samplesPerPeak = 256,
 ): Promise<WaveformData> {
   const cacheDir = join(tmpdir(), "forgecut-waveforms");
-  const cachePath = join(cacheDir, `${assetId}.json`);
+  const cacheId = await mediaCacheId(sourcePath, assetId);
+  const cachePath = join(cacheDir, `${cacheId}-${samplesPerPeak}.json`);
 
   if (await exists(cachePath)) {
     return JSON.parse(await readFile(cachePath, "utf8")) as WaveformData;
@@ -94,7 +110,10 @@ export async function extractWaveform(
   return data;
 }
 
-export function computePeaks(rawPcm: Buffer, samplesPerPeak: number): [number, number][] {
+export function computePeaks(
+  rawPcm: Buffer,
+  samplesPerPeak: number,
+): [number, number][] {
   const samples: number[] = [];
   for (let offset = 0; offset + 1 < rawPcm.length; offset += 2) {
     samples.push(rawPcm.readInt16LE(offset));
@@ -104,10 +123,7 @@ export function computePeaks(rawPcm: Buffer, samplesPerPeak: number): [number, n
   for (let index = 0; index < samples.length; index += samplesPerPeak) {
     const chunk = samples.slice(index, index + samplesPerPeak);
     if (chunk.length === 0) continue;
-    peaks.push([
-      Math.min(...chunk) / 32768,
-      Math.max(...chunk) / 32768,
-    ]);
+    peaks.push([Math.min(...chunk) / 32768, Math.max(...chunk) / 32768]);
   }
 
   return peaks;
@@ -146,4 +162,14 @@ async function exists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function mediaCacheId(
+  path: string,
+  assetId: string,
+): Promise<string> {
+  const source = await stat(path);
+  return createHash("sha256")
+    .update(JSON.stringify([assetId, path, source.size, source.mtimeMs]))
+    .digest("hex");
 }

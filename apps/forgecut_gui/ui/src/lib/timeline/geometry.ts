@@ -10,7 +10,10 @@ export const TIMELINE_ZOOM_MAX = 500;
 export const TIMELINE_ZOOM_STEP_FACTOR = 0.9;
 
 export function clampZoom(pixelsPerSecond: number) {
-  return Math.max(TIMELINE_ZOOM_MIN, Math.min(TIMELINE_ZOOM_MAX, pixelsPerSecond));
+  return Math.max(
+    TIMELINE_ZOOM_MIN,
+    Math.min(TIMELINE_ZOOM_MAX, pixelsPerSecond),
+  );
 }
 
 export function zoomOutLevel(pixelsPerSecond: number) {
@@ -44,7 +47,10 @@ export function minimapViewport(
   const scrollableWidth = Math.max(contentWidth - viewportWidth, 0);
   const leftPercent =
     scrollableWidth > 0
-      ? Math.min(100 - widthPercent, (Math.max(0, scrollLeft) / scrollableWidth) * (100 - widthPercent))
+      ? Math.min(
+          100 - widthPercent,
+          (Math.max(0, scrollLeft) / scrollableWidth) * (100 - widthPercent),
+        )
       : 0;
 
   return { leftPercent, widthPercent };

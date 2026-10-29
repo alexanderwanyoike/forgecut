@@ -4,8 +4,7 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
-  pull_request:
-    branches: [main]
+  pull_request: {}
 
 jobs:
   # ─────────────────────────────────────────────
@@ -32,8 +31,18 @@ jobs:
       - name: Install dependencies
         run: yarn --cwd apps/forgecut_gui/ui install --frozen-lockfile
 
+      - name: Check formatting
+        run: yarn --cwd apps/forgecut_gui/ui format:check
+
+      - name: Lint TypeScript
+        run: yarn --cwd apps/forgecut_gui/ui lint
+
+      - name: Install media integration tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg bubblewrap fonts-dejavu-core
+
       - name: Run tests
-        run: yarn --cwd apps/forgecut_gui/ui test
+        run: yarn --cwd apps/forgecut_gui/ui test --no-file-parallelism
 
       - name: Build frontend
         run: yarn --cwd apps/forgecut_gui/ui build
@@ -51,7 +60,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb
+          sudo apt-get install -y xvfb ffmpeg bubblewrap fonts-dejavu-core
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -67,7 +76,22 @@ jobs:
       - name: Build renderer and Electron main
         run: yarn --cwd apps/forgecut_gui/ui build
 
+      - name: Prepare offline graphics runtime
+        run: yarn --cwd apps/forgecut_gui/ui build:graphic-runtime
+
+      - name: Verify graphics rendering
+        run: yarn --cwd apps/forgecut_gui/ui test:graphics
+
       - name: Verify Electron startup
         run: xvfb-run --auto-servernum yarn --cwd apps/forgecut_gui/ui verify:electron
         env:
           ELECTRON_DISABLE_SANDBOX: "1"
+
+      - name: Build unpacked desktop application
+        run: yarn --cwd apps/forgecut_gui/ui electron-builder --linux --dir --publish never
+
+      - name: Verify packaged desktop application
+        run: xvfb-run --auto-servernum yarn --cwd apps/forgecut_gui/ui verify:electron
+        env:
+          ELECTRON_DISABLE_SANDBOX: "1"
+          FORGECUT_VERIFY_EXECUTABLE: ${{ github.workspace }}/apps/forgecut_gui/ui/dist-installers/linux-unpacked/forgecut

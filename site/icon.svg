@@ -1,0 +1,114 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1024"
+  height="1024"
+  viewBox="0 0 1024 1024"
+>
+  <defs>
+    <linearGradient id="metal" x1="0" y1="0" x2="0.4" y2="1">
+      <stop stop-color="#f5f7fa" />
+      <stop offset="0.5" stop-color="#dce2e8" />
+      <stop offset="1" stop-color="#adb7c3" />
+    </linearGradient>
+    <linearGradient id="slate" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#323c4b" />
+      <stop offset="0.55" stop-color="#171e29" />
+      <stop offset="1" stop-color="#293442" />
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#4b8df0" />
+      <stop offset="1" stop-color="#225bba" />
+    </linearGradient>
+    <linearGradient id="stripe" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#f1f5fa" />
+      <stop offset="1" stop-color="#c5ced9" />
+    </linearGradient>
+    <clipPath id="slat"><rect width="608" height="112" rx="22" /></clipPath>
+  </defs>
+  <rect
+    x="52"
+    y="52"
+    width="920"
+    height="920"
+    rx="214"
+    fill="url(#metal)"
+    stroke="#a9b2be"
+    stroke-width="4"
+  />
+  <rect
+    x="63"
+    y="63"
+    width="898"
+    height="898"
+    rx="204"
+    fill="none"
+    stroke="#fff"
+    stroke-opacity="0.65"
+    stroke-width="4"
+  />
+  <g transform="translate(-41 -21) scale(1.08)">
+    <rect
+      x="208"
+      y="425"
+      width="608"
+      height="360"
+      rx="45"
+      fill="#778596"
+      opacity="0.28"
+    />
+    <rect x="208" y="411" width="608" height="360" rx="45" fill="url(#slate)" />
+    <path
+      d="M238 421h548"
+      stroke="#f0f5ff"
+      stroke-opacity="0.1"
+      stroke-width="3"
+      stroke-linecap="round"
+    />
+    <g transform="translate(208 318) rotate(-11 0 112)">
+      <rect
+        y="10"
+        width="608"
+        height="112"
+        rx="22"
+        fill="#617083"
+        opacity="0.32"
+      />
+      <rect width="608" height="112" rx="22" fill="url(#slate)" />
+      <g clip-path="url(#slat)" fill="url(#stripe)">
+        <path
+          d="M108 0h100l-74 112H34Zm190 0h100l-74 112H224Zm190 0h100l-74 112H414Z"
+        />
+      </g>
+      <rect
+        x="2"
+        y="2"
+        width="604"
+        height="108"
+        rx="20"
+        fill="none"
+        stroke="#f5f8fc"
+        stroke-opacity="0.16"
+        stroke-width="3"
+      />
+    </g>
+    <circle
+      cx="231"
+      cy="431"
+      r="17"
+      fill="#a2aebe"
+      stroke="#e9eef5"
+      stroke-width="5"
+    />
+    <circle cx="512" cy="608" r="94" fill="url(#blue)" />
+    <circle
+      cx="512"
+      cy="608"
+      r="73"
+      fill="none"
+      stroke="#dbeaff"
+      stroke-opacity="0.2"
+      stroke-width="3"
+    />
+    <path d="m492 563 71 45-71 45Z" fill="#eaf0f7" />
+  </g>
+</svg>

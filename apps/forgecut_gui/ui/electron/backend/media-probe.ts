@@ -1,11 +1,10 @@
-import { execFile } from "node:child_process";
 import { basename, extname } from "node:path";
 import { stat } from "node:fs/promises";
-import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import type { Asset, AssetKind, ProbeResult } from "./state.js";
 
-const execFileAsync = promisify(execFile);
+import { runMediaProcess } from "./media-process.js";
+import { EditingError } from "./editing-error.js";
 
 type FfprobeOutput = {
   streams?: FfprobeStream[];
@@ -24,21 +23,27 @@ type FfprobeStream = {
   sample_rate?: string;
 };
 
-export async function importAsset(path: string): Promise<Asset> {
-  const probe = await probeAsset(path);
+export async function importAsset(
+  path: string,
+  signal?: AbortSignal,
+): Promise<Asset> {
+  const probe = await probeAsset(path, signal);
   return createAssetFromProbe(path, probe);
 }
 
-export async function probeAsset(path: string): Promise<ProbeResult> {
+export async function probeAsset(
+  path: string,
+  signal?: AbortSignal,
+): Promise<ProbeResult> {
   try {
     await stat(path);
   } catch {
     throw new Error(`File not found: ${path}`);
   }
 
-  let stdout: string;
-  try {
-    ({ stdout } = await execFileAsync("ffprobe", [
+  const result = await runMediaProcess(
+    "ffprobe",
+    [
       "-v",
       "quiet",
       "-print_format",
@@ -46,12 +51,15 @@ export async function probeAsset(path: string): Promise<ProbeResult> {
       "-show_format",
       "-show_streams",
       path,
-    ]));
-  } catch (error) {
-    throw new Error(`ffprobe failed: ${String(error)}`);
-  }
-
-  return parseProbeOutput(JSON.parse(stdout) as FfprobeOutput);
+    ],
+    { signal },
+  );
+  if (!result.ok)
+    throw new EditingError(
+      result.error.code === "CANCELLED" ? "CANCELLED" : "IO_ERROR",
+      result.error.message,
+    );
+  return parseProbeOutput(JSON.parse(result.value.toString()) as FfprobeOutput);
 }
 
 export function createAssetFromProbe(path: string, probe: ProbeResult): Asset {
@@ -99,7 +107,11 @@ export function parseFrameRate(rate: string | undefined): number | undefined {
 export function detectAssetKind(path: string, probe: ProbeResult): AssetKind {
   const extension = extname(path).slice(1).toLowerCase();
 
-  if (["png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "svg"].includes(extension)) {
+  if (
+    ["png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "svg"].includes(
+      extension,
+    )
+  ) {
     return "Image";
   }
 

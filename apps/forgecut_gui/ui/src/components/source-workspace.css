@@ -1,0 +1,142 @@
+.source-monitor {
+  grid-area: preview;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-color);
+}
+.source-monitor-name {
+  padding: 10px 16px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.source-media-stage {
+  flex: 1;
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  margin: 0 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.source-media-stage video {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
+}
+.source-media-stage audio {
+  width: min(100%, 420px);
+}
+.source-monitor-help {
+  padding: 14px 16px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.source-range-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.source-range-fields label,
+.source-selection-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.source-range-fields input {
+  width: 100%;
+  min-width: 0;
+}
+.source-selection-field {
+  margin: 16px 0;
+}
+.source-selections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.source-selections-list .action-button {
+  justify-content: flex-start;
+  width: 100%;
+}
+.source-selections-list span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.source-selections-list p {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.source-selection-field > label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.source-selection-field select {
+  width: 100%;
+  min-width: 0;
+}
+.source-selection-inspector .inspector-body {
+  padding: 14px 16px;
+}
+.source-review {
+  flex-shrink: 1;
+  min-height: 48px;
+  max-height: 45%;
+  overflow-y: auto;
+  padding: 12px 16px 0;
+}
+.source-review-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.source-review p,
+.source-review figcaption {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin: 8px 0;
+}
+.source-review figure {
+  margin: 12px 0 0;
+}
+.source-review video,
+.source-review img {
+  display: block;
+  width: 100%;
+  border-radius: 4px;
+}
+.source-waveform {
+  display: block;
+  width: 100%;
+  height: 90px;
+  border-radius: 4px;
+  background: var(--bg-primary);
+  stroke: var(--accent);
+  stroke-width: 1;
+}
+
+.source-review video {
+  max-height: 240px;
+  background: var(--bg-primary);
+}
+.source-monitor:has(.source-review video) .source-media-stage,
+.source-monitor:has(.source-review video) .source-monitor-help {
+  display: none;
+}
+.source-monitor:has(.source-review video) .source-review {
+  flex: 1;
+  max-height: none;
+}
+.source-review video {
+  object-fit: contain;
+}

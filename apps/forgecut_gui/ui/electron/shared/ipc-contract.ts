@@ -1,13 +1,47 @@
+import type { ProjectCollectionRequest } from "./project-collection.js";
+import type {
+  CreateExportBatch,
+  ExportBatchSnapshot,
+} from "./export-batches.js";
+import type { ExportPresetId } from "./export-presets.js";
+import type { StylePreset, StylePresetInput } from "./style-presets.js";
+import type {
+  SourceSelection,
+  SourceSelectionInput,
+  SourceSelectionPatch,
+} from "./source-selection.js";
+import type { SourceReviewRequest } from "./source-review.js";
+import type { GraphicPromotionRequest } from "./graphic-promotion.js";
+import type { GraphicDraft } from "./graphic-draft.js";
+import type { GraphicPreviewFrame } from "./graphic-preview.js";
+import type {
+  GraphicDiagnostic,
+  GraphicCompilation,
+} from "./graphic-source.js";
+import type {
+  ResourceLicense,
+  GraphicResource,
+  GraphicResourceImport,
+  GraphicResourceSelection,
+} from "./graphic-resources.js";
+import type {
+  GraphicComponent,
+  GraphicValues,
+  RemotionGraphicItem,
+  GraphicLayerStates,
+} from "./graphics.js";
+import type { JobSnapshot } from "./jobs.js";
 /**
  * Single source of truth for the renderer <-> main IPC surface.
  *
  * Imported by the Electron backend (runtime) and by the renderer bridge
- * (types only). Keep this file free of imports so both TypeScript projects
+ * (types only). Keep this file free of runtime imports so both TypeScript projects
  * can consume it unchanged. Field names are snake_case where they are
  * serialized into `.forgecut` project files.
  */
 
 export type TimeUs = number;
+export type ReviewRange = { startUs: TimeUs; endUs: TimeUs };
 
 export type ProjectSettings = {
   width: number;
@@ -29,6 +63,7 @@ export type ProbeResult = {
 };
 
 export type Asset = {
+  license?: ResourceLicense;
   id: string;
   name: string;
   path: string;
@@ -36,18 +71,44 @@ export type Asset = {
   probe: ProbeResult | null;
 };
 
-export type TrackKind = "Video" | "Audio" | "OverlayImage" | "OverlayText";
+export type TrackKind =
+  "Video" | "Audio" | "OverlayImage" | "OverlayText" | "Graphics";
+
+export type AudioSettings = {
+  volume?: number;
+  muted?: boolean;
+  fade_in_us?: TimeUs;
+  fade_out_us?: TimeUs;
+};
 
 export type ClipItem = {
+  origin_item_id?: string;
   id: string;
   asset_id: string;
   track_id: string;
   timeline_start_us: TimeUs;
   source_in_us: TimeUs;
   source_out_us: TimeUs;
+} & AudioSettings;
+
+export type VisualPlacement = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fit: "contain" | "cover";
+  opacity: number;
+};
+
+export type VideoClipItem = ClipItem & {
+  transform?: VisualPlacement;
+  layer_order?: number;
 };
 
 export type ImageOverlayItem = {
+  origin_item_id?: string;
+  fit?: VisualPlacement["fit"];
+  layer_order?: number;
   id: string;
   asset_id: string;
   track_id: string;
@@ -61,6 +122,8 @@ export type ImageOverlayItem = {
 };
 
 export type TextOverlayItem = {
+  origin_item_id?: string;
+  layer_order?: number;
   id: string;
   track_id: string;
   timeline_start_us: TimeUs;
@@ -73,12 +136,25 @@ export type TextOverlayItem = {
 };
 
 export type TimelineItem =
-  | { VideoClip: ClipItem }
+  | { RemotionGraphic: RemotionGraphicItem }
+  | { VideoClip: VideoClipItem }
   | { AudioClip: ClipItem & { volume: number } }
   | { ImageOverlay: ImageOverlayItem }
   | { TextOverlay: TextOverlayItem };
 
-export type TimelineItemVariant = "VideoClip" | "AudioClip" | "ImageOverlay" | "TextOverlay";
+export type TimelineItemDetail =
+  | RemotionGraphicItem
+  | VideoClipItem
+  | (ClipItem & { volume: number })
+  | ImageOverlayItem
+  | TextOverlayItem;
+
+export type TimelineItemVariant =
+  | "VideoClip"
+  | "AudioClip"
+  | "ImageOverlay"
+  | "TextOverlay"
+  | "RemotionGraphic";
 
 export type Track = {
   id: string;
@@ -87,11 +163,27 @@ export type Track = {
 };
 
 export type Timeline = {
+  duration_us?: TimeUs;
   tracks: Track[];
   markers: unknown[];
 };
 
+export type ProjectSequence = {
+  variant_source?: { sequence_id: string };
+  id: string;
+  name: string;
+  settings: ProjectSettings;
+  timeline: Timeline;
+};
+
 export type Project = {
+  schema_version?: 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  style_presets?: StylePreset[];
+  source_selections?: SourceSelection[];
+  default_sequence?: Pick<ProjectSequence, "id" | "name">;
+  sequences?: ProjectSequence[];
+  components?: GraphicComponent[];
+  resources?: GraphicResource[];
   id: string;
   name: string;
   settings: ProjectSettings;
@@ -99,18 +191,173 @@ export type Project = {
   timeline: Timeline;
 };
 
-export type ClipAtPlayhead = {
-  file_path: string;
-  seek_seconds: number;
-  clip_start_us: TimeUs;
-  clip_end_us: TimeUs;
-  source_in_us: TimeUs;
+export type McpStatus = {
+  available: boolean;
+  statusRevision: number;
+  lastAction: string | null;
 };
 
-/** Overlay items resolved for preview; asset-backed overlays gain file_path. */
-export type OverlayAtTime =
-  | { ImageOverlay: ImageOverlayItem & { file_path?: string } }
-  | { TextOverlay: TextOverlayItem };
+export type EditingContext = {
+  sequenceRevision?: number;
+  activeSequenceId?: string;
+  sessionId: string;
+  contextRevision: number;
+  selectedItemIds: string[];
+  selectedLayerIds: string[];
+  playheadUs: TimeUs;
+};
+
+export type ProjectSnapshot = {
+  undoSequenceId?: string;
+  redoSequenceId?: string;
+  activeSequenceId?: string;
+  sequenceRevision?: number;
+  project: Project;
+  sessionId: string;
+  revision: number;
+  canUndo: boolean;
+  canRedo: boolean;
+  missingMedia: string[];
+  changedItemIds?: string[];
+};
+export type SequenceFrame = {
+  frame: number;
+  frameCount: number;
+  durationUs: TimeUs;
+  settings: ProjectSettings;
+  layers: {
+    item: TimelineItem;
+    trackIndex: number;
+    asset: Asset | null;
+    sourceTimeUs?: TimeUs;
+    playbackTimeUs?: TimeUs;
+    audioGain?: number;
+    placement?: VisualPlacement;
+  }[];
+};
+
+export type EditErrorCode =
+  | "QUEUE_FULL"
+  | "QUEUE_CLOSED"
+  | "UNAVAILABLE"
+  | "RENDER_FAILED"
+  | "TIMEOUT"
+  | "COMMITTING"
+  | "CANCELLED"
+  | "INVALID_INPUT"
+  | "CONFLICT"
+  | "PROJECT_CHANGED"
+  | "NOT_FOUND"
+  | "IO_ERROR"
+  | "NOTHING_TO_UNDO"
+  | "REQUEST_REUSED";
+export type CommandResponse<T = unknown> =
+  | { ok: true; value: T; sessionId: string; revision: number }
+  | {
+      ok: false;
+      error: {
+        code: EditErrorCode;
+        message: string;
+        diagnostics?: GraphicDiagnostic[];
+      };
+    };
+
+export type CommandMetadata = {
+  sessionId?: string;
+  editGroup?: string;
+  sequenceId?: string;
+};
+
+export type ItemPatch =
+  | {
+      kind: "RemotionGraphic";
+      changes: {
+        props?: GraphicValues;
+        layer_states?: GraphicLayerStates;
+        transform?: VisualPlacement;
+        layer_order?: number;
+      };
+    }
+  | {
+      kind: "VideoClip";
+      changes: AudioSettings &
+        Partial<Pick<VideoClipItem, "transform" | "layer_order">>;
+    }
+  | {
+      kind: "AudioClip";
+      changes: AudioSettings;
+    }
+  | {
+      kind: "TextOverlay";
+      changes: Partial<
+        Pick<
+          TextOverlayItem,
+          "text" | "font_size" | "color" | "x" | "y" | "layer_order"
+        >
+      >;
+    }
+  | {
+      kind: "ImageOverlay";
+      changes: Partial<
+        Pick<
+          ImageOverlayItem,
+          | "asset_id"
+          | "x"
+          | "y"
+          | "width"
+          | "height"
+          | "opacity"
+          | "fit"
+          | "layer_order"
+        >
+      >;
+    };
+
+export type EditCommandName =
+  | "set_resource_license"
+  | "set_asset_license"
+  | "delete_style_preset"
+  | "save_style_preset"
+  | "add_graphic_from_preset"
+  | "update_source_selection"
+  | "create_sequence_variant"
+  | "sync_variant_timing"
+  | "save_source_selection"
+  | "delete_source_selection"
+  | "create_sequence"
+  | "rename_sequence"
+  | "delete_sequence"
+  | "add_graphic_item"
+  | "set_sequence_end"
+  | "add_clip_to_timeline"
+  | "trim_clip"
+  | "split_clip"
+  | "delete_clip"
+  | "move_clip"
+  | "move_clip_to_track"
+  | "add_track"
+  | "add_text_overlay"
+  | "add_image_overlay"
+  | "set_clip_volume"
+  | "update_item"
+  | "remove_asset"
+  | "update_project";
+export type EditOperation = {
+  [K in EditCommandName]: { command: K; args: CommandMap[K]["args"] };
+}[EditCommandName];
+export type EditRequest = {
+  sequenceId?: string;
+  sessionId: string;
+  expectedRevision: number;
+  requestId: string;
+  editGroup?: string;
+  operations: EditOperation[];
+};
+
+export type HistoryRequest = Pick<
+  EditRequest,
+  "sessionId" | "expectedRevision" | "requestId" | "sequenceId"
+> & { direction: "undo" | "redo" };
 
 export type Thumbnail = {
   time_seconds: number;
@@ -123,38 +370,185 @@ export type WaveformData = {
   samples_per_peak: number;
 };
 
-export type RenderProgress = {
-  percent: number;
-  frame: number;
-  fps: number;
-  speed: string;
-  eta_seconds: number | null;
-};
-
 /**
  * Every IPC command with its argument and result shape.
  * `args: undefined` means the command takes no arguments.
  */
 export type CommandMap = {
+  set_resource_license: {
+    args: { resourceId: string; license: ResourceLicense };
+    result: GraphicResource;
+  };
+  set_asset_license: {
+    args: { assetId: string; license: ResourceLicense | null };
+    result: Asset;
+  };
+  delete_style_preset: { args: { presetId: string }; result: undefined };
+  save_style_preset: { args: StylePresetInput; result: StylePreset };
+  add_graphic_from_preset: {
+    args: {
+      presetId: string;
+      trackId: string;
+      timelineStartUs: TimeUs;
+      durationUs: TimeUs;
+      overrides?: GraphicValues;
+    };
+    result: Timeline;
+  };
+  update_source_selection: {
+    args: { selectionId: string; patch: SourceSelectionPatch };
+    result: SourceSelection;
+  };
+  create_sequence_variant: {
+    args: {
+      sourceSequenceId: string;
+      name: string;
+      settings?: Partial<ProjectSettings>;
+    };
+    result: ProjectSequence;
+  };
+  sync_variant_timing: { args: { itemIds: string[] }; result: undefined };
+  save_source_selection: {
+    args: SourceSelectionInput;
+    result: SourceSelection;
+  };
+  delete_source_selection: { args: { selectionId: string }; result: undefined };
+  start_source_review: { args: SourceReviewRequest; result: JobSnapshot };
+  get_sequence_timeline: { args: { sequenceId: string }; result: Timeline };
+  select_sequence: {
+    args: { sessionId: string; sequenceId: string };
+    result: EditingContext;
+  };
+  delete_sequence: { args: { sequenceId: string }; result: undefined };
+  get_sequences: {
+    args: undefined;
+    result: Omit<ProjectSequence, "timeline">[];
+  };
+  rename_sequence: {
+    args: { sequenceId: string; name: string };
+    result: ProjectSequence;
+  };
+  create_sequence: {
+    args: { name: string; settings?: Partial<ProjectSettings> };
+    result: ProjectSequence;
+  };
+  start_graphic_promotion: {
+    args: GraphicPromotionRequest;
+    result: JobSnapshot;
+  };
+  get_graphic_type_libraries: {
+    args: undefined;
+    result: Record<string, string>;
+  };
+  get_graphic_draft_preview: {
+    args: Omit<GraphicPromotionRequest, "scope" | "requestId"> & {
+      frame: number;
+    };
+    result: GraphicPreviewFrame;
+  };
+  get_graphic_draft: { args: { itemId: string }; result: GraphicDraft };
+  save_graphic_draft: {
+    args: {
+      itemId: string;
+      sessionId: string;
+      expectedDraftRevision: number;
+      baseVersion: string;
+      component: GraphicComponent;
+    };
+    result: GraphicDraft;
+  };
+  revert_graphic_draft: {
+    args: { itemId: string; sessionId: string; expectedDraftRevision: number };
+    result: GraphicDraft;
+  };
+  get_graphic_preview: {
+    args: { itemId: string; frame: number; props?: GraphicValues };
+    result: GraphicPreviewFrame;
+  };
+  get_preview_proxy: {
+    args: { assetId: string };
+    result: { path: string | null };
+  };
+  get_graphic_playback: {
+    args: { itemId: string; revision: number };
+    result: { path: string };
+  };
+  check_graphic_source: {
+    args: {
+      source: GraphicComponent["source"];
+      properties?: GraphicComponent["properties"];
+    };
+    result: GraphicCompilation;
+  };
   // Project
   create_project: { args: undefined; result: string };
   save_project: { args: { path: string }; result: void };
   load_project: { args: { path: string }; result: string };
   get_project_settings: { args: undefined; result: ProjectSettings };
+  get_project_snapshot: { args: undefined; result: ProjectSnapshot };
+  get_editing_context: { args: undefined; result: EditingContext };
+  set_editing_context: {
+    args: {
+      sequenceRevision?: number;
+      sequenceId?: string;
+      sessionId: string;
+      selectedItemIds: string[];
+      selectedLayerIds?: string[];
+      playheadUs: TimeUs;
+    };
+    result: EditingContext;
+  };
+  apply_edits: { args: EditRequest; result: ProjectSnapshot };
+  apply_history: { args: HistoryRequest; result: ProjectSnapshot };
+  update_project: {
+    args: { name?: string; settings?: Partial<ProjectSettings> };
+    result: Project;
+  };
+  recover_project: { args: { path: string }; result: string };
   autosave: { args: undefined; result: void };
 
   // Timeline
+  import_graphic_resource: {
+    args: GraphicResourceImport & {
+      target?: GraphicResourceSelection & {
+        sessionId: string;
+        expectedRevision: number;
+      };
+    };
+    result: GraphicResource;
+  };
+  get_graphic_components: { args: undefined; result: GraphicComponent[] };
+  add_graphic_item: {
+    args: {
+      templateId: string;
+      trackId: string;
+      timelineStartUs: TimeUs;
+      durationUs: TimeUs;
+      props?: GraphicValues;
+    };
+    result: Timeline;
+  };
+  set_sequence_end: { args: { endUs: TimeUs | null }; result: Timeline };
   get_timeline: { args: undefined; result: Timeline };
   init_default_tracks: { args: undefined; result: Timeline };
   add_clip_to_timeline: {
-    args: { assetId: string; trackId: string; timelineStartUs: TimeUs };
+    args: {
+      assetId: string;
+      trackId: string;
+      timelineStartUs: TimeUs;
+      sourceInUs?: TimeUs;
+      sourceOutUs?: TimeUs;
+    };
     result: Timeline;
   };
   trim_clip: {
     args: { itemId: string; trimType: "in" | "out"; newUs: TimeUs };
     result: Timeline;
   };
-  split_clip: { args: { itemId: string; splitTimeUs: TimeUs }; result: Timeline };
+  split_clip: {
+    args: { itemId: string; splitTimeUs: TimeUs };
+    result: Timeline;
+  };
   delete_clip: { args: { itemId: string }; result: Timeline };
   move_clip: { args: { itemId: string; newStartUs: TimeUs }; result: Timeline };
   move_clip_to_track: {
@@ -191,12 +585,14 @@ export type CommandMap = {
     result: Timeline;
   };
   get_snap_points: { args: { excludeItemId?: string }; result: TimeUs[] };
-  get_clip_at_playhead: { args: { playheadUs: TimeUs }; result: ClipAtPlayhead | null };
-  get_overlays_at_time: { args: { playheadUs: TimeUs }; result: OverlayAtTime[] };
-  set_clip_volume: { args: { itemId: string; volume: number }; result: Timeline };
+  get_sequence_frame: { args: { playheadUs: TimeUs }; result: SequenceFrame };
+  set_clip_volume: {
+    args: { itemId: string; volume: number };
+    result: Timeline;
+  };
   get_item_details: { args: { itemId: string }; result: TimelineItem };
-  update_item_property: {
-    args: { itemId: string; property: string; value: unknown };
+  update_item: {
+    args: { itemId: string; patch: ItemPatch };
     result: Timeline;
   };
 
@@ -204,11 +600,42 @@ export type CommandMap = {
   import_assets: { args: { paths: string[] }; result: Asset[] };
   get_assets: { args: undefined; result: Asset[] };
   remove_asset: { args: { id: string }; result: void };
+  relink_asset: { args: { id: string; path: string }; result: Asset };
   get_clip_thumbnails: { args: { assetId: string }; result: Thumbnail[] };
   get_waveform: { args: { assetId: string }; result: WaveformData };
 
-  // Export (progress arrives via forgecut:event:export-progress events)
-  export_project: { args: { outputPath: string }; result: void };
+  // Export jobs
+  cancel_media_job: {
+    args: { sessionId: string; jobId: string };
+    result: JobSnapshot;
+  };
+  get_media_job: {
+    args: { sessionId: string; jobId: string };
+    result: JobSnapshot;
+  };
+  create_export_batch: { args: CreateExportBatch; result: ExportBatchSnapshot };
+  resume_export_batch: {
+    args: { directory: string; batchId: string; retryInterrupted?: boolean };
+    result: ExportBatchSnapshot;
+  };
+  cancel_export_batch: {
+    args: { directory: string; batchId: string };
+    result: ExportBatchSnapshot;
+  };
+  get_export_batch: {
+    args: { directory: string };
+    result: ExportBatchSnapshot;
+  };
+  collect_project: { args: ProjectCollectionRequest; result: JobSnapshot };
+  export_project: {
+    args: {
+      outputPath: string;
+      sequenceId?: string;
+      range?: ReviewRange;
+      preset?: ExportPresetId;
+    };
+    result: JobSnapshot;
+  };
 };
 
 export type CommandName = keyof CommandMap;
@@ -221,6 +648,11 @@ export type CommandResultOf<K extends CommandName> = CommandMap[K]["result"];
  * The preload bridge prefixes names with "forgecut:event:" on the wire.
  */
 export type EventPayloads = {
-  "export-progress": RenderProgress;
-  "export-complete": { output_path: string };
+  "project-changed": ProjectSnapshot;
+  "mcp-status": McpStatus;
 };
+
+export type EventSink = <E extends keyof EventPayloads>(
+  event: E,
+  payload: EventPayloads[E],
+) => void;

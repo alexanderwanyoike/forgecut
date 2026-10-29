@@ -1,0 +1,97 @@
+.credits-dialog {
+  width: min(660px, calc(100vw - 48px));
+  max-height: calc(100vh - 64px);
+  margin: auto;
+  padding: 0;
+  color: var(--text-primary);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 24px 72px rgb(0 0 0 / 35%);
+}
+.credits-dialog::backdrop {
+  background: rgb(0 0 0 / 50%);
+}
+.credits-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.credits-header,
+.credits-header > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.credits-header {
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+.credits-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.credits-header svg {
+  color: var(--text-secondary);
+}
+.credits-body {
+  overflow: auto;
+  padding: 20px 24px 24px;
+  min-height: 0;
+}
+.credits-intro {
+  color: var(--text-secondary);
+  margin: 0 0 20px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.credit-picker,
+.credit-form label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.credit-picker {
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+.credit-form {
+  display: grid;
+  gap: 16px;
+}
+.credit-form input,
+.credit-form textarea,
+.credit-picker select {
+  width: 100%;
+  min-width: 0;
+}
+.credit-form textarea {
+  resize: vertical;
+  min-height: 112px;
+  font: inherit;
+  line-height: 1.6;
+}
+.credit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+.credit-form p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.credit-conflict {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}

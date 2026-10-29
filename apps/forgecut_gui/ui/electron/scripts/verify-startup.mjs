@@ -1,9 +1,32 @@
+import { verifyProjectCollection } from "./project-collection-smoke.mjs";
+import { verifyBatchControls } from "./batch-controls-smoke.mjs";
+import { verifyPortableMedia } from "./portable-media-smoke.mjs";
+import { verifyExportBatches } from "./export-batch-smoke.mjs";
+import { verifyReviewExports } from "./review-export-smoke.mjs";
+import { verifyCredits } from "./credits-smoke.mjs";
+import { verifyStyleControls } from "./style-controls-smoke.mjs";
+import { verifyStylePresets } from "./style-preset-smoke.mjs";
+import { verifySourceSelections } from "./source-selection-smoke.mjs";
+import { verifyVariants } from "./variant-smoke.mjs";
+import { verifyAppearance } from "./appearance-smoke.mjs";
+import { mkdtempSync } from "node:fs";
+import { rm } from "node:fs/promises";
+import { once } from "node:events";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { verifyGraphicsPreview } from "./graphics-preview-smoke.mjs";
+import { verifyCode } from "./code-smoke.mjs";
+import { verifySequences } from "./sequence-smoke.mjs";
+import { verifyCanvas } from "./canvas-smoke.mjs";
+import { verifyAudio } from "./audio-smoke.mjs";
+import { verifyMcp } from "./mcp-smoke.mjs";
 import { spawn } from "node:child_process";
 
 const remoteDebuggingPort = String(19_222 + Math.floor(Math.random() * 1000));
 const remoteDebuggingUrl = `http://127.0.0.1:${remoteDebuggingPort}`;
 const expectedText = ["ASSETS", "INSPECTOR", "TIMELINE"];
 const children = [];
+const mcpDirectory = mkdtempSync(join(tmpdir(), "forgecut-smoke-"));
 
 function spawnChild(command, args, options = {}) {
   const child = spawn(command, args, {
@@ -16,9 +39,8 @@ function spawnChild(command, args, options = {}) {
   return child;
 }
 
-function shutdown(code = 0) {
+async function shutdown(code = 0) {
   for (const child of children) {
-    if (child.killed) continue;
     try {
       if (process.platform === "win32") {
         child.kill();
@@ -29,6 +51,25 @@ function shutdown(code = 0) {
       child.kill();
     }
   }
+  await Promise.all(
+    children.map(async (child) => {
+      if (child.exitCode === null && child.signalCode === null)
+        await once(child, "close", { signal: AbortSignal.timeout(2000) }).catch(
+          () => {},
+        );
+      if (process.platform !== "win32" && child.pid) {
+        try {
+          process.kill(-child.pid, "SIGKILL");
+        } catch {}
+      }
+    }),
+  );
+  await rm(mcpDirectory, {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 100,
+  });
   process.exit(code);
 }
 
@@ -60,10 +101,20 @@ async function connectCdp(webSocketDebuggerUrl) {
       return;
     }
     if (message.method === "Runtime.exceptionThrown") {
-      errors.push(message.params.exceptionDetails?.exception?.description ?? message.params);
+      errors.push(
+        message.params.exceptionDetails?.exception?.description ??
+          message.params,
+      );
     }
-    if (message.method === "Runtime.consoleAPICalled" && message.params.type === "error") {
-      errors.push(message.params.args.map((arg) => arg.description ?? arg.value).join(" "));
+    if (
+      message.method === "Runtime.consoleAPICalled" &&
+      message.params.type === "error"
+    ) {
+      errors.push(
+        message.params.args
+          .map((arg) => arg.description ?? arg.value)
+          .join(" "),
+      );
     }
   });
 
@@ -84,13 +135,23 @@ async function connectCdp(webSocketDebuggerUrl) {
 }
 
 async function main() {
-  spawnChild("yarn", ["dev"], {
-    env: {
-      ...process.env,
-      ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
-      ELECTRON_REMOTE_DEBUGGING_PORT: remoteDebuggingPort,
+  const executable = process.env.FORGECUT_VERIFY_EXECUTABLE;
+  spawnChild(
+    executable ?? "yarn",
+    executable
+      ? ["--no-sandbox", `--user-data-dir=${join(mcpDirectory, "profile")}`]
+      : ["dev"],
+    {
+      env: {
+        ...process.env,
+        FORGECUT_MCP_DIR: mcpDirectory,
+        FORGECUT_RESOURCE_DIR: join(mcpDirectory, "resources"),
+        FORGECUT_DRAFT_DIR: join(mcpDirectory, "drafts"),
+        ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
+        ELECTRON_REMOTE_DEBUGGING_PORT: remoteDebuggingPort,
+      },
     },
-  });
+  );
 
   const page = await waitForPage();
   const { ws, send, errors } = await connectCdp(page.webSocketDebuggerUrl);
@@ -100,21 +161,89 @@ async function main() {
   const result = await send("Runtime.evaluate", {
     expression: `({
       bridge: typeof window.forgecut,
+      origin: window.location.origin,
       text: document.body.innerText,
       rootHtmlLength: document.getElementById("root")?.innerHTML.length ?? 0
     })`,
     returnByValue: true,
     awaitPromise: true,
   });
+
+  await verifyAppearance(send, "empty");
+
+  const editing = await send("Runtime.evaluate", {
+    expression: `(async () => {
+      const invoke = async (command, args) => {
+        const response = await window.forgecut.invoke(command, args);
+        if (!response.ok) throw new Error(response.error.message);
+        return response.value;
+      };
+      const waitFor = async (predicate) => {
+        for (let attempt = 0; attempt < 100; attempt++) {
+          if (predicate()) return;
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        throw new Error('Editor panels did not receive the project change');
+      };
+      await invoke('add_text_overlay', {
+        trackId: crypto.randomUUID(), timelineStartUs: 0, durationUs: 3000000,
+        text: 'Shared state check', fontSize: 48, color: '#ffffff', x: 100, y: 100,
+      });
+      await waitFor(() => document.querySelector('.clip-label')?.textContent === 'Shared state check');
+      await waitFor(() => document.querySelector('.preview-viewport')?.textContent.includes('Shared state check'));
+      await invoke('undo');
+      await waitFor(() => !document.querySelector('.clip'));
+      await invoke('redo');
+      await waitFor(() => document.querySelector('.clip-label')?.textContent === 'Shared state check');
+      const snapshot = await invoke('get_project_snapshot');
+      const request = {
+        sessionId: snapshot.sessionId, expectedRevision: snapshot.revision,
+        requestId: crypto.randomUUID(), operations: [{ command: 'update_project', args: { name: 'Shared editor check' } }],
+      };
+      const first = await invoke('apply_edits', request);
+      const retry = await invoke('apply_edits', request);
+      if (first.revision !== retry.revision) throw new Error('A retried edit was applied twice');
+      const stale = await window.forgecut.invoke('apply_edits', { ...request, requestId: crypto.randomUUID() });
+      if (stale.ok || stale.error.code !== 'CONFLICT') throw new Error('Stale edit was accepted');
+      await waitFor(() => document.querySelector('.project-name')?.textContent === 'Shared editor check');
+      return { revision: first.revision, sharedEditing: true };
+    })()`,
+    returnByValue: true,
+    awaitPromise: true,
+  });
+  if (!editing.result?.result?.value?.sharedEditing) {
+    throw new Error(
+      `Shared editing smoke check failed: ${JSON.stringify(editing.result)}`,
+    );
+  }
+  await verifyMcp(mcpDirectory, send);
+  await verifyAudio(mcpDirectory, send);
+  await verifyGraphicsPreview(mcpDirectory, send);
+  await verifyCanvas(send);
+  await verifyAppearance(send, "canvas");
+  await verifyCode(send);
+  await verifySequences(send);
+  await verifyVariants(send);
+  await verifySourceSelections(mcpDirectory, send);
+  await verifyStylePresets(mcpDirectory, send);
+  await verifyStyleControls(send);
+  await verifyCredits(mcpDirectory, send);
+  await verifyReviewExports(mcpDirectory, send);
+  await verifyExportBatches(mcpDirectory, send);
+  await verifyBatchControls(mcpDirectory, send);
+  await verifyPortableMedia(mcpDirectory, send);
+  await verifyProjectCollection(mcpDirectory, send);
   ws.close();
 
   const value = result.result?.result?.value;
   if (!value) throw new Error("Could not inspect renderer state");
+  if (executable && value.origin !== "forgecut-app://editor")
+    throw new Error(`Unexpected packaged editor origin: ${value.origin}`);
   if (value.bridge !== "object") {
     throw new Error(`ForgeCut preload bridge missing: ${value.bridge}`);
   }
   for (const text of expectedText) {
-    if (!value.text.includes(text)) {
+    if (!value.text.toUpperCase().includes(text)) {
       throw new Error(
         `Renderer did not contain expected text: ${text}\nRendered text:\n${value.text}`,
       );
@@ -127,7 +256,9 @@ async function main() {
     throw new Error(`Renderer emitted errors:\\n${errors.join("\\n")}`);
   }
 
-  console.log("Electron startup verified");
+  console.log(
+    "Electron startup, shared editing, live MCP, preview audio, graphics export and canvas editing verified",
+  );
 }
 
 main()

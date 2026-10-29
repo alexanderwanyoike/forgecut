@@ -1,0 +1,33 @@
+# Source selections
+
+## Decision
+
+A source selection is a named, positive half-open range in an imported recording's own time coordinates. It has a stable ID, asset reference, in/out microseconds, notes and rationale. Selections are project data shared by all sequences; saving or deleting one is a global history action. They can describe useful footage before it is placed on a timeline.
+
+This follows the established distinction between source-relative media ranges and parent timeline ranges in [OpenTimelineIO's time range model](https://github.com/AcademySoftwareFoundation/OpenTimelineIO/blob/main/docs/tutorials/time-ranges.md). The implementation uses ForgeCut's existing microsecond representation and guarded editing service. The reference informs the data model; it adds no dependency or copied implementation.
+
+An audio/video selection requires probed positive source duration, and its out point cannot exceed it. IDs are unique across the project. References remain valid when deleting or relinking assets because the complete candidate project is validated before publication. Invalid changes retain the preceding project and history.
+
+Project format 4 adds `source_selections`. Format 3 upgrades preserve the existing default sequence identity and all timelines. Older supported versions retain their established default-sequence migration. Invalid or future formats fail before replacement. Old editors reject format 4 rather than silently discarding editorial notes.
+
+`save_source_selection` creates a selection or replaces an explicitly identified one. `update_source_selection` merges a nonempty typed field patch, retaining untouched editorial fields and validating the complete resulting range. `delete_source_selection` removes an identified selection. These commands use the same atomic edits, expected revision, retry cache and undo history as other project changes. Callers must read the current record before replacing it so manual notes are preserved.
+
+`read_source_selections` returns at most 20 records, optionally filtered by asset ID. There are at most 1000 selections per project; notes and rationale are each limited to 2000 characters. Pagination happens inside the editor before transport serialization. Bounded cached contact-sheet and waveform jobs are available through native/MCP source review. The source monitor exposes contact sheets and waveform peaks for the displayed range, limited to 0.1 through 30 seconds. Reviews are read-only, show their source range, and use the existing serial cached job queue. Changing the range or leaving the monitor cancels pending work and discards stale replies. Short video previews remain a separate production slice.
+
+The asset bin opens a source monitor for probed audio and video. Its inspector creates saved in/out ranges and edits names, notes and rationale through partial updates. Append selection inserts the saved range at the end of a chosen compatible track in the visible sequence, using an expected-revision batch and one undo step. Insertion copies the range into an independent timeline clip and retains the saved selection.
+
+## Verification
+
+Native editing tests cover range validation, unchanged timelines/context, notes, stable updates, undo/redo and save/reopen. The official MCP SDK workflow reads a manually changed note, retains it while adjusting the selected source range, and retries the same guarded request without publishing a second edit. Migration tests retain default sequence identity and reject corrupt metadata.
+
+The packaged Electron workflow decodes generated footage, creates a saved range, preserves manual notes through an agent range patch, inserts and undoes a clip, and reopens the source monitor. Layout checks cover dark/light at 1280 and 1024 pixels.
+
+## Short source previews
+
+Extend the existing source-review queue and fingerprinted cache with `kind: preview`, represented by the `source-preview` job kind. A video source range must be between 100 milliseconds and 5 seconds. The external FFmpeg process produces a WebM with VP8 video at 15 fps within 640 by 360 pixels, preserving display aspect metadata without upscaling encoded dimensions, plus optional mono Opus audio. Silent sources remain silent. Output is capped at 512 KiB by the existing process reader; cancellation, queue limits, deadline, pre/post source fingerprints and cache eviction remain shared with contact sheets and waveforms. No project/history mutation is performed.
+
+The encoding follows the documented [FFmpeg libvpx and libopus wrappers](https://ffmpeg.org/ffmpeg-codecs.html), using a real-time deadline and bounded rate for quick source review. It uses the already supported external FFmpeg executable; no upstream code is copied and no new dependency is bundled. This preview is a compact review aid, not a final-quality sequence export.
+
+MCP supports the same request and reports preview metadata and byte size through `get_job`, omitting video payloads from chat text. The desktop consumes the bounded video result for playback in a separate visual-controls slice. Agent visual inspection continues to use native image contact sheets and source frames.
+
+The source monitor's Short preview action consumes the bounded video result with native playback controls. It is enabled for valid video ranges up to five seconds; longer ranges remain available for contact sheets and waveforms. The preview takes the monitor area so its controls remain visible; Back to source restores the original player and its position. Only one source-monitor player plays at a time, and replacing or clearing a preview pauses it and releases its playback URL. Monitor key events stay with its controls instead of editing the selected timeline item. Preview jobs retain the existing range/session invalidation and relink behaviour.

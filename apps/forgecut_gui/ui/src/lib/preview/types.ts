@@ -1,17 +1,12 @@
-import type {
-  ImageOverlayItem,
-  TextOverlayItem,
-} from "../../../electron/shared/ipc-contract";
-
-export type { ClipAtPlayhead } from "../../../electron/shared/ipc-contract";
-
-/** Overlay shape as consumed by the preview surface (variant fields optional). */
-export interface OverlayData {
-  ImageOverlay?: ImageOverlayItem & { file_path?: string };
-  TextOverlay?: TextOverlayItem;
-}
+import type { Project } from "../../../electron/shared/ipc-contract";
 
 export interface PreviewProps {
+  project?: Project;
+  sessionId?: string;
+  selectedClipId?: string | null;
+  selectedLayerId?: string | null;
+  onGraphicSelection?: (itemId: string, layerId: string) => void;
+  projectVersion: number;
   playheadUs: number;
   playing: boolean;
   onPlayingChange: (playing: boolean) => void;

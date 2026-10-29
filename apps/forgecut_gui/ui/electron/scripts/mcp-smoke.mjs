@@ -1,0 +1,355 @@
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { Client } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+import { fileURLToPath } from "node:url";
+
+export async function verifyMcp(directory, send) {
+  const isolated = await mkdtemp(join(tmpdir(), "forgecut-adapter-"));
+  const adapter = join(isolated, "adapter.cjs");
+  await cp(
+    fileURLToPath(new URL("../dist/mcp-adapter.cjs", import.meta.url)),
+    adapter,
+  );
+  const client = new Client({ name: "forgecut-smoke", version: "1" });
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    cwd: tmpdir(),
+    args: [adapter],
+    env: { ...process.env, FORGECUT_MCP_DIR: directory },
+  });
+  try {
+    await client.connect(transport);
+    const listing = await client.callTool({
+      name: "list_sessions",
+      arguments: {},
+    });
+    const instance = listing.structuredContent?.value?.[0];
+    if (!instance || listing.structuredContent.value.length !== 1)
+      throw new Error("Expected exactly one isolated Electron MCP session");
+    const attached = await client.callTool({
+      name: "attach_session",
+      arguments: { instanceId: instance.instanceId },
+    });
+    const snapshot = attached.structuredContent?.value;
+    if (attached.isError || !snapshot?.sessionId)
+      throw new Error("Could not attach to the running editor");
+    const capabilities = await client.callTool({
+      name: "get_capabilities",
+      arguments: {},
+    });
+    if (
+      capabilities.isError ||
+      capabilities.structuredContent?.value?.jobs
+        ?.sourcePreviewMaxDurationUs !== 5000000 ||
+      capabilities.structuredContent?.value?.jobs?.sourcePreviewMaxBytes !==
+        512 * 1024
+    )
+      throw new Error("Packaged preview capabilities are unavailable");
+    const styles = await client.callTool({
+      name: "read_style_presets",
+      arguments: { sessionId: snapshot.sessionId },
+    });
+    if (styles.isError || styles.structuredContent?.value?.total !== 0)
+      throw new Error("Packaged style discovery did not reach the editor");
+    const missingStyle = await client.callTool({
+      name: "read_style_preset",
+      arguments: { sessionId: snapshot.sessionId, presetId: "missing-style" },
+    });
+    if (missingStyle.structuredContent?.error?.code !== "NOT_FOUND")
+      throw new Error(
+        "Packaged style value reads did not preserve the typed missing-style failure",
+      );
+    const graphics = await client.callTool({
+      name: "list_graphic_templates",
+      arguments: { sessionId: snapshot.sessionId },
+    });
+    const title = graphics.structuredContent?.value?.templates?.find(
+      (template) => template.template_id === "title-card",
+    );
+    if (
+      graphics.isError ||
+      title?.properties?.title?.type !== "text" ||
+      !/^[a-f0-9]{64}$/.test(title.version)
+    )
+      throw new Error("Packaged graphic source metadata did not reach MCP");
+    const sourceCheck = await client.callTool({
+      name: "start_graphic_source_check",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        expectedRevision: snapshot.revision,
+        requestId: "smoke-source-check",
+        source: {
+          entry: "main.tsx",
+          files: {
+            "main.tsx":
+              'import {useCurrentFrame} from "remotion"; export default function Card(){return <div>{useCurrentFrame()}</div>}',
+          },
+        },
+      },
+    });
+    if (sourceCheck.isError) throw new Error(JSON.stringify(sourceCheck));
+    let checked;
+    for (let attempt = 0; attempt < 1000; attempt++) {
+      const result = await client.callTool({
+        name: "get_job",
+        arguments: {
+          sessionId: snapshot.sessionId,
+          jobId: sourceCheck.structuredContent.value.id,
+        },
+      });
+      if (result.isError) throw new Error(JSON.stringify(result));
+      checked = result.structuredContent.value;
+      if (!["queued", "running"].includes(checked.status)) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    if (
+      checked?.status !== "completed" ||
+      checked.result?.value?.valid !== true
+    )
+      throw new Error(
+        `Packaged source checking failed: ${JSON.stringify(checked)}`,
+      );
+    const edited = await client.callTool({
+      name: "apply_edits",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        expectedRevision: snapshot.revision,
+        requestId: "smoke-edit",
+        label: "MCP smoke rename",
+        operations: [
+          { command: "update_project", args: { name: "MCP live editor" } },
+        ],
+      },
+    });
+    if (edited.isError) throw new Error(JSON.stringify(edited));
+    const visible = await send("Runtime.evaluate", {
+      expression: `(async () => {
+      for (let i = 0; i < 100; i++) {
+        if (document.querySelector('.project-name')?.textContent === 'MCP live editor') return true;
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      return false;
+    })()`,
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    if (visible.result?.result?.value !== true)
+      throw new Error("MCP edit did not reach the Electron renderer");
+    const path = join(isolated, "mcp-source.png");
+    await writeFile(
+      path,
+      Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    );
+    const current = await client.callTool({
+      name: "read_project",
+      arguments: {},
+    });
+    const started = await client.callTool({
+      name: "start_import",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        expectedRevision: current.structuredContent.value.revision,
+        requestId: "smoke-import",
+        paths: [path],
+      },
+    });
+    if (started.isError) throw new Error(JSON.stringify(started));
+    const jobId = started.structuredContent.value.id;
+    let job;
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const result = await client.callTool({
+        name: "get_job",
+        arguments: { sessionId: snapshot.sessionId, jobId },
+      });
+      if (result.isError) throw new Error(JSON.stringify(result));
+      job = result.structuredContent.value;
+      if (!["queued", "running", "committing"].includes(job.status)) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    if (
+      job?.status !== "completed" ||
+      job.result?.value?.assetIds?.length !== 1
+    )
+      throw new Error(
+        `Media import job did not complete: ${JSON.stringify(job)}`,
+      );
+    const assetVisible = await send("Runtime.evaluate", {
+      expression: `(async () => {
+        for (let attempt = 0; attempt < 100; attempt++) {
+          if ([...document.querySelectorAll('.asset-name')].some(el => el.textContent === 'mcp-source.png')) return true;
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        return false;
+      })()`,
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    if (assetVisible.result?.result?.value !== true)
+      throw new Error("Completed MCP import did not reach the asset bin");
+    const latest = await client.callTool({
+      name: "read_project",
+      arguments: {},
+    });
+    const resourceImport = await client.callTool({
+      name: "start_resource_import",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        expectedRevision: latest.structuredContent.value.revision,
+        requestId: "smoke-resource",
+        resource: {
+          path,
+          kind: "Image",
+          license: { identifier: "test-only", text: "Generated smoke artwork" },
+        },
+      },
+    });
+    if (resourceImport.isError) throw new Error(JSON.stringify(resourceImport));
+    const resourceJobId = resourceImport.structuredContent.value.id;
+    let resourceJob;
+    for (let attempt = 0; attempt < 150; attempt++) {
+      const read = await client.callTool({
+        name: "get_job",
+        arguments: { sessionId: snapshot.sessionId, jobId: resourceJobId },
+      });
+      if (read.isError) throw new Error(JSON.stringify(read));
+      resourceJob = read.structuredContent.value;
+      if (!["queued", "running", "committing"].includes(resourceJob.status))
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    if (resourceJob?.status !== "completed")
+      throw new Error(`Resource import failed: ${JSON.stringify(resourceJob)}`);
+    const resources = await client.callTool({
+      name: "read_graphic_resources",
+      arguments: { sessionId: snapshot.sessionId },
+    });
+    if (
+      resources.isError ||
+      resources.structuredContent.value.resources[0]?.sha256?.length !== 64
+    )
+      throw new Error("Compiled MCP adapter did not discover imported artwork");
+    const creditRevision = await client.callTool({
+      name: "read_project",
+      arguments: {},
+    });
+    const license = {
+      identifier: "Generated fixture",
+      text: "Generated smoke media",
+      attribution: "ForgeCut acceptance fixture",
+    };
+    const credited = await client.callTool({
+      name: "apply_edits",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        expectedRevision: creditRevision.structuredContent.value.revision,
+        requestId: "smoke-credits",
+        label: "Record project credits",
+        operations: [
+          {
+            command: "set_asset_license",
+            args: { assetId: job.result.value.assetIds[0], license },
+          },
+          {
+            command: "set_resource_license",
+            args: {
+              resourceId: resources.structuredContent.value.resources[0].id,
+              license,
+            },
+          },
+        ],
+      },
+    });
+    if (credited.isError) throw new Error(JSON.stringify(credited));
+    const credit = await client.callTool({
+      name: "read_asset_credit",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        assetId: job.result.value.assetIds[0],
+      },
+    });
+    const artworkCredit = await client.callTool({
+      name: "read_graphic_resource",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        resourceId: resources.structuredContent.value.resources[0].id,
+      },
+    });
+    if (
+      credit.isError ||
+      artworkCredit.isError ||
+      JSON.stringify(credit.structuredContent.value.license) !==
+        JSON.stringify(license) ||
+      JSON.stringify(artworkCredit.structuredContent.value.resource.license) !==
+        JSON.stringify(license)
+    )
+      throw new Error(
+        "Packaged project credits did not round trip through MCP",
+      );
+    const collectionRevision = await client.callTool({
+      name: "read_project",
+      arguments: {},
+    });
+    const collection = await client.callTool({
+      name: "start_project_collection",
+      arguments: {
+        sessionId: snapshot.sessionId,
+        expectedRevision: collectionRevision.structuredContent.value.revision,
+        requestId: crypto.randomUUID(),
+        directory: join(directory, "adapter-collection"),
+        assetIds: [job.result.value.assetIds[0]],
+      },
+    });
+    if (collection.isError) throw new Error(JSON.stringify(collection));
+    let collected;
+    for (let attempt = 0; attempt < 400; attempt++) {
+      const result = await client.callTool({
+        name: "get_job",
+        arguments: {
+          sessionId: snapshot.sessionId,
+          jobId: collection.structuredContent.value.id,
+        },
+      });
+      if (result.isError) throw new Error(JSON.stringify(result));
+      collected = result.structuredContent.value;
+      if (["completed", "failed", "cancelled"].includes(collected.status))
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    if (
+      collected?.status !== "completed" ||
+      collected.result?.value?.copiedAssets !== 1
+    )
+      throw new Error(
+        `Compiled MCP collection failed: ${JSON.stringify(collected)}`,
+      );
+    const saved = JSON.parse(
+      await readFile(collected.result.value.projectPath, "utf8"),
+    );
+    if (
+      saved.assets.find((asset) => asset.id === job.result.value.assetIds[0])
+        ?.license?.attribution !== license.attribution
+    )
+      throw new Error("Compiled collection lost its media credit");
+    const afterCollection = await client.callTool({
+      name: "read_project",
+      arguments: {},
+    });
+    if (
+      JSON.stringify(afterCollection.structuredContent.value) !==
+      JSON.stringify(collectionRevision.structuredContent.value)
+    )
+      throw new Error("Compiled collection changed the current editor");
+    console.log(
+      "Isolated compiled MCP adapter collected actual media and preserved credits and live state",
+    );
+  } finally {
+    await client.close();
+    await transport.close();
+    await rm(isolated, { recursive: true, force: true });
+  }
+}

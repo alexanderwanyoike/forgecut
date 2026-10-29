@@ -8,10 +8,10 @@ import { describe, expect, it } from "vitest";
 import { projectCommands } from "../commands/project";
 import { timelineCommands } from "../commands/timeline";
 import { AppState, type Asset, type Timeline } from "../state";
-import type { CommandContext } from "../ipc";
+import type { CommandContext } from "../commands/types";
 
 function context(state = new AppState()): CommandContext {
-  return { state, webContents: {} as CommandContext["webContents"] };
+  return { state };
 }
 
 function videoAsset(overrides: Partial<Asset> = {}): Asset {
@@ -62,7 +62,9 @@ describe("Electron project commands", () => {
     expect(() => timelineCommands.undo(undefined, ctx)).not.toThrow();
 
     await projectCommands.load_project({ path }, ctx);
-    expect(() => timelineCommands.undo(undefined, ctx)).toThrow("Nothing to undo");
+    expect(() => timelineCommands.undo(undefined, ctx)).toThrow(
+      "Nothing to undo",
+    );
   });
 });
 
@@ -70,8 +72,12 @@ describe("Electron timeline commands", () => {
   it("initializes default video and audio tracks once", () => {
     const ctx = context();
 
-    const first = timelineFrom(timelineCommands.init_default_tracks(undefined, ctx));
-    const second = timelineFrom(timelineCommands.init_default_tracks(undefined, ctx));
+    const first = timelineFrom(
+      timelineCommands.init_default_tracks(undefined, ctx),
+    );
+    const second = timelineFrom(
+      timelineCommands.init_default_tracks(undefined, ctx),
+    );
 
     expect(first.tracks.map((track) => track.kind)).toEqual(["Video", "Audio"]);
     expect(second.tracks).toHaveLength(2);
@@ -79,9 +85,13 @@ describe("Electron timeline commands", () => {
 
   it("adds, trims, undoes, and redoes a video clip", () => {
     const state = new AppState();
-    state.project.assets.push(videoAsset());
+    state.executeProjectChange((project) => {
+      project.assets.push(videoAsset());
+    });
     const ctx = context(state);
-    const timeline = timelineFrom(timelineCommands.init_default_tracks(undefined, ctx));
+    const timeline = timelineFrom(
+      timelineCommands.init_default_tracks(undefined, ctx),
+    );
     const videoTrackId = timeline.tracks[0].id;
 
     const afterAdd = timelineFrom(
@@ -99,7 +109,9 @@ describe("Electron timeline commands", () => {
         ctx,
       ),
     );
-    expect(afterTrim.tracks[0].items[0].VideoClip.timeline_start_us).toBe(2_000_000);
+    expect(afterTrim.tracks[0].items[0].VideoClip.timeline_start_us).toBe(
+      2_000_000,
+    );
     expect(afterTrim.tracks[0].items[0].VideoClip.source_in_us).toBe(2_000_000);
 
     const afterUndo = timelineFrom(timelineCommands.undo(undefined, ctx));
@@ -112,9 +124,13 @@ describe("Electron timeline commands", () => {
 
   it("rejects overlapping moves and preserves the original item position", () => {
     const state = new AppState();
-    state.project.assets.push(videoAsset());
+    state.executeProjectChange((project) => {
+      project.assets.push(videoAsset());
+    });
     const ctx = context(state);
-    const timeline = timelineFrom(timelineCommands.init_default_tracks(undefined, ctx));
+    const timeline = timelineFrom(
+      timelineCommands.init_default_tracks(undefined, ctx),
+    );
     const videoTrackId = timeline.tracks[0].id;
 
     timelineCommands.add_clip_to_timeline(
@@ -123,7 +139,11 @@ describe("Electron timeline commands", () => {
     );
     const afterSecond = timelineFrom(
       timelineCommands.add_clip_to_timeline(
-        { assetId: "asset-video", trackId: videoTrackId, timelineStartUs: 10_000_000 },
+        {
+          assetId: "asset-video",
+          trackId: videoTrackId,
+          timelineStartUs: 10_000_000,
+        },
         ctx,
       ),
     );
@@ -135,14 +155,59 @@ describe("Electron timeline commands", () => {
         ctx,
       ),
     ).toThrow("Overlap detected");
-    expect(state.project.timeline.tracks[0].items[1].VideoClip.timeline_start_us).toBe(10_000_000);
+    expect(
+      state.project.timeline.tracks[0].items[1].VideoClip.timeline_start_us,
+    ).toBe(10_000_000);
+  });
+
+  it("leaves the project and undo history unchanged when a trim overlaps", () => {
+    const state = new AppState();
+    state.executeProjectChange((project) => {
+      project.assets.push(videoAsset());
+    });
+    const ctx = context(state);
+    const trackId = state.initDefaultTracks().tracks[0].id;
+    timelineCommands.add_clip_to_timeline(
+      { assetId: "asset-video", trackId, timelineStartUs: 0 },
+      ctx,
+    );
+    const first = state.project.timeline.tracks[0].items[0].VideoClip.id;
+    timelineCommands.trim_clip(
+      { itemId: first, trimType: "out", newUs: 5_000_000 },
+      ctx,
+    );
+    timelineCommands.add_clip_to_timeline(
+      { assetId: "asset-video", trackId, timelineStartUs: 5_000_000 },
+      ctx,
+    );
+    const before = structuredClone(state.project);
+
+    expect(() =>
+      timelineCommands.trim_clip(
+        { itemId: first, trimType: "out", newUs: 7_000_000 },
+        ctx,
+      ),
+    ).toThrow("Overlap detected");
+    expect(state.project).toEqual(before);
+    timelineCommands.undo(undefined, ctx);
+    expect(state.project.timeline.tracks[0].items).toHaveLength(1);
+    timelineCommands.redo(undefined, ctx);
+    expect(state.project).toEqual(before);
   });
 
   it("collects snap points while excluding the dragged item", () => {
     const state = new AppState();
-    state.project.assets.push(videoAsset({ probe: { ...videoAsset().probe!, duration_us: 3_000_000 } }));
+    state.executeProjectChange((project) => {
+      project.assets.push(
+        videoAsset({
+          probe: { ...videoAsset().probe!, duration_us: 3_000_000 },
+        }),
+      );
+    });
     const ctx = context(state);
-    const timeline = timelineFrom(timelineCommands.init_default_tracks(undefined, ctx));
+    const timeline = timelineFrom(
+      timelineCommands.init_default_tracks(undefined, ctx),
+    );
     const trackId = timeline.tracks[0].id;
 
     const afterFirst = timelineFrom(
@@ -164,9 +229,13 @@ describe("Electron timeline commands", () => {
 
   it("finds the active clip and source seek position at the playhead", () => {
     const state = new AppState();
-    state.project.assets.push(videoAsset());
+    state.executeProjectChange((project) => {
+      project.assets.push(videoAsset());
+    });
     const ctx = context(state);
-    const timeline = timelineFrom(timelineCommands.init_default_tracks(undefined, ctx));
+    const timeline = timelineFrom(
+      timelineCommands.init_default_tracks(undefined, ctx),
+    );
     const trackId = timeline.tracks[0].id;
     const afterAdd = timelineFrom(
       timelineCommands.add_clip_to_timeline(
@@ -175,13 +244,23 @@ describe("Electron timeline commands", () => {
       ),
     );
     const clipId = afterAdd.tracks[0].items[0].VideoClip.id;
-    timelineCommands.trim_clip({ itemId: clipId, trimType: "in", newUs: 2_000_000 }, ctx);
+    timelineCommands.trim_clip(
+      { itemId: clipId, trimType: "in", newUs: 2_000_000 },
+      ctx,
+    );
 
-    expect(timelineCommands.get_clip_at_playhead({ playheadUs: 3_000_000 }, ctx)).toMatchObject({
-      file_path: "/media/clip.mp4",
-      seek_seconds: 2,
-      clip_start_us: 3_000_000,
-      source_in_us: 2_000_000,
+    expect(
+      timelineCommands.get_sequence_frame({ playheadUs: 3_000_000 }, ctx),
+    ).toMatchObject({
+      layers: [
+        {
+          asset: { path: "/media/clip.mp4" },
+          sourceTimeUs: 2000000,
+          item: {
+            VideoClip: { timeline_start_us: 3000000, source_in_us: 2000000 },
+          },
+        },
+      ],
     });
   });
 });

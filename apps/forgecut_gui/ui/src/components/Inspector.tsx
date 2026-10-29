@@ -1,328 +1,342 @@
-import { useState, useEffect } from "react";
-import { invoke } from "../lib/bridge";
-
-interface ProjectSettings {
-  width: number;
-  height: number;
-  fps: number;
-  sample_rate: number;
-}
+import { Code2, SlidersHorizontal } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import ActionButton from "./ActionButton";
+import { getItemData } from "../lib/timeline/items";
+import { invoke, invokeGrouped } from "../lib/bridge";
+import type {
+  AudioSettings,
+  ItemPatch,
+  Project,
+  ProjectSettings,
+  TimelineItem,
+} from "../../electron/shared/ipc-contract";
+import PropertyInput from "./PropertyInput";
+import NumberProperty from "./NumberProperty";
+import ClipAudioProperties from "./ClipAudioProperties";
+import GraphicLayers from "./GraphicLayers";
+import GraphicProperties from "./GraphicProperties";
+import GraphicStyleControls from "./GraphicStyleControls";
+import VisualProperties from "./VisualProperties";
 
 interface InspectorProps {
   selectedClipId: string | null;
+  selectedLayerId?: string | null;
+  onSelectedLayerChange?: (id: string | null) => void;
+  project?: Project;
+  projectVersion?: number;
+  sessionId?: string;
+  onEditCode?: (itemId: string) => void;
 }
 
-export default function Inspector(props: InspectorProps) {
-  const [itemData, setItemData] = useState<any>(null);
-  const [itemType, setItemType] = useState<string>("");
+export default function Inspector({
+  selectedClipId,
+  selectedLayerId,
+  onSelectedLayerChange,
+  project,
+  projectVersion,
+  sessionId,
+  onEditCode,
+}: InspectorProps) {
+  const [details, setDetails] = useState<TimelineItem | null>(null);
   const [settings, setSettings] = useState<ProjectSettings | null>(null);
+  const group = useRef(crypto.randomUUID());
+  const item = project
+    ? (project.timeline.tracks
+        .flatMap((track) => track.items)
+        .find((candidate) => getItemData(candidate).id === selectedClipId) ??
+      null)
+    : details;
+  const projectSettings = project?.settings ?? settings;
 
-  // Load project settings on mount
   useEffect(() => {
-    (async () => {
-      try {
-        const s = await invoke("get_project_settings");
-        setSettings(s);
-      } catch {
-        // ignore
-      }
-    })();
-  }, []);
+    if (project) return undefined;
+    let cancelled = false;
+    invoke("get_project_settings")
+      .then((value) => {
+        if (!cancelled) setSettings(value);
+      })
+      .catch(() => {});
+    if (!selectedClipId) setDetails(null);
+    else
+      invoke("get_item_details", { itemId: selectedClipId })
+        .then((value) => {
+          if (!cancelled) setDetails(value);
+        })
+        .catch(() => {
+          if (!cancelled) setDetails(null);
+        });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedClipId, projectVersion, project]);
 
-  // Fetch item details when selection changes
-  useEffect(() => {
-    const id = props.selectedClipId;
-    if (!id) {
-      setItemData(null);
-      setItemType("");
-      return;
-    }
-    (async () => {
-      try {
-        const details = await invoke("get_item_details", { itemId: id }) as Record<string, unknown>;
-        const variant = Object.keys(details)[0];
-        setItemType(variant);
-        setItemData(details[variant]);
-      } catch {
-        setItemData(null);
-        setItemType("");
-      }
-    })();
-  }, [props.selectedClipId]);
-
-  const updateProperty = async (property: string, value: any) => {
-    const id = props.selectedClipId;
-    if (!id) return;
+  const update = async (patch: ItemPatch) => {
+    if (!selectedClipId) return;
     try {
-      await invoke("update_item_property", {
-        itemId: id,
-        property,
-        value,
+      await invokeGrouped(group.current, "update_item", {
+        itemId: selectedClipId,
+        patch,
       });
-      // Refresh item data
-      const details = await invoke("get_item_details", { itemId: id }) as Record<string, unknown>;
-      const variant = Object.keys(details)[0];
-      setItemType(variant);
-      setItemData(details[variant]);
-    } catch (err) {
-      console.error("update_item_property failed:", err);
-    }
+      if (!project)
+        setDetails(
+          await invoke("get_item_details", { itemId: selectedClipId }),
+        );
+    } catch {}
   };
+  const updateSettings = async (changes: Partial<ProjectSettings>) => {
+    try {
+      await invokeGrouped(group.current, "update_project", {
+        settings: changes,
+      });
+    } catch {}
+  };
+  const text = item && "TextOverlay" in item ? item.TextOverlay : null;
+  let clipAudio: {
+    kind: "VideoClip" | "AudioClip";
+    settings: AudioSettings;
+  } | null = null;
+  if (item && "VideoClip" in item)
+    clipAudio = { kind: "VideoClip", settings: item.VideoClip };
+  if (item && "AudioClip" in item)
+    clipAudio = { kind: "AudioClip", settings: item.AudioClip };
+  const data = item
+    ? (Object.values(item)[0] as {
+        timeline_start_us: number;
+        source_in_us?: number;
+        source_out_us?: number;
+        duration_us?: number;
+        asset_id?: string;
+      })
+    : null;
+  const asset = project?.assets.find(
+    (candidate) => candidate.id === data?.asset_id,
+  );
 
-  const formatUs = (us: number): string => {
-    const totalSec = us / 1_000_000;
-    const min = Math.floor(totalSec / 60);
-    const sec = (totalSec % 60).toFixed(2);
-    return min > 0 ? `${min}m ${sec}s` : `${sec}s`;
-  };
+  const graphic =
+    item && "RemotionGraphic" in item ? item.RemotionGraphic : null;
+  const component = project?.components?.find(
+    (candidate) =>
+      candidate.id === graphic?.component_id &&
+      candidate.version === graphic.component_version,
+  );
+  const itemLabel = graphic
+    ? (component?.name ?? "Graphic")
+    : Object.keys(item ?? {})[0];
+  const settingsView = projectSettings ? (
+    <div className="inspector-section">
+      <div className="inspector-section-title">Project Settings</div>
+      {project && (
+        <label className="inspector-row">
+          <span className="inspector-label">Name</span>
+          <PropertyInput
+            className="inspector-input"
+            value={project.name}
+            onValueChange={(name) => {
+              invokeGrouped(group.current, "update_project", {
+                name,
+              }).catch(() => {});
+            }}
+          />
+        </label>
+      )}
+      {project && (
+        <label className="inspector-row">
+          <span className="inspector-label">Sequence end (s)</span>
+          <PropertyInput
+            type="number"
+            className="inspector-input-sm"
+            min="0.001"
+            step="0.1"
+            placeholder="Automatic"
+            value={
+              project.timeline.duration_us === undefined
+                ? ""
+                : project.timeline.duration_us / 1000000
+            }
+            onValueChange={(raw) => {
+              const seconds = Number(raw);
+              if (raw === "" || (Number.isFinite(seconds) && seconds > 0)) {
+                void invokeGrouped(group.current, "set_sequence_end", {
+                  endUs: raw === "" ? null : Math.round(seconds * 1000000),
+                }).catch(() => {});
+              }
+            }}
+          />
+        </label>
+      )}
+      <NumberProperty
+        label="Width"
+        value={projectSettings.width}
+        onValueChange={(width) => updateSettings({ width })}
+        min={1}
+      />
+      <NumberProperty
+        label="Height"
+        value={projectSettings.height}
+        onValueChange={(height) => updateSettings({ height })}
+        min={1}
+      />
+      <NumberProperty
+        label="FPS"
+        value={projectSettings.fps}
+        onValueChange={(fps) => updateSettings({ fps })}
+        min={1}
+      />
+      <NumberProperty
+        label="Sample Rate"
+        value={projectSettings.sample_rate}
+        onValueChange={(sample_rate) => updateSettings({ sample_rate })}
+        min={1}
+      />
+    </div>
+  ) : (
+    <div className="inspector-empty">No selection</div>
+  );
 
   return (
     <aside className="panel inspector">
-      <div className="panel-header">Inspector</div>
-      <div className="inspector-body">
-        {props.selectedClipId && itemData ? (
+      <div className="panel-header">
+        <span>
+          <SlidersHorizontal size={15} aria-hidden="true" />
+          Inspector
+        </span>
+        <span className="panel-detail">{item ? "Selection" : "Sequence"}</span>
+      </div>
+      <div
+        className="inspector-body"
+        onFocusCapture={() => {
+          group.current = crypto.randomUUID();
+        }}
+        onPointerDownCapture={() => {
+          group.current = crypto.randomUUID();
+        }}
+      >
+        {item && data ? (
           <div className="inspector-section">
-            <div className="inspector-section-title">{itemType}</div>
-
-            {/* Common fields */}
-            {itemData.asset_name && (
+            <div className="inspector-section-title">{itemLabel}</div>
+            {asset && (
               <div className="inspector-row">
-                <span className="inspector-label">Source</span>
-                <span className="inspector-value">{itemData.asset_name}</span>
+                <span className="inspector-label">Asset</span>
+                <span className="inspector-value">{asset.name}</span>
               </div>
             )}
-
             <div className="inspector-row">
-              <span className="inspector-label">Position</span>
+              <span className="inspector-label">Start</span>
               <span className="inspector-value">
-                {formatUs(itemData.timeline_start_us)}
+                {(data.timeline_start_us / 1_000_000).toFixed(2)}s
               </span>
             </div>
-
             <div className="inspector-row">
               <span className="inspector-label">Duration</span>
               <span className="inspector-value">
-                {itemType === "VideoClip" || itemType === "AudioClip"
-                  ? formatUs(
-                      itemData.source_out_us - itemData.source_in_us
-                    )
-                  : formatUs(itemData.duration_us)}
+                {(
+                  (data.duration_us ??
+                    data.source_out_us! - data.source_in_us!) / 1_000_000
+                ).toFixed(2)}
+                s
               </span>
             </div>
-
-            {/* VideoClip-specific */}
-            {itemType === "VideoClip" && (
+            {graphic && component && (
               <>
-                <div className="inspector-row">
-                  <span className="inspector-label">In Point</span>
-                  <span className="inspector-value">
-                    {formatUs(itemData.source_in_us)}
-                  </span>
-                </div>
-                <div className="inspector-row">
-                  <span className="inspector-label">Out Point</span>
-                  <span className="inspector-value">
-                    {formatUs(itemData.source_out_us)}
-                  </span>
-                </div>
-              </>
-            )}
-
-            {/* AudioClip-specific */}
-            {itemType === "AudioClip" && (
-              <>
-                <div className="inspector-row">
-                  <span className="inspector-label">In Point</span>
-                  <span className="inspector-value">
-                    {formatUs(itemData.source_in_us)}
-                  </span>
-                </div>
-                <div className="inspector-row">
-                  <span className="inspector-label">Out Point</span>
-                  <span className="inspector-value">
-                    {formatUs(itemData.source_out_us)}
-                  </span>
-                </div>
-                <div className="inspector-row">
-                  <span className="inspector-label">Volume</span>
-                  <input
-                    type="range"
-                    className="inspector-slider"
-                    min="0"
-                    max="2"
-                    step="0.01"
-                    value={itemData.volume}
-                    onInput={(e) =>
-                      updateProperty("volume", parseFloat(e.currentTarget.value))
-                    }
+                {onEditCode && (
+                  <ActionButton
+                    icon={Code2}
+                    className="inspector-code-button"
+                    onClick={() => onEditCode(graphic.id)}
+                  >
+                    Edit code
+                  </ActionButton>
+                )}
+                {project && sessionId && projectVersion !== undefined && (
+                  <GraphicStyleControls
+                    key={`${sessionId}:${graphic.id}`}
+                    project={project}
+                    sessionId={sessionId}
+                    revision={projectVersion}
+                    item={graphic}
+                    component={component}
                   />
-                  <span className="inspector-value-sm">
-                    {(itemData.volume * 100).toFixed(0)}%
-                  </span>
-                </div>
+                )}
+                <GraphicLayers
+                  component={component}
+                  item={graphic}
+                  selectedLayerId={selectedLayerId}
+                  onSelect={onSelectedLayerChange}
+                  update={update}
+                />
+                <GraphicProperties
+                  selectedLayerId={selectedLayerId}
+                  origin={
+                    sessionId && projectVersion !== undefined
+                      ? { sessionId, revision: projectVersion }
+                      : undefined
+                  }
+                  component={component}
+                  item={graphic}
+                  resources={project?.resources ?? []}
+                  update={update}
+                />
               </>
             )}
-
-            {/* TextOverlay-specific */}
-            {itemType === "TextOverlay" && (
+            {text && (
               <>
-                <div className="inspector-row-col">
+                <label className="inspector-row">
                   <span className="inspector-label">Text</span>
-                  <input
-                    type="text"
+                  <PropertyInput
                     className="inspector-input"
-                    value={itemData.text}
-                    onChange={(e) =>
-                      updateProperty("text", e.currentTarget.value)
+                    value={text.text}
+                    onValueChange={(value) =>
+                      update({ kind: "TextOverlay", changes: { text: value } })
                     }
                   />
-                </div>
-                <div className="inspector-row">
-                  <span className="inspector-label">Font Size</span>
-                  <input
-                    type="number"
-                    className="inspector-input-sm"
-                    value={itemData.font_size}
-                    onChange={(e) =>
-                      updateProperty(
-                        "font_size",
-                        parseInt(e.currentTarget.value, 10)
-                      )
-                    }
-                  />
-                </div>
-                <div className="inspector-row">
+                </label>
+                <NumberProperty
+                  label="Font Size"
+                  value={text.font_size}
+                  onValueChange={(font_size) =>
+                    update({ kind: "TextOverlay", changes: { font_size } })
+                  }
+                  min={1}
+                />
+                <label className="inspector-row">
                   <span className="inspector-label">Color</span>
                   <input
                     type="color"
                     className="inspector-color"
-                    value={itemData.color}
-                    onInput={(e) =>
-                      updateProperty("color", e.currentTarget.value)
+                    value={text.color}
+                    onChange={(event) =>
+                      update({
+                        kind: "TextOverlay",
+                        changes: { color: event.currentTarget.value },
+                      })
                     }
                   />
-                </div>
-                <div className="inspector-row">
-                  <span className="inspector-label">X</span>
-                  <input
-                    type="number"
-                    className="inspector-input-sm"
-                    value={itemData.x}
-                    onChange={(e) =>
-                      updateProperty("x", parseInt(e.currentTarget.value, 10))
-                    }
-                  />
-                </div>
-                <div className="inspector-row">
-                  <span className="inspector-label">Y</span>
-                  <input
-                    type="number"
-                    className="inspector-input-sm"
-                    value={itemData.y}
-                    onChange={(e) =>
-                      updateProperty("y", parseInt(e.currentTarget.value, 10))
-                    }
-                  />
-                </div>
+                </label>
+                <NumberProperty
+                  label="X"
+                  value={text.x}
+                  onValueChange={(x) =>
+                    update({ kind: "TextOverlay", changes: { x } })
+                  }
+                />
+                <NumberProperty
+                  label="Y"
+                  value={text.y}
+                  onValueChange={(y) =>
+                    update({ kind: "TextOverlay", changes: { y } })
+                  }
+                />
               </>
             )}
-
-            {/* ImageOverlay-specific */}
-            {itemType === "ImageOverlay" && (
-              <>
-                <div className="inspector-row">
-                  <span className="inspector-label">X</span>
-                  <input
-                    type="number"
-                    className="inspector-input-sm"
-                    value={itemData.x}
-                    onChange={(e) =>
-                      updateProperty("x", parseInt(e.currentTarget.value, 10))
-                    }
-                  />
-                </div>
-                <div className="inspector-row">
-                  <span className="inspector-label">Y</span>
-                  <input
-                    type="number"
-                    className="inspector-input-sm"
-                    value={itemData.y}
-                    onChange={(e) =>
-                      updateProperty("y", parseInt(e.currentTarget.value, 10))
-                    }
-                  />
-                </div>
-                <div className="inspector-row">
-                  <span className="inspector-label">Width</span>
-                  <input
-                    type="number"
-                    className="inspector-input-sm"
-                    value={itemData.width}
-                    onChange={(e) =>
-                      updateProperty(
-                        "width",
-                        parseInt(e.currentTarget.value, 10)
-                      )
-                    }
-                  />
-                </div>
-                <div className="inspector-row">
-                  <span className="inspector-label">Height</span>
-                  <input
-                    type="number"
-                    className="inspector-input-sm"
-                    value={itemData.height}
-                    onChange={(e) =>
-                      updateProperty(
-                        "height",
-                        parseInt(e.currentTarget.value, 10)
-                      )
-                    }
-                  />
-                </div>
-                <div className="inspector-row">
-                  <span className="inspector-label">Opacity</span>
-                  <input
-                    type="range"
-                    className="inspector-slider"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={itemData.opacity}
-                    onInput={(e) =>
-                      updateProperty(
-                        "opacity",
-                        parseFloat(e.currentTarget.value)
-                      )
-                    }
-                  />
-                  <span className="inspector-value-sm">
-                    {(itemData.opacity * 100).toFixed(0)}%
-                  </span>
-                </div>
-              </>
+            {project && (
+              <VisualProperties project={project} item={item} update={update} />
             )}
-          </div>
-        ) : settings ? (
-          <div className="inspector-section">
-            <div className="inspector-section-title">Project Settings</div>
-            <div className="inspector-row">
-              <span className="inspector-label">Resolution</span>
-              <span className="inspector-value">
-                {settings.width} x {settings.height}
-              </span>
-            </div>
-            <div className="inspector-row">
-              <span className="inspector-label">FPS</span>
-              <span className="inspector-value">{settings.fps}</span>
-            </div>
-            <div className="inspector-row">
-              <span className="inspector-label">Sample Rate</span>
-              <span className="inspector-value">{settings.sample_rate} Hz</span>
-            </div>
+            {clipAudio && (
+              <ClipAudioProperties {...clipAudio} update={update} />
+            )}
           </div>
         ) : (
-          <div className="inspector-empty">No selection</div>
+          settingsView
         )}
       </div>
     </aside>

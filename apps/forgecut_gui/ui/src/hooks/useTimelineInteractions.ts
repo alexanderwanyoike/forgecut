@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { invoke } from "../lib/bridge";
 import {
   nearestSnapPoint,
@@ -33,6 +39,7 @@ export interface TimelineInteractionOptions {
   onPlayingChange: (playing: boolean) => void;
   onPlayheadChange: (us: number) => void;
   onSelectClip: (id: string | null) => void;
+  projectVersion?: number;
 }
 
 /**
@@ -56,7 +63,9 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
 
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [trimState, setTrimState] = useState<TrimState | null>(null);
-  const [dragTargetTrackId, setDragTargetTrackId] = useState<string | null>(null);
+  const [dragTargetTrackId, setDragTargetTrackId] = useState<string | null>(
+    null,
+  );
   const [snapLineUs, setSnapLineUs] = useState<number | null>(null);
 
   // Mirror drag/trim state into refs so the global mouseup handler never
@@ -65,6 +74,19 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
   const trimStateRef = useRef<TrimState | null>(null);
   const rulerDraggingRef = useRef(false);
   const snapPointsCacheRef = useRef<number[] | null>(null);
+  const generation = useRef(0);
+
+  useEffect(() => {
+    generation.current += 1;
+    dragStateRef.current = null;
+    trimStateRef.current = null;
+    rulerDraggingRef.current = false;
+    snapPointsCacheRef.current = null;
+    setDragState(null);
+    setTrimState(null);
+    setDragTargetTrackId(null);
+    setSnapLineUs(null);
+  }, [options.projectVersion]);
 
   const setDragStateValue = useCallback((next: DragState | null) => {
     dragStateRef.current = next;
@@ -87,7 +109,9 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
     );
   };
 
-  const getTrackAtY = (clientY: number): { id: string; kind: string } | null => {
+  const getTrackAtY = (
+    clientY: number,
+  ): { id: string; kind: string } | null => {
     const lanes = document.querySelectorAll(".track-lane");
     for (const lane of lanes) {
       const rect = lane.getBoundingClientRect();
@@ -101,8 +125,11 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
   };
 
   // --- Global mouse up: commit drag or trim ---
-  const handleGlobalMouseUpRef = useRef<(e: MouseEvent) => void>(() => {});
+  const handleGlobalMouseUpRef = useRef<
+    (e: MouseEvent) => void | Promise<void>
+  >(() => {});
   handleGlobalMouseUpRef.current = async (e: MouseEvent) => {
+    const epoch = generation.current;
     const ds = dragStateRef.current;
     const ts = trimStateRef.current;
 
@@ -122,13 +149,19 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
           const snapPoints = await invoke("get_snap_points", {
             excludeItemId: ds.itemId,
           });
+          if (epoch !== generation.current) return;
           const thresholdUs = Math.round(pixelsToUs(5, pixelsPerSecond));
-          newStartUs = nearestSnapPoint(newStartUs, snapPoints, thresholdUs) ?? newStartUs;
-        } catch (_) {}
+          newStartUs =
+            nearestSnapPoint(newStartUs, snapPoints, thresholdUs) ?? newStartUs;
+        } catch {}
       }
 
       // Cross-track move if target is a different track of the same kind
-      if (targetTrack && targetTrack.id !== ds.trackId && targetTrack.kind === ds.trackKind) {
+      if (
+        targetTrack &&
+        targetTrack.id !== ds.trackId &&
+        targetTrack.kind === ds.trackKind
+      ) {
         try {
           const tl = await invoke("move_clip_to_track", {
             itemId: ds.itemId,
@@ -169,12 +202,13 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
       } catch (err) {
         console.error("trim_clip failed:", err);
       }
-      return;
     }
   };
 
   // --- Global mouse move: snap-line preview and drop-target highlight ---
-  const handleGlobalMouseMoveRef = useRef<(e: MouseEvent) => void>(() => {});
+  const handleGlobalMouseMoveRef = useRef<
+    (e: MouseEvent) => void | Promise<void>
+  >(() => {});
   handleGlobalMouseMoveRef.current = (e: MouseEvent) => {
     const ds = dragStateRef.current;
     if (!ds) {
@@ -184,7 +218,11 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
     }
 
     const targetTrack = getTrackAtY(e.clientY);
-    if (targetTrack && targetTrack.id !== ds.trackId && targetTrack.kind === ds.trackKind) {
+    if (
+      targetTrack &&
+      targetTrack.id !== ds.trackId &&
+      targetTrack.kind === ds.trackKind
+    ) {
       setDragTargetTrackId(targetTrack.id);
     } else {
       setDragTargetTrackId(null);
@@ -201,17 +239,23 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
 
     if (!snapPointsCacheRef.current) {
       invoke("get_snap_points", { excludeItemId: ds.itemId })
-        .then((pts) => { snapPointsCacheRef.current = pts; })
+        .then((pts) => {
+          snapPointsCacheRef.current = pts;
+        })
         .catch(() => {});
       return;
     }
 
     const thresholdUs = Math.round(pixelsToUs(5, pixelsPerSecond));
-    setSnapLineUs(nearestSnapPoint(pos, snapPointsCacheRef.current, thresholdUs));
+    setSnapLineUs(
+      nearestSnapPoint(pos, snapPointsCacheRef.current, thresholdUs),
+    );
   };
 
   // --- Ruler scrub ---
-  const handleRulerMouseMoveRef = useRef<(e: MouseEvent) => void>(() => {});
+  const handleRulerMouseMoveRef = useRef<
+    (e: MouseEvent) => void | Promise<void>
+  >(() => {});
   handleRulerMouseMoveRef.current = (e: MouseEvent) => {
     if (!rulerDraggingRef.current) return;
     if (playing) onPlayingChange(false);
@@ -220,12 +264,12 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
 
   useEffect(() => {
     const upHandler = (e: MouseEvent) => {
-      handleGlobalMouseUpRef.current(e);
+      void handleGlobalMouseUpRef.current(e);
       rulerDraggingRef.current = false;
     };
     const moveHandler = (e: MouseEvent) => {
-      handleGlobalMouseMoveRef.current(e);
-      handleRulerMouseMoveRef.current(e);
+      void handleGlobalMouseMoveRef.current(e);
+      void handleRulerMouseMoveRef.current(e);
     };
     window.addEventListener("mouseup", upHandler);
     window.addEventListener("mousemove", moveHandler);
@@ -271,7 +315,12 @@ export function useTimelineInteractions(options: TimelineInteractionOptions) {
   ) => {
     e.stopPropagation();
     onSelectClip(itemId);
-    setTrimStateValue({ itemId, edge, startMouseX: e.clientX, originalUs: currentUs });
+    setTrimStateValue({
+      itemId,
+      edge,
+      startMouseX: e.clientX,
+      originalUs: currentUs,
+    });
   };
 
   return {

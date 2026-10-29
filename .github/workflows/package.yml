@@ -3,6 +3,8 @@ name: Package
 on:
   push:
     tags: ["v*"]
+  pull_request:
+    branches: [main, dev]
   workflow_dispatch:
     inputs:
       tag:
@@ -10,7 +12,40 @@ on:
         required: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      build: ${{ steps.decide.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 2
+      - id: decide
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_BRANCH: ${{ github.base_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT_NAME" != "pull_request" ] || [ "$BASE_BRANCH" = "main" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$BASE_SHA" HEAD -- \
+            .github/workflows/package.yml \
+            apps/forgecut_gui/ui/package.json \
+            apps/forgecut_gui/ui/yarn.lock \
+            apps/forgecut_gui/ui/electron-builder.yml \
+            apps/forgecut_gui/ui/electron/scripts/prepare-graphic-runtime.mjs; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
   package:
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
+
     name: Package (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -18,12 +53,14 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     permissions:
-      contents: write
+      contents: read
     env:
       # No signing certificates in CI; ship unsigned builds
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -64,14 +101,24 @@ jobs:
             apps/forgecut_gui/ui/dist-installers/forgecut-*.rpm
             apps/forgecut_gui/ui/dist-installers/forgecut-*.dmg
             apps/forgecut_gui/ui/dist-installers/forgecut-*.exe
+            apps/forgecut_gui/ui/dist-installers/latest*.yml
+            apps/forgecut_gui/ui/dist-installers/*.blockmap
 
-      - name: Attach installers to release
+  release:
+    needs: package
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: forgecut-*
+          merge-multiple: true
+          path: installers
+      - name: Attach installers and update metadata to draft release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
-          files: |
-            apps/forgecut_gui/ui/dist-installers/forgecut-*.AppImage
-            apps/forgecut_gui/ui/dist-installers/forgecut-*.deb
-            apps/forgecut_gui/ui/dist-installers/forgecut-*.rpm
-            apps/forgecut_gui/ui/dist-installers/forgecut-*.dmg
-            apps/forgecut_gui/ui/dist-installers/forgecut-*.exe
+          draft: true
+          files: installers/*

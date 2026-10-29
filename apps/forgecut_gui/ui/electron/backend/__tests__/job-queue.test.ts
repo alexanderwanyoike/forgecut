@@ -1,0 +1,374 @@
+/** @vitest-environment node */
+import { expect, it, vi } from "vitest";
+import { JobQueue } from "../job-queue";
+
+it("keeps heavy work serial and makes queued work observable immediately", async () => {
+  const jobs = new JobQueue();
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const first = jobs.start(
+    {
+      sessionId: "session",
+      projectRevision: 0,
+      requestId: "first",
+      kind: "import",
+      label: "Import",
+      input: {},
+    },
+    async () => {
+      await held;
+      return { ok: true, value: "first" };
+    },
+  );
+  const second = jobs.start(
+    {
+      sessionId: "session",
+      projectRevision: 0,
+      requestId: "second",
+      kind: "frame",
+      label: "Source frame",
+      input: {},
+    },
+    () => Promise.resolve({ ok: true, value: "second" }),
+  );
+  if (!first.ok || !second.ok) throw new Error("Jobs were rejected");
+  expect(jobs.read(second.value.id, "session")).toMatchObject({
+    ok: true,
+    value: { status: "queued" },
+  });
+  expect(jobs.read(first.value.id, "another-session")).toMatchObject({
+    ok: false,
+    error: { code: "PROJECT_CHANGED" },
+  });
+  release();
+  await vi.waitFor(() =>
+    expect(jobs.read(second.value.id, "session")).toMatchObject({
+      ok: true,
+      value: { status: "completed", result: { ok: true, value: "second" } },
+    }),
+  );
+});
+
+it("cancels queued work without starting it and aborts a running worker", async () => {
+  const jobs = new JobQueue();
+  let finish!: () => void;
+  const stopped = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const first = jobs.start(
+    {
+      sessionId: "session",
+      projectRevision: 0,
+      requestId: "first",
+      kind: "import",
+      label: "Import",
+      input: {},
+    },
+    async (signal) => {
+      signal.addEventListener("abort", finish, { once: true });
+      await stopped;
+      return { ok: true, value: "Ignored after cancellation" };
+    },
+  );
+  let secondStarted = false;
+  const second = jobs.start(
+    {
+      sessionId: "session",
+      projectRevision: 0,
+      requestId: "second",
+      kind: "frame",
+      label: "Frame",
+      input: {},
+    },
+    () => {
+      secondStarted = true;
+      return Promise.resolve({ ok: true, value: "second" });
+    },
+  );
+  if (!first.ok || !second.ok) throw new Error("Jobs were rejected");
+  expect(jobs.cancel(second.value.id, "session")).toMatchObject({
+    ok: true,
+    value: { status: "cancelled" },
+  });
+  jobs.cancel(first.value.id, "session");
+  await vi.waitFor(() =>
+    expect(jobs.read(first.value.id, "session")).toMatchObject({
+      ok: true,
+      value: {
+        status: "cancelled",
+        result: { ok: false, error: { code: "CANCELLED" } },
+      },
+    }),
+  );
+  expect(secondStarted).toBe(false);
+});
+
+it("enforces a cooperative deadline and shuts down its workers", async () => {
+  vi.useFakeTimers();
+  try {
+    const jobs = new JobQueue({ timeoutMs: 10 });
+    const first = jobs.start(
+      {
+        sessionId: "session",
+        projectRevision: 0,
+        requestId: "slow",
+        kind: "frame",
+        label: "Slow frame",
+        input: {},
+      },
+      async (signal) => {
+        await new Promise<void>((resolve) => {
+          signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+        return { ok: true, value: "late" };
+      },
+    );
+    if (!first.ok) throw new Error("Job rejected");
+    await vi.advanceTimersByTimeAsync(11);
+    expect(jobs.read(first.value.id, "session")).toMatchObject({
+      ok: true,
+      value: {
+        status: "failed",
+        result: { ok: false, error: { code: "TIMEOUT" } },
+      },
+    });
+    await jobs.close();
+    expect(
+      jobs.start(
+        {
+          sessionId: "session",
+          projectRevision: 0,
+          requestId: "new",
+          kind: "frame",
+          label: "Frame",
+          input: {},
+        },
+        () => Promise.resolve({ ok: true, value: "new" }),
+      ),
+    ).toMatchObject({ ok: false, error: { code: "QUEUE_CLOSED" } });
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("bounds cancelled-job retention while another worker remains active", async () => {
+  const jobs = new JobQueue();
+  jobs.start(
+    {
+      sessionId: "session",
+      projectRevision: 0,
+      requestId: "held",
+      kind: "import",
+      label: "Held",
+      input: {},
+    },
+    async (signal) => {
+      await new Promise<void>((resolve) => {
+        signal.addEventListener("abort", () => resolve(), { once: true });
+      });
+      return { ok: true, value: null };
+    },
+  );
+  let oldest = "";
+  try {
+    for (let i = 0; i < 80; i += 1) {
+      const queued = jobs.start(
+        {
+          sessionId: "session",
+          projectRevision: 0,
+          requestId: `cancel-${i}`,
+          kind: "frame",
+          label: "Frame",
+          input: {},
+        },
+        () => Promise.resolve({ ok: true, value: null }),
+      );
+      if (!queued.ok) throw new Error("Queue admission failed");
+      if (i === 0) oldest = queued.value.id;
+      jobs.cancel(queued.value.id, "session");
+    }
+    expect(jobs.read(oldest, "session")).toMatchObject({
+      ok: false,
+      error: { code: "NOT_FOUND" },
+    });
+  } finally {
+    await jobs.close();
+  }
+});
+
+it("reports bounded progress while work is running and completes at one", async () => {
+  const jobs = new JobQueue();
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const job = jobs.start(
+    {
+      sessionId: "session",
+      projectRevision: 0,
+      requestId: "progress",
+      kind: "import",
+      label: "Import",
+      input: {},
+    },
+    async (_signal, report) => {
+      report(0.5);
+      await held;
+      return { ok: true, value: "done" };
+    },
+  );
+  if (!job.ok) throw new Error("Job rejected");
+  try {
+    expect(jobs.read(job.value.id, "session")).toMatchObject({
+      ok: true,
+      value: { status: "running", progress: 0.5 },
+    });
+    release();
+    await vi.waitFor(() =>
+      expect(jobs.read(job.value.id, "session")).toMatchObject({
+        ok: true,
+        value: { status: "completed", progress: 1 },
+      }),
+    );
+  } finally {
+    release();
+    await jobs.close();
+  }
+});
+
+it("does not cancel a job after it begins publishing its completed output", async () => {
+  const jobs = new JobQueue();
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const job = jobs.start(
+    {
+      sessionId: "session",
+      projectRevision: 0,
+      requestId: "publish",
+      kind: "export",
+      label: "Export",
+      input: null,
+    },
+    async (signal, _progress, beginCommit) => {
+      expect(beginCommit()).toBe(true);
+      await held;
+      expect(signal.aborted).toBe(false);
+      return { ok: true, value: "published" };
+    },
+  );
+  if (!job.ok) throw new Error(job.error.message);
+  try {
+    expect(jobs.read(job.value.id, "session")).toMatchObject({
+      ok: true,
+      value: { status: "committing" },
+    });
+    expect(jobs.cancel(job.value.id, "session")).toMatchObject({
+      ok: false,
+      error: { code: "COMMITTING" },
+    });
+    release();
+    await vi.waitFor(() =>
+      expect(jobs.read(job.value.id, "session")).toMatchObject({
+        ok: true,
+        value: {
+          status: "completed",
+          result: { ok: true, value: "published" },
+        },
+      }),
+    );
+  } finally {
+    release();
+    await jobs.close();
+  }
+});
+
+it("allows a production export window while still enforcing its deadline", async () => {
+  vi.useFakeTimers();
+  const jobs = new JobQueue();
+  try {
+    const job = jobs.start(
+      {
+        sessionId: "session",
+        projectRevision: 0,
+        requestId: "export-deadline",
+        kind: "export",
+        label: "Export",
+        input: null,
+      },
+      async (signal) => {
+        await new Promise<void>((resolve) =>
+          signal.addEventListener("abort", () => resolve(), { once: true }),
+        );
+        return { ok: true, value: null };
+      },
+    );
+    if (!job.ok) throw new Error(job.error.message);
+    await vi.advanceTimersByTimeAsync(15 * 60 * 1000 + 1);
+    expect(jobs.read(job.value.id, "session")).toMatchObject({
+      ok: true,
+      value: { status: "running" },
+    });
+    await vi.advanceTimersByTimeAsync(15 * 60 * 1000);
+    expect(jobs.read(job.value.id, "session")).toMatchObject({
+      ok: true,
+      value: {
+        status: "failed",
+        result: { ok: false, error: { code: "TIMEOUT" } },
+      },
+    });
+  } finally {
+    await jobs.close();
+    vi.useRealTimers();
+  }
+});
+
+it("retains worker cleanup diagnostics when cancellation finalizes", async () => {
+  const jobs = new JobQueue();
+  try {
+    const job = jobs.start(
+      {
+        sessionId: "session",
+        projectRevision: 0,
+        requestId: "cleanup",
+        kind: "export",
+        label: "Export",
+        input: null,
+      },
+      async (signal) => {
+        await new Promise<void>((resolve) =>
+          signal.addEventListener("abort", () => resolve(), { once: true }),
+        );
+        return {
+          ok: false,
+          error: {
+            code: "CANCELLED",
+            message: "Cancelled. Staging cleanup failed.",
+          },
+        };
+      },
+    );
+    if (!job.ok) throw new Error(job.error.message);
+    jobs.cancel(job.value.id, "session");
+    await vi.waitFor(() =>
+      expect(jobs.read(job.value.id, "session")).toMatchObject({
+        ok: true,
+        value: {
+          status: "cancelled",
+          result: {
+            ok: false,
+            error: {
+              code: "CANCELLED",
+              message: expect.stringContaining("Staging cleanup failed"),
+            },
+          },
+        },
+      }),
+    );
+  } finally {
+    await jobs.close();
+  }
+});

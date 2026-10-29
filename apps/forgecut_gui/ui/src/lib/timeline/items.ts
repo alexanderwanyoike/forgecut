@@ -1,3 +1,8 @@
+import {
+  itemData,
+  itemVariant,
+  durationUs,
+} from "../../../electron/domain/timeline-item";
 import type {
   Timeline,
   TimelineItem,
@@ -5,7 +10,11 @@ import type {
 } from "../../../electron/shared/ipc-contract";
 import { LABEL_W, usToPixels } from "./geometry";
 
-export type { Timeline, TimelineItem, Track } from "../../../electron/shared/ipc-contract";
+export type {
+  Timeline,
+  TimelineItem,
+  Track,
+} from "../../../electron/shared/ipc-contract";
 
 /** Flattened view of a timeline item for rendering. */
 export type ItemView = {
@@ -20,18 +29,26 @@ export type ItemView = {
 };
 
 export function getItemData(item: TimelineItem): ItemView {
-  const variant = Object.keys(item)[0] as TimelineItemVariant;
-  const data = (item as Record<string, any>)[variant];
-  const startUs = data.timeline_start_us;
-  const durationUs =
-    variant === "VideoClip" || variant === "AudioClip"
-      ? data.source_out_us - data.source_in_us
-      : data.duration_us;
-  return { variant, ...data, startUs, durationUs };
+  const data = itemData(item);
+  return {
+    variant: itemVariant(item),
+    ...data,
+    ...("RemotionGraphic" in item
+      ? {
+          text:
+            typeof item.RemotionGraphic.props.title === "string" &&
+            item.RemotionGraphic.props.title.trim()
+              ? item.RemotionGraphic.props.title
+              : "Graphic",
+        }
+      : {}),
+    startUs: data.timeline_start_us,
+    durationUs: durationUs(item),
+  };
 }
 
 export function timelineMaxEndUs(timeline: Timeline, floorUs: number): number {
-  let maxEnd = floorUs;
+  let maxEnd = Math.max(floorUs, timeline.duration_us ?? 0);
   for (const track of timeline.tracks) {
     for (const item of track.items) {
       const data = getItemData(item);
@@ -43,7 +60,10 @@ export function timelineMaxEndUs(timeline: Timeline, floorUs: number): number {
 }
 
 /** Total scrollable content width for the timeline at a given zoom. */
-export function timelineContentWidth(timeline: Timeline, pixelsPerSecond: number): number {
+export function timelineContentWidth(
+  timeline: Timeline,
+  pixelsPerSecond: number,
+): number {
   const maxEnd = timelineMaxEndUs(timeline, 30_000_000);
   return usToPixels(maxEnd + 5_000_000, pixelsPerSecond) + LABEL_W;
 }

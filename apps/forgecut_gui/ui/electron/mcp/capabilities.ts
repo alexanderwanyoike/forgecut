@@ -1,0 +1,111 @@
+import { z } from "zod";
+import { EXPORT_TIMEOUT_MS } from "../shared/jobs.js";
+import { sourceReadSchema, draftFileSchema } from "./draft-schema.js";
+import {
+  sourceReviewRequestSchema,
+  commandSchemas,
+  editSchemas,
+  historyRequestSchema,
+} from "../backend/command-schema.js";
+import { graphicPackages } from "../shared/graphic-source.js";
+import { sourceCheckRequestSchema } from "./source-schema.js";
+import {
+  resourceRequestSchema,
+  exportRequestSchema,
+  importRequestSchema,
+  frameRequestSchema,
+} from "./job-schema.js";
+import {
+  sequencePageFields,
+  sequenceSelectionSchema,
+} from "./sequence-schema.js";
+import { MAX_MESSAGE_BYTES } from "./contract.js";
+
+export const editingCapabilities = {
+  schemaVersion: 1,
+  timeUnit: "microseconds",
+  limits: {
+    operationsPerBatch: 100,
+    itemsPerPage: 100,
+    graphicResourcesPerPage: 20,
+    sourceSelectionsPerPage: 20,
+    sourceSelectionsPerProject: 1000,
+    graphicResourceBytes: 8 * 1024 * 1024,
+    messageBytes: MAX_MESSAGE_BYTES,
+  },
+  sourceDrafts: {
+    read: z.toJSONSchema(sourceReadSchema),
+    patchFile: z.toJSONSchema(draftFileSchema),
+    save: z.toJSONSchema(commandSchemas.save_graphic_draft),
+    revert: z.toJSONSchema(commandSchemas.revert_graphic_draft),
+    promote: z.toJSONSchema(commandSchemas.start_graphic_promotion),
+    defaultScope: "instance",
+    requiresLinuxExecutionBoundary: true,
+  },
+  sourceChecks: {
+    request: z.toJSONSchema(sourceCheckRequestSchema),
+    packages: graphicPackages,
+    maxFiles: 32,
+    maxSourceBytes: 524288,
+    timeoutMs: 15000,
+  },
+  sequences: {
+    maxSequences: 32,
+    read: z.toJSONSchema(z.strictObject(sequencePageFields)),
+    select: z.toJSONSchema(sequenceSelectionSchema),
+    requireExplicitTargetForMultipleSequences: true,
+    selectionChangesCreativeRevision: false,
+  },
+  history: z.toJSONSchema(historyRequestSchema),
+  exportBatches: {
+    create: z.toJSONSchema(commandSchemas.create_export_batch),
+    read: z.toJSONSchema(commandSchemas.get_export_batch),
+    resume: z.toJSONSchema(commandSchemas.resume_export_batch),
+    cancel: z.toJSONSchema(commandSchemas.cancel_export_batch),
+    maxEntries: 32,
+    snapshotBytes: 8 * 1024 * 1024,
+    restartPolicy:
+      "explicit retry from the beginning of an interrupted output; skip completed outputs",
+  },
+  projectCollection: {
+    request: z.toJSONSchema(commandSchemas.collect_project),
+    maxSelectedAssets: 1000,
+    copyBufferBytes: 65536,
+    timeoutMs: 900000,
+    opensCollectionAutomatically: false,
+  },
+  jobs: {
+    sourceReview: z.toJSONSchema(sourceReviewRequestSchema),
+    sourceReviewMaxDurationUs: 30_000_000,
+    sourcePreviewMaxDurationUs: 5_000_000,
+    sourcePreviewMaxBytes: 512 * 1024,
+    contactSheetCells: 12,
+    waveformMaxBins: 512,
+    sourceReviewCacheBytes: 8 * 1024 * 1024,
+    resourceImport: z.toJSONSchema(resourceRequestSchema),
+    export: z.toJSONSchema(exportRequestSchema),
+    states: [
+      "queued",
+      "running",
+      "cancelling",
+      "committing",
+      "completed",
+      "failed",
+      "cancelled",
+    ],
+    import: z.toJSONSchema(importRequestSchema),
+    frame: z.toJSONSchema(frameRequestSchema),
+    concurrency: 1,
+    maxActive: 16,
+    maxRetained: 64,
+    retainedBytes: 8 * 1024 * 1024,
+    timeoutMs: 120000,
+    exportTimeoutMs: EXPORT_TIMEOUT_MS,
+  },
+  operations: Object.fromEntries(
+    Object.entries(editSchemas).map(([command, schema]) => [
+      command,
+      z.toJSONSchema(schema),
+    ]),
+  ),
+};

@@ -1,4 +1,27 @@
-import type { CommandArgs, CommandContext, CommandHandler } from "../ipc.js";
+import type { JobQueue } from "../job-queue.js";
+import type { GraphicDraftStore } from "../GraphicDraftStore.js";
+import type { GraphicPreviewService } from "../GraphicPreviewService.js";
+import type { GraphicRenderCache } from "../GraphicRenderCache.js";
+import type { PreviewProxyCache } from "../PreviewProxyCache.js";
+import type { AppState } from "../state.js";
+
+export type CommandArgs = Record<string, unknown> | undefined;
+export type CommandContext = {
+  sequenceId?: string;
+  state: AppState;
+  preview?: GraphicPreviewService;
+  renders?: GraphicRenderCache;
+  proxies?: PreviewProxyCache;
+  drafts?: GraphicDraftStore;
+  jobs?: JobQueue;
+  signal?: AbortSignal;
+  beginCommit?: () => boolean;
+  onProgress?: (progress: number) => void;
+};
+export type CommandHandler = (
+  args: CommandArgs,
+  context: CommandContext,
+) => unknown;
 
 export type CommandRegistry = Record<string, CommandHandler>;
 
@@ -18,17 +41,21 @@ export function requiredNumber(args: CommandArgs, key: string): number {
   return value;
 }
 
-export function optionalString(args: CommandArgs, key: string): string | undefined {
+export function optionalString(
+  args: CommandArgs,
+  key: string,
+): string | undefined {
   const value = args?.[key];
   return typeof value === "string" ? value : undefined;
 }
 
 export function requiredStringArray(args: CommandArgs, key: string): string[] {
   const value = args?.[key];
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+  if (
+    !Array.isArray(value) ||
+    !value.every((item: unknown): item is string => typeof item === "string")
+  ) {
     throw new Error(`Missing required string array argument: ${key}`);
   }
   return value;
 }
-
-export type { CommandArgs, CommandContext, CommandHandler };

@@ -1,0 +1,117 @@
+{
+  "entry": [
+    "src/main.tsx",
+    "electron/main.ts",
+    "electron/preload.cts",
+    "electron/scripts/*.mjs",
+    "electron/mcp/stdio.ts",
+    "electron/graphics/*.tsx",
+    "electron/source/worker.ts",
+    "electron/graphics/runtime/RenderEntry.tsx",
+    "electron/graphics/runtime/PreviewEntry.tsx",
+    "electron/backend/graphic-preview-worker.ts"
+  ],
+  "ignorePatterns": ["dist-installers/**"],
+  "health": {
+    "ignore": ["**/__tests__/**"]
+  },
+  "duplicates": {
+    "ignore": ["**/__tests__/**"]
+  },
+  "boundaries": {
+    "zones": [
+      {
+        "name": "tests",
+        "patterns": ["**/__tests__/**"]
+      },
+      {
+        "name": "renderer",
+        "patterns": ["src/**", "index.html"]
+      },
+      {
+        "name": "contract",
+        "patterns": ["electron/shared/**"]
+      },
+      {
+        "name": "domain",
+        "patterns": ["electron/domain/**"]
+      },
+      {
+        "name": "compiler",
+        "patterns": ["electron/source/**"]
+      },
+      {
+        "name": "execution",
+        "patterns": ["electron/graphics/runtime/**"]
+      },
+      {
+        "name": "graphics",
+        "patterns": ["electron/graphics/**"]
+      },
+      {
+        "name": "backend",
+        "patterns": ["electron/backend/**"]
+      },
+      {
+        "name": "mcp",
+        "patterns": ["electron/mcp/**"]
+      },
+      {
+        "name": "shell",
+        "patterns": ["electron/*.ts", "electron/*.cts", "electron/scripts/**"]
+      },
+      {
+        "name": "tooling",
+        "patterns": ["vite.config.ts", "vitest.config.ts", ".eslintrc.cjs"]
+      }
+    ],
+    "rules": [
+      {
+        "from": "renderer",
+        "allow": ["domain", "graphics", "contract"]
+      },
+      {
+        "from": "contract",
+        "allow": []
+      },
+      {
+        "from": "backend",
+        "allow": ["contract", "domain", "graphics"]
+      },
+      {
+        "from": "shell",
+        "allow": ["backend", "contract", "mcp"]
+      },
+      {
+        "from": "tooling",
+        "allow": []
+      },
+      {
+        "from": "mcp",
+        "allow": ["backend", "contract", "domain"]
+      },
+      {
+        "from": "domain",
+        "allow": [],
+        "allowTypeOnly": ["contract"]
+      },
+      {
+        "from": "graphics",
+        "allow": [],
+        "allowTypeOnly": ["contract"]
+      },
+      {
+        "from": "compiler",
+        "allow": ["contract"]
+      },
+      {
+        "from": "execution",
+        "allow": ["graphics"],
+        "allowTypeOnly": ["contract"]
+      }
+    ],
+    "coverage": {
+      "requireAllFiles": true
+    }
+  }
+}

@@ -28,3 +28,6 @@ Thumbs.db
 *.thumbnails/
 *.waveforms/
 *.autosave/
+
+# Fallow analysis cache
+apps/**/ui/.fallow/

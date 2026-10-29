@@ -1,6 +1,39 @@
+import { startProjectCollection } from "../project-collection.js";
+import { EditingError } from "../editing-error.js";
+import type { CommandMap } from "../../shared/ipc-contract.js";
 import { requiredString, type CommandRegistry } from "./types.js";
 
 export const projectCommands = {
+  collect_project: (args, { state, jobs }) => {
+    if (!jobs)
+      throw new EditingError("QUEUE_CLOSED", "Media queue is unavailable");
+    const result = startProjectCollection(
+      state,
+      jobs,
+      args as CommandMap["collect_project"]["args"],
+    );
+    if (!result.ok) {
+      const { code, message } = result.error;
+      throw new EditingError(
+        code === "PROJECT_CHANGED" ||
+          code === "CONFLICT" ||
+          code === "INVALID_INPUT" ||
+          code === "QUEUE_FULL" ||
+          code === "QUEUE_CLOSED" ||
+          code === "REQUEST_REUSED"
+          ? code
+          : "IO_ERROR",
+        message,
+      );
+    }
+    return result.value;
+  },
+  get_editing_context: (_args, { state }) => state.getEditingContext(),
+  set_editing_context: (args, { state, sequenceId }) =>
+    state.setEditingContext(
+      args as CommandMap["set_editing_context"]["args"],
+      sequenceId,
+    ),
   create_project: (_args, { state }) => JSON.stringify(state.createProject()),
 
   save_project: (args, { state }) =>
@@ -9,5 +42,17 @@ export const projectCommands = {
   load_project: async (args, { state }) =>
     JSON.stringify(await state.loadProject(requiredString(args, "path"))),
 
-  get_project_settings: (_args, { state }) => state.project.settings,
+  recover_project: async (args, { state }) =>
+    JSON.stringify(await state.loadProject(requiredString(args, "path"), true)),
+
+  update_project: (args, { state }) =>
+    state.executeProjectChange((project) => {
+      if (typeof args?.name === "string") project.name = args.name;
+      if (args?.settings)
+        Object.assign(state.sequenceIn(project).settings, args.settings);
+    }),
+
+  get_project_settings: (_args, { state, sequenceId }) =>
+    state.sequenceIn(state.project, sequenceId ?? state.activeSequence.id)
+      .settings,
 } satisfies CommandRegistry;
