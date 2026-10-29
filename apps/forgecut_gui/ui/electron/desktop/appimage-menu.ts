@@ -11,6 +11,12 @@ interface MenuOptions {
   icon: string;
 }
 
+function quoteExecutable(value: string): string {
+  const quoted = value.replace(/[\\"`$]/g, (character) => `\\${character}`);
+  // Desktop string escapes are decoded before Exec argument quoting.
+  return `"${quoted.replaceAll("\\", "\\\\").replaceAll("%", "%%")}"`;
+}
+
 export async function integrateAppImage(
   options: MenuOptions,
 ): Promise<Result<string>> {
@@ -29,7 +35,7 @@ export async function integrateAppImage(
       "Type=Application",
       "Name=ForgeCut",
       "Comment=Lightweight timeline video editor",
-      `Exec=env -- "${options.appImage}"`,
+      `Exec=env -- ${quoteExecutable(options.appImage)}`,
       `Icon=${icon}`,
       "Terminal=false",
       "Categories=AudioVideo;Video;",
