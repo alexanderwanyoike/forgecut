@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -13,7 +13,10 @@ test.skipIf(process.platform !== "linux")(
   async () => {
     const directory = await mkdtemp(join(tmpdir(), "forgecut-menu-"));
     try {
-      const appImage = join(directory, 'ForgeCut "mix" $cash `test` 100%\\.AppImage');
+      const appImage = join(
+        directory,
+        'ForgeCut "mix" $cash `test` 100%\\.AppImage',
+      );
       const marker = join(directory, "launched");
       await writeFile(appImage, `#!/bin/sh\nprintf '%s' "$0" > "${marker}"\n`, {
         mode: 0o755,
@@ -81,10 +84,34 @@ test("leaves development, package installations and other platforms untouched", 
         value: "skipped",
       });
     }
-    expect(
-      await import("node:fs/promises").then((fs) => fs.readdir(directory)),
-    ).toEqual([]);
+    expect(await readdir(directory)).toEqual([]);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test.skipIf(process.platform !== "linux")(
+  "reports unavailable menu storage without rejecting startup",
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), "forgecut-menu-error-"));
+    try {
+      const dataHome = join(directory, "data");
+      await writeFile(dataHome, "keep this file");
+      const result = await integrateAppImage({
+        platform: "linux",
+        packaged: true,
+        appImage: process.execPath,
+        dataHome,
+        home: directory,
+        icon: resolve("electron/assets/icon.png"),
+      });
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: "MENU_REGISTRATION_FAILED" },
+      });
+      expect(await readFile(dataHome, "utf8")).toBe("keep this file");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
