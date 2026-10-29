@@ -115,3 +115,46 @@ test.skipIf(process.platform !== "linux")(
     }
   },
 );
+
+test.skipIf(process.platform !== "linux")(
+  "refreshes its own shortcut after relocation but preserves a custom launcher",
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), "forgecut-menu-refresh-"));
+    try {
+      const options = {
+        platform: "linux" as const,
+        packaged: true,
+        appImage: process.execPath,
+        dataHome: join(directory, "data"),
+        home: directory,
+        icon: resolve("electron/assets/icon.png"),
+      };
+      expect(await integrateAppImage(options)).toMatchObject({ ok: true });
+      const updated = join(directory, "ForgeCut new.AppImage");
+      await writeFile(updated, "updated image");
+      const entry = join(options.dataHome, "applications/forgecut.desktop");
+      expect(
+        await integrateAppImage({ ...options, appImage: updated }),
+      ).toMatchObject({ ok: true, value: "registered" });
+      const text = await readFile(entry, "utf8");
+      expect(text).toContain(updated);
+      expect(
+        await integrateAppImage({ ...options, icon: "/missing.png" }),
+      ).toMatchObject({ ok: false });
+      expect(await readFile(entry, "utf8")).toBe(text);
+      const custom =
+        "[Desktop Entry]\nType=Application\nName=ForgeCut\nExec=/custom/forgecut\n";
+      await writeFile(entry, custom);
+      expect(await integrateAppImage(options)).toEqual({
+        ok: true,
+        value: "existing",
+      });
+      expect(await readFile(entry, "utf8")).toBe(custom);
+      expect(await readdir(join(options.dataHome, "applications"))).toEqual([
+        "forgecut.desktop",
+      ]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
