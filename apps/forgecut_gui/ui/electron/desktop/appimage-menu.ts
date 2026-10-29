@@ -1,4 +1,13 @@
-import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import {
+  copyFile,
+  link,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import type { Result } from "../shared/result.js";
 
@@ -25,12 +34,30 @@ export async function integrateAppImage(
   const dataHome = options.dataHome ?? join(options.home, ".local/share");
   const directory = join(dataHome, "applications");
   const icon = join(dataHome, "icons/forgecut.png");
+  const entry = join(directory, "forgecut.desktop");
+  const temporary = `${entry}.${randomUUID()}.tmp`;
   try {
+    let existing: string | undefined;
+    try {
+      existing = await readFile(entry, "utf8");
+    } catch (error) {
+      if (!(
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ))
+        throw error;
+    }
+    if (
+      existing !== undefined &&
+      !existing.split("\n").includes("X-ForgeCut-AppImage-Integration=true")
+    )
+      return { ok: true, value: "existing" };
     await mkdir(directory, { recursive: true });
     await mkdir(join(dataHome, "icons"), { recursive: true });
     await copyFile(options.icon, icon);
     await writeFile(
-      join(directory, "forgecut.desktop"),
+      temporary,
       [
         "[Desktop Entry]",
         "Type=Application",
@@ -44,7 +71,22 @@ export async function integrateAppImage(
         "X-ForgeCut-AppImage-Integration=true",
         "",
       ].join("\n"),
+      { flag: "wx", mode: 0o644 },
     );
+    if (existing !== undefined) await rename(temporary, entry);
+    else {
+      try {
+        await link(temporary, entry);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          "code" in error &&
+          error.code === "EEXIST"
+        )
+          return { ok: true, value: "existing" };
+        throw error;
+      }
+    }
     return { ok: true, value: "registered" };
   } catch {
     return {
@@ -55,5 +97,7 @@ export async function integrateAppImage(
           "ForgeCut could not add its application-menu shortcut. You can still open its AppImage directly.",
       },
     };
+  } finally {
+    await rm(temporary, { force: true }).catch(() => undefined);
   }
 }
