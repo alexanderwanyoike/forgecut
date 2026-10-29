@@ -38,6 +38,12 @@ See the [release notes](https://github.com/alexanderwanyoike/forgecut/releases/t
 
 Install v1.0.2 manually if you are using an older release. Installed Linux x64 AppImages can use the application footer to check, download and restart for future updates. Windows, macOS and Linux package installations use manual installers.
 
+## Linux application menu
+
+The `.deb` and `.rpm` installers include an application-menu entry. With an AppImage, open it once from the folder where you want to keep it. ForgeCut adds a shortcut and icon for your user account, without administrator access. This uses standard Linux desktop integration for Mint, Arch and other distributions.
+
+If you move the AppImage, open the new copy once to refresh its shortcut. Existing custom `forgecut.desktop` shortcuts are preserved. To remove an AppImage shortcut, delete `applications/forgecut.desktop` and `icons/forgecut.png` beneath `$XDG_DATA_HOME` (normally `~/.local/share`).
+
 ## Requirements
 
 Linux is the complete graphics baseline. macOS and Windows builds are checked in CI; native graphics rendering currently requires the supported Linux process boundary.
