@@ -25,24 +25,35 @@ export async function integrateAppImage(
   const dataHome = options.dataHome ?? join(options.home, ".local/share");
   const directory = join(dataHome, "applications");
   const icon = join(dataHome, "icons/forgecut.png");
-  await mkdir(directory, { recursive: true });
-  await mkdir(join(dataHome, "icons"), { recursive: true });
-  await copyFile(options.icon, icon);
-  await writeFile(
-    join(directory, "forgecut.desktop"),
-    [
-      "[Desktop Entry]",
-      "Type=Application",
-      "Name=ForgeCut",
-      "Comment=Lightweight timeline video editor",
-      `Exec=env -- ${quoteExecutable(options.appImage)}`,
-      `Icon=${icon}`,
-      "Terminal=false",
-      "Categories=AudioVideo;Video;",
-      "StartupWMClass=forgecut",
-      "X-ForgeCut-AppImage-Integration=true",
-      "",
-    ].join("\n"),
-  );
-  return { ok: true, value: "registered" };
+  try {
+    await mkdir(directory, { recursive: true });
+    await mkdir(join(dataHome, "icons"), { recursive: true });
+    await copyFile(options.icon, icon);
+    await writeFile(
+      join(directory, "forgecut.desktop"),
+      [
+        "[Desktop Entry]",
+        "Type=Application",
+        "Name=ForgeCut",
+        "Comment=Lightweight timeline video editor",
+        `Exec=env -- ${quoteExecutable(options.appImage)}`,
+        `Icon=${icon}`,
+        "Terminal=false",
+        "Categories=AudioVideo;Video;",
+        "StartupWMClass=forgecut",
+        "X-ForgeCut-AppImage-Integration=true",
+        "",
+      ].join("\n"),
+    );
+    return { ok: true, value: "registered" };
+  } catch {
+    return {
+      ok: false,
+      error: {
+        code: "MENU_REGISTRATION_FAILED",
+        message:
+          "ForgeCut could not add its application-menu shortcut. You can still open its AppImage directly.",
+      },
+    };
+  }
 }
