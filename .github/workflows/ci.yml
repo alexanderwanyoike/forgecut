@@ -39,7 +39,7 @@ jobs:
 
       - name: Install media integration tools
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg bubblewrap fonts-dejavu-core
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg bubblewrap fonts-dejavu-core libglib2.0-bin python3-gi gir1.2-glib-2.0
 
       - name: Run tests
         run: yarn --cwd apps/forgecut_gui/ui test --no-file-parallelism
