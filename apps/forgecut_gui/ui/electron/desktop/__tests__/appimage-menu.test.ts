@@ -59,3 +59,32 @@ test.skipIf(process.platform !== "linux")(
     }
   },
 );
+
+test("leaves development, package installations and other platforms untouched", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "forgecut-menu-skip-"));
+  try {
+    const options = {
+      platform: "linux" as const,
+      packaged: true,
+      appImage: "/unused.AppImage",
+      home: directory,
+      icon: "/unused",
+    };
+    for (const override of [
+      { packaged: false },
+      { platform: "win32" as const },
+      { platform: "darwin" as const },
+      { appImage: undefined },
+    ]) {
+      expect(await integrateAppImage({ ...options, ...override })).toEqual({
+        ok: true,
+        value: "skipped",
+      });
+    }
+    expect(
+      await import("node:fs/promises").then((fs) => fs.readdir(directory)),
+    ).toEqual([]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
