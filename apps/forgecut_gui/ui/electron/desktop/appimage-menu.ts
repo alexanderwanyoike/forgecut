@@ -14,6 +14,8 @@ interface MenuOptions {
 export async function integrateAppImage(
   options: MenuOptions,
 ): Promise<Result<string>> {
+  if (options.platform !== "linux" || !options.packaged || !options.appImage)
+    return { ok: true, value: "skipped" };
   const dataHome = options.dataHome ?? join(options.home, ".local/share");
   const directory = join(dataHome, "applications");
   const icon = join(dataHome, "icons/forgecut.png");
