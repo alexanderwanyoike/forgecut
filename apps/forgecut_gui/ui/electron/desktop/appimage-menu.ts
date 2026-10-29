@@ -38,7 +38,11 @@ export async function integrateAppImage(
       : join(options.home, ".local/share");
   if (
     ![options.appImage, dataHome, options.icon].every(
-      (path) => isAbsolute(path) && !/[\u0000-\u001f\u007f]/.test(path),
+      (path) =>
+        isAbsolute(path) &&
+        ![...path].some(
+          (character) => character < " " || character === "\u007f",
+        ),
     ) ||
     options.appImage.includes("=")
   )
