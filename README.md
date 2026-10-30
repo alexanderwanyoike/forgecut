@@ -25,18 +25,28 @@ The adapter requires explicit attachment to a running editor. It does not launch
 
 ## Download
 
-Published installers: **v1.0.1**. The screenshots and feature descriptions above show the current development workspace; these older releases do not include the new MCP and graphics workflow.
+Published installers: **v1.0.2**, including the MCP editing workflow, editable graphics and source workspace.
 
 | Linux                                                                                                                                                                                                                                      | Windows                                                                                                               | macOS                                                                                                                |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| [AppImage](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.1/forgecut-1.0.1-linux-x86_64.AppImage)                                                                                                                    | [64-bit installer](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.1/forgecut-1.0.1-win-x64.exe) | [Apple silicon](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.1/forgecut-1.0.1-mac-arm64.dmg) |
-| [Debian / Ubuntu](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.1/forgecut-1.0.1-linux-amd64.deb), [Fedora](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.1/forgecut-1.0.1-linux-x86_64.rpm) |                                                                                                                       | [Intel](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.1/forgecut-1.0.1-mac-x64.dmg)           |
+| [AppImage](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.2/forgecut-1.0.2-linux-x86_64.AppImage)                                                                                                                    | [64-bit installer](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.2/forgecut-1.0.2-win-x64.exe) | [Apple silicon](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.2/forgecut-1.0.2-mac-arm64.dmg) |
+| [Debian / Ubuntu](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.2/forgecut-1.0.2-linux-amd64.deb), [Fedora](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.2/forgecut-1.0.2-linux-x86_64.rpm) |                                                                                                                       | [Intel](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.2/forgecut-1.0.2-mac-x64.dmg)           |
 
-See the [release notes](https://github.com/alexanderwanyoike/forgecut/releases/tag/v1.0.1) and runtime requirements below.
+See the [release notes](https://github.com/alexanderwanyoike/forgecut/releases/tag/v1.0.2) and runtime requirements below.
+
+## Updating
+
+Install v1.0.2 manually if you are using an older release. Installed Linux x64 AppImages can use the application footer to check, download and restart for future updates. Windows, macOS and Linux package installations use manual installers.
+
+## Linux application menu
+
+The `.deb` and `.rpm` installers include an application-menu entry. With an AppImage, open it once from the folder where you want to keep it. ForgeCut adds a shortcut and icon for your user account, without administrator access. This uses standard Linux desktop integration for Mint, Arch and other distributions.
+
+If you move the AppImage, open the new copy once to refresh its shortcut. Existing custom `forgecut.desktop` shortcuts are preserved. To remove an AppImage shortcut, delete `applications/forgecut.desktop` and `icons/forgecut.png` beneath `$XDG_DATA_HOME` (normally `~/.local/share`).
 
 ## Requirements
 
-The current editing workflow is on `dev`. Linux is the complete graphics baseline. macOS and Windows builds are checked in CI; native graphics rendering currently requires the supported Linux process boundary.
+Linux is the complete graphics baseline. macOS and Windows builds are checked in CI; native graphics rendering currently requires the supported Linux process boundary.
 
 For Linux, install FFmpeg, ffprobe and bubblewrap, and use a desktop with an active systemd user session:
 

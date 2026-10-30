@@ -36,7 +36,9 @@ jobs:
             apps/forgecut_gui/ui/package.json \
             apps/forgecut_gui/ui/yarn.lock \
             apps/forgecut_gui/ui/electron-builder.yml \
-            apps/forgecut_gui/ui/electron/scripts/prepare-graphic-runtime.mjs; then
+            apps/forgecut_gui/ui/electron/scripts/prepare-graphic-runtime.mjs \
+            apps/forgecut_gui/ui/electron/desktop \
+            apps/forgecut_gui/ui/electron/scripts/verify-appimage-menu.mjs; then
             echo "build=false" >> "$GITHUB_OUTPUT"
           else
             echo "build=true" >> "$GITHUB_OUTPUT"
@@ -77,7 +79,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm
+          sudo apt-get install -y rpm xvfb x11-utils desktop-file-utils libglib2.0-bin python3-gi gir1.2-glib-2.0
 
       - name: Build installers (Linux)
         if: runner.os == 'Linux'
@@ -90,6 +92,11 @@ jobs:
       - name: Build installers (Windows)
         if: runner.os == 'Windows'
         run: yarn --cwd apps/forgecut_gui/ui package:win
+
+      - name: Verify AppImage menu registration
+        if: runner.os == 'Linux'
+        working-directory: apps/forgecut_gui/ui
+        run: xvfb-run --auto-servernum node electron/scripts/verify-appimage-menu.mjs
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
