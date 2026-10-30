@@ -10,6 +10,7 @@ import { AppState } from "./backend/state.js";
 import { EditingService } from "./backend/editing-service.js";
 import { graphicResourceResponse } from "./backend/graphic-resource-response.js";
 import { mediaResponseInit } from "./backend/media-protocol.js";
+import { integrateAppImage } from "./desktop/appimage-menu.js";
 import { appAssetResponse } from "./backend/app-assets.js";
 
 import {
@@ -145,6 +146,16 @@ ipcMain.handle(
 );
 
 void app.whenReady().then(async () => {
+  const menu = await integrateAppImage({
+    platform: process.platform,
+    packaged: app.isPackaged,
+    appImage: process.env.APPIMAGE,
+    dataHome: process.env.XDG_DATA_HOME,
+    home: app.getPath("home"),
+    icon: join(__dirname, "../assets/icon.png"),
+  });
+  if (!menu.ok) console.warn(menu.error.message);
+
   updates = createApplicationUpdates(async () => {
     const { revision } = state;
     const session = state.sessionId;
