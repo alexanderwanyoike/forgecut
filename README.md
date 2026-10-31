@@ -108,3 +108,11 @@ Clicking a clip selects it. Use the ruler to move the playhead.
 ## Licence
 
 ForgeCut's own code is [MIT-licensed](https://opensource.org/license/mit). Third-party dependencies, including Remotion, retain their own licences and notices. The site includes IBM Plex Sans under its [font licence](site/fonts/OFL.txt).
+
+## Import a Showbiz storyboard
+
+Choose **Import Media** and select the `.sbz` exported by Showbiz. ForgeCut imports the selected image, end frame and video for each shot into Assets. It preserves shot order in the asset names and leaves every sequence and timeline untouched.
+
+Media is extracted to durable storage under `~/.forgecut/storyboards/`, so the original package can be moved after import. Imported files are included by the existing project collection workflow. Unsupported manifests, missing media and failed or cancelled imports publish no partial asset list.
+
+The package uses a ZIP container and a version 1 `storyboard.json` manifest. ZIP reading follows [yauzl](https://github.com/thejoshwolfe/yauzl)'s lazy-entry streaming pattern (MIT); Zod validates the manifest before assets are published. Extraction accepts only bounded, regular shot-media entries and rejects duplicate paths, links and unsupported archive contents.
