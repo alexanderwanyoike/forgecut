@@ -12,19 +12,40 @@ import { EditingService } from "../editing-service";
 const directories: string[] = [];
 afterEach(async () => {
   vi.unstubAllEnvs();
-  await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
+  await Promise.all(
+    directories
+      .splice(0)
+      .map((directory) => rm(directory, { recursive: true, force: true })),
+  );
 });
-const image = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=", "base64");
+const image = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+  "base64",
+);
 async function fixture() {
   const directory = await mkdtemp(join(tmpdir(), "forgecut-storyboard-"));
   directories.push(directory);
   vi.stubEnv("FORGECUT_STORYBOARD_DIR", join(directory, "imported"));
   const archive = join(directory, "Opening.sbz");
   const zip = new ZipFile();
-  zip.addBuffer(Buffer.from(JSON.stringify({
-    format: "showbiz-storyboard", version: 1, storyboard: { id: "sb", name: "Opening" },
-    shots: [{ id: "shot-a", order: 1, duration: 8, media: [{ role: "image", path: "shots/0001/image.png" }] }],
-  })), "storyboard.json");
+  zip.addBuffer(
+    Buffer.from(
+      JSON.stringify({
+        format: "showbiz-storyboard",
+        version: 1,
+        storyboard: { id: "sb", name: "Opening" },
+        shots: [
+          {
+            id: "shot-a",
+            order: 1,
+            duration: 8,
+            media: [{ role: "image", path: "shots/0001/image.png" }],
+          },
+        ],
+      }),
+    ),
+    "storyboard.json",
+  );
   zip.addBuffer(image, "shots/0001/image.png");
   const completion = pipeline(zip.outputStream, createWriteStream(archive));
   zip.end();

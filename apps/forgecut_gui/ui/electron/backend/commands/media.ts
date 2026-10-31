@@ -39,11 +39,18 @@ export const mediaCommands = {
     let committed = false;
     try {
       for (const path of paths) {
-        if (signal?.aborted) throw new EditingError("CANCELLED", "Import cancelled.");
+        if (signal?.aborted)
+          throw new EditingError("CANCELLED", "Import cancelled.");
         let files: { path: string; name?: string }[] = [{ path }];
         if (extname(path).toLowerCase() === ".sbz") {
           const prepared = await prepareStoryboardMedia(path, signal);
-          if (!prepared.ok) throw new EditingError(prepared.error.code === "CANCELLED" ? "CANCELLED" : "INVALID_INPUT", prepared.error.message);
+          if (!prepared.ok)
+            throw new EditingError(
+              prepared.error.code === "CANCELLED"
+                ? "CANCELLED"
+                : "INVALID_INPUT",
+              prepared.error.message,
+            );
           directories.push(prepared.value.directory);
           files = prepared.value.files;
         }
@@ -52,16 +59,37 @@ export const mediaCommands = {
           if (file.name) asset.name = file.name;
           imported.push(asset);
         }
-        onProgress?.(Math.min(0.9, (paths.indexOf(path) + 1) / paths.length * 0.9));
+        onProgress?.(
+          Math.min(0.9, ((paths.indexOf(path) + 1) / paths.length) * 0.9),
+        );
       }
-      if (signal?.aborted) throw new EditingError("CANCELLED", "Import cancelled.");
+      if (signal?.aborted)
+        throw new EditingError("CANCELLED", "Import cancelled.");
       state.assertSession(sessionId);
-      if (state.revision !== revision) throw new EditingError("CONFLICT", "The project changed while importing media. Read it again and retry.");
-      if (beginCommit && !beginCommit()) throw new EditingError("CANCELLED", "Import cancelled before publication");
-      state.executeProjectChange((project) => { project.assets.push(...imported); }, { availablePaths: imported.map((asset) => asset.path) });
+      if (state.revision !== revision)
+        throw new EditingError(
+          "CONFLICT",
+          "The project changed while importing media. Read it again and retry.",
+        );
+      if (beginCommit && !beginCommit())
+        throw new EditingError(
+          "CANCELLED",
+          "Import cancelled before publication",
+        );
+      state.executeProjectChange(
+        (project) => {
+          project.assets.push(...imported);
+        },
+        { availablePaths: imported.map((asset) => asset.path) },
+      );
       committed = true;
     } finally {
-      if (!committed) await Promise.all(directories.map((directory) => rm(directory, { recursive: true, force: true })));
+      if (!committed)
+        await Promise.all(
+          directories.map((directory) =>
+            rm(directory, { recursive: true, force: true }),
+          ),
+        );
     }
     return imported;
   },
