@@ -35,6 +35,7 @@ export default function AssetBin({
   resources = [],
 }: AssetBinProps) {
   const [localAssets, setAssets] = useState<Asset[]>([]);
+  const [importError, setImportError] = useState<string | null>(null);
   const assets = projectAssets ?? localAssets;
 
   useEffect(() => {
@@ -52,12 +53,14 @@ export default function AssetBin({
   }, [projectVersion, projectAssets]);
 
   const handleImport = async () => {
+    setImportError(null);
     const selected = await open({
       multiple: true,
       filters: [
         {
           name: "Media",
           extensions: [
+            "sbz",
             "mp4",
             "mkv",
             "avi",
@@ -79,7 +82,9 @@ export default function AssetBin({
       try {
         const imported = await invoke("import_assets", { paths });
         if (!projectAssets) setAssets((prev) => [...prev, ...imported]);
-      } catch {}
+      } catch (cause) {
+        setImportError(cause instanceof Error ? cause.message : String(cause));
+      }
     }
   };
 
@@ -115,6 +120,7 @@ export default function AssetBin({
 
   return (
     <aside className="panel asset-bin">
+      {importError && <p role="alert">{importError}</p>}
       <div className="panel-header">
         <span>
           <Library size={15} aria-hidden="true" />
