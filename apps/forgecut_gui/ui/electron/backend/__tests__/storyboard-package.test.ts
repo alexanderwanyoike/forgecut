@@ -22,7 +22,7 @@ const image = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
   "base64",
 );
-async function fixture() {
+async function fixture(version = 1) {
   const directory = await mkdtemp(join(tmpdir(), "forgecut-storyboard-"));
   directories.push(directory);
   vi.stubEnv("FORGECUT_STORYBOARD_DIR", join(directory, "imported"));
@@ -32,7 +32,7 @@ async function fixture() {
     Buffer.from(
       JSON.stringify({
         format: "showbiz-storyboard",
-        version: 1,
+        version,
         storyboard: { id: "sb", name: "Opening" },
         shots: [
           {
@@ -65,4 +65,17 @@ it("imports an SBZ into durable project media without changing any sequence", as
   expect(asset.name).toBe("Opening - Shot 1 - image");
   await rm(archive);
   expect(await readFile(asset.path)).toEqual(image);
+});
+
+it("rejects unsupported packages without changing assets or leaving extracted files", async () => {
+  const { archive, directory } = await fixture(2);
+  const state = new AppState();
+  const before = state.snapshot();
+  const service = new EditingService(state);
+  expect(
+    await service.execute("import_assets", { paths: [archive] }),
+  ).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
+  expect(state.snapshot()).toEqual(before);
+  const { readdir } = await import("node:fs/promises");
+  expect(await readdir(join(directory, "imported"))).toEqual([]);
 });
