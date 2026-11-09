@@ -196,17 +196,17 @@ function muxPlan(
       (assetOf(project, item)?.probe?.audio_channels ?? 0) === 0
     )
       return;
+    // Item-local timestamps keep the fade clock running from the clip's own start.
+    const offset = Math.max(0, frames.start - range.start) / fps;
     const input = sourceInput(
       project,
       item,
       // Flooring keeps the seek at or before the wanted sample.
-      Math.floor((Math.max(0, frames.start - range.start) * 1_000_000) / fps),
+      Math.floor(offset * 1_000_000),
       inputs.length,
     );
     inputs.push(input);
     const length = (range.end - range.start) / fps;
-    // Item-local timestamps keep the fade clock running from the clip's own start.
-    const offset = Math.max(0, frames.start - range.start) / fps;
     const shifted = offset > 0;
     const envelope = audioEnvelope(item, length * 1_000_000);
     const delay = Math.round(
