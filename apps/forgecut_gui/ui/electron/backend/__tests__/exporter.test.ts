@@ -164,42 +164,45 @@ describe("Electron export planner", () => {
       false,
     ]);
     expect(spans[1].filterGraph).toContain("drawtext");
+    // Mid-clip spans seek to a whole second at least a second before their first frame.
     expect(spans.map((span) => sourceReads(buildFfmpegArgs(span)))).toEqual([
       [{ start: "1", duration: "4" }],
+      [{ start: "1", duration: "4" }],
       [{ start: "2", duration: "3" }],
-      [{ start: "3", duration: "2" }],
     ]);
   });
 
   it("opens only the clips a review range overlaps and seeks them on the input side", () => {
+    const long = { source_in_us: 1_000_000, source_out_us: 25_000_000 };
     const project = baseProject([
       {
         id: videoTrackId,
         kind: "Video",
         items: [
-          videoClip(),
-          videoClip({ id: "second", timeline_start_us: 4_000_000 }),
-          videoClip({ id: "third", timeline_start_us: 8_000_000 }),
+          videoClip(long),
+          videoClip({ ...long, id: "second", timeline_start_us: 24_000_000 }),
+          videoClip({ ...long, id: "third", timeline_start_us: 48_000_000 }),
         ],
       },
     ]);
     const plan = compileExportPlan(project, {
-      startSeconds: 5,
+      startSeconds: 30,
       durationSeconds: 1,
       frameCount: 30,
     });
     expect(plan.spans).toHaveLength(1);
     const [span] = plan.spans;
     expect(sourceReads(buildFfmpegArgs(span))).toEqual([
-      { start: "2", duration: "3" },
+      { start: "6", duration: "19" },
     ]);
+    expect(span.filterGraph).toContain("trim=start_frame=30,");
     const muxArgs = buildFfmpegArgs(plan.mux);
     expect(sourceReads(muxArgs).slice(1)).toEqual([
-      { start: "2", duration: "3" },
+      { start: "7", duration: "18" },
     ]);
     for (const args of [buildFfmpegArgs(span), muxArgs])
       expect(args.slice(args.indexOf("-filter_complex"))).not.toContain("-ss");
-    expect(plan.mux.filterGraph).toContain("asetpts=PTS-STARTPTS+1/TB");
+    expect(plan.mux.filterGraph).toContain("asetpts=PTS-STARTPTS+6/TB");
   });
 
   it("joins span files with the concat demuxer and copies their video", () => {
