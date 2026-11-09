@@ -41,6 +41,10 @@ export type ExportPlan = { spans: SpanRender[]; mux: RenderPlan };
 type VideoGraph = Pick<RenderPlan, "inputs" | "filterGraph" | "textFiles">;
 
 const CONCAT_LIST = "spans.txt";
+// Spans convert explicitly, so FFmpeg versions that negotiate colour cannot
+// give joined spans different matrices or ranges (ADR 0018).
+const SPAN_OUTPUT =
+  "scale=in_color_matrix=bt601:in_range=tv:out_color_matrix=bt601:out_range=tv,format=yuv420p,setparams=range=unknown:color_primaries=unknown:color_trc=unknown:colorspace=unknown";
 
 export function compileExportPlan(
   project: Project,
@@ -83,22 +87,19 @@ function plainSpan(project: Project, span: ExportSpan): VideoGraph {
   const { width, height } = project.settings;
   const [layer] = span.layers;
   const { input, timing } = videoSource(project, layer, span.start, 0);
-  // Colour and 4:4:4 padding match the overlay path's output (ADR 0018).
+  // Converting while scaling avoids resampling chroma twice, and 4:4:4 padding
+  // lands odd offsets where the overlay path does (ADR 0018).
   const fit = fitFilter(
     width,
     height,
     resolveVisualPlacement(project, layer.item)?.fit,
-    {
-      scaleOptions: ":out_color_matrix=bt601:out_range=tv",
-      workingFormat: "yuv444p",
-      padColor: "black",
-    },
+    { workingFormat: "yuv444p", limitedBt601: true, padColor: "black" },
   );
   return {
     inputs: [input],
     textFiles: [],
     // Cloning the last frame matches the overlay graph's eof_action=repeat when a source ends early.
-    filterGraph: `[0:v]${timing},${fit},setsar=1,format=yuv420p,setparams=range=unknown:color_primaries=unknown:color_trc=unknown:colorspace=unknown,tpad=stop_mode=clone:stop=-1[outv]`,
+    filterGraph: `[0:v]${timing},${fit},setsar=1,${SPAN_OUTPUT},tpad=stop_mode=clone:stop=-1[outv]`,
   };
 }
 
@@ -106,13 +107,13 @@ function fitFilter(
   width: number,
   height: number,
   fit: VisualPlacement["fit"] | undefined,
-  options: { padColor: string; scaleOptions?: string; workingFormat?: string },
+  options: { padColor: string; workingFormat?: string; limitedBt601?: boolean },
 ): string {
   const cover = fit === "cover";
   const format = options.workingFormat
     ? `,format=${options.workingFormat}`
     : "";
-  return `scale=${width}:${height}:force_original_aspect_ratio=${cover ? "increase" : "decrease"}${options.scaleOptions ?? ""}${format},${cover ? `crop=${width}:${height}` : `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=${options.padColor}`}`;
+  return `scale=${width}:${height}:force_original_aspect_ratio=${cover ? "increase" : "decrease"}${options.limitedBt601 ? ":out_color_matrix=bt601:out_range=tv" : ""}${format},${cover ? `crop=${width}:${height}` : `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=${options.padColor}`}`;
 }
 
 function compositeSpan(
@@ -163,7 +164,7 @@ function compositeSpan(
     );
     videoLabel = `video${index}`;
   });
-  filters.push(`[${videoLabel}]format=yuv420p[outv]`);
+  filters.push(`[${videoLabel}]${SPAN_OUTPUT}[outv]`);
   return { inputs, textFiles, filterGraph: filters.join(";") };
 }
 
