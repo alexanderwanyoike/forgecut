@@ -194,6 +194,11 @@ function muxPlan(
       !overlaps(range, frames)
     )
       return;
+    if (
+      "VideoClip" in item &&
+      (assetOf(project, item)?.probe?.audio_channels ?? 0) === 0
+    )
+      return;
     const input = sourceInput(
       project,
       item,
@@ -201,11 +206,6 @@ function muxPlan(
       Math.floor((Math.max(0, frames.start - range.start) * 1_000_000) / fps),
       inputs.length,
     );
-    if (
-      "VideoClip" in item &&
-      (assetOf(project, item)?.probe?.audio_channels ?? 0) === 0
-    )
-      return;
     inputs.push(input);
     const length = (range.end - range.start) / fps;
     // Item-local timestamps keep the fade clock running from the clip's own start.
