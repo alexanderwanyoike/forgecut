@@ -9,14 +9,22 @@ import { resolveReviewWindow } from "../domain/review-range.js";
 import type { ReviewRange } from "../shared/ipc-contract.js";
 import type { Result } from "../shared/result.js";
 import { runMediaProcess } from "./media-process.js";
+import {
+  MEDIA_SLICE_CPU_PERCENT,
+  MEDIA_SLICE_THREADS,
+} from "./process-budget.js";
 import type { Project } from "./state.js";
-import { compileExportPlan, type RenderPlan } from "./export-plan.js";
+import {
+  compileExportPlan,
+  type ExportPlan,
+  type RenderPlan,
+} from "./export-plan.js";
 import { sequenceDurationUs } from "../domain/sequence.js";
 
 import { prepareGraphicInputs } from "./prepare-graphic-inputs.js";
 
 export { compileExportPlan } from "./export-plan.js";
-export type { RenderPlan, RenderInput } from "./export-plan.js";
+export type { ExportPlan, RenderPlan, RenderInput } from "./export-plan.js";
 
 export type RenderProgress = {
   percent: number;
@@ -72,10 +80,11 @@ export async function exportProject(
     );
     if (!prepared.ok) result = prepared;
     else {
-      const plan = compileExportPlan(prepared.value, window.value, preset);
-      plan.outputPath = join(
+      const plan = compileExportPlan(
+        prepared.value,
+        window.value,
+        preset,
         directory,
-        `render.${EXPORT_PRESETS[preset].extension}`,
       );
       result = await renderPrepared(
         plan,
@@ -122,20 +131,24 @@ export async function exportProject(
 }
 
 async function renderPrepared(
-  plan: RenderPlan,
+  plan: ExportPlan,
   target: { directory: string; destination: string; totalSeconds: number },
   options: ExportOptions,
 ): Promise<Result<ExportOutcome>> {
-  for (const file of plan.textFiles)
+  for (const file of [...plan.spans, plan.mux].flatMap(
+    (step) => step.textFiles,
+  ))
     await writeFile(join(target.directory, file.name), file.content);
-  const rendered = await executeRenderPlan(
-    plan,
-    target.totalSeconds,
-    target.directory,
-    options,
-  );
+  for (const span of plan.spans) {
+    const rendered = await executeRenderPlan(span, target.directory, options, {
+      offsetSeconds: span.offsetSeconds,
+      totalSeconds: target.totalSeconds,
+    });
+    if (!rendered.ok) return rendered;
+  }
+  const rendered = await executeRenderPlan(plan.mux, target.directory, options);
   if (!rendered.ok) return rendered;
-  const file = await open(plan.outputPath, "r");
+  const file = await open(plan.mux.outputPath, "r");
   try {
     await file.sync();
   } finally {
@@ -154,7 +167,7 @@ async function renderPrepared(
         message: "Export cancelled before publication.",
       },
     };
-  await rename(plan.outputPath, target.destination);
+  await rename(plan.mux.outputPath, target.destination);
   if (process.platform === "linux") {
     const parent = await open(dirname(target.destination), "r");
     try {
@@ -171,12 +184,13 @@ export function buildFfmpegArgs(plan: RenderPlan): string[] {
     "-y",
     "-hide_banner",
     "-threads",
-    "1",
+    MEDIA_SLICE_THREADS,
     "-filter_complex_threads",
-    "1",
+    MEDIA_SLICE_THREADS,
     ...plan.inputs.flatMap((input) => [
       "-threads",
-      "1",
+      MEDIA_SLICE_THREADS,
+      ...(input.format ? ["-f", input.format] : []),
       ...(input.range
         ? [
             "-ss",
@@ -198,13 +212,15 @@ export function buildFfmpegArgs(plan: RenderPlan): string[] {
 export function parseProgress(
   line: string,
   totalSeconds: number,
+  offsetSeconds = 0,
 ): RenderProgress | null {
   if (!line.includes("time=")) return null;
 
   const frame = parseInteger(extractValue(line, "frame=")) ?? 0;
   const fps = parseNumber(extractValue(line, "fps=")) ?? 0;
   const speed = extractValue(line, "speed=") ?? "";
-  const timeSeconds = parseTimeString(extractValue(line, "time=") ?? "") ?? 0;
+  const timeSeconds =
+    offsetSeconds + (parseTimeString(extractValue(line, "time=") ?? "") ?? 0);
   const percent =
     totalSeconds > 0 ? Math.min((timeSeconds / totalSeconds) * 100, 100) : 0;
   const speedFactor =
@@ -239,22 +255,28 @@ export function totalTimelineDurationUs(project: Project): number {
 
 function executeRenderPlan(
   plan: RenderPlan,
-  totalSeconds: number,
   cwd: string,
   options: ExportOptions,
+  progress?: { offsetSeconds: number; totalSeconds: number },
 ): Promise<Result<Buffer>> {
   let progressBuffer = "";
   return runMediaProcess("ffmpeg", buildFfmpegArgs(plan), {
     budget: true,
+    cpuPercent: MEDIA_SLICE_CPU_PERCENT,
     signal: options.signal,
     cwd,
     onStderr: (chunk) => {
       progressBuffer = (progressBuffer + chunk).slice(-8192);
       const segments = progressBuffer.split(/[\r\n]/);
       progressBuffer = segments.pop() ?? "";
+      if (!progress) return;
       for (const segment of segments) {
-        const progress = parseProgress(segment.trim(), totalSeconds);
-        if (progress) options.onProgress?.(progress);
+        const parsed = parseProgress(
+          segment.trim(),
+          progress.totalSeconds,
+          progress.offsetSeconds,
+        );
+        if (parsed) options.onProgress?.(parsed);
       }
     },
   });
