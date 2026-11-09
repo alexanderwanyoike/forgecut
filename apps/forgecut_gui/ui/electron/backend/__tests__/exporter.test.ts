@@ -233,7 +233,7 @@ describe("Electron export planner", () => {
     expect(sourceReads(buildFfmpegArgs(span))).toEqual([
       { start: "6", duration: "19" },
     ]);
-    expect(span.filterGraph).toContain("trim=start_frame=30,");
+    expect(span.filterGraph).toContain("trim=start_frame=180,");
     const muxArgs = buildFfmpegArgs(plan.mux);
     expect(sourceReads(muxArgs).slice(1)).toEqual([
       { start: "7", duration: "18" },
