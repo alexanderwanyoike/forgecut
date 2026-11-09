@@ -14,6 +14,7 @@ import {
 } from "../domain/visual-placement.js";
 import {
   exportFrameRange,
+  overlaps,
   planExportSpans,
   type ExportSpan,
   type FrameRange,
@@ -169,7 +170,7 @@ function muxPlan(
     const range = itemFrameRange(item, fps);
     if (
       !("AudioClip" in item || "VideoClip" in item) ||
-      Math.min(range.end, frames.end) <= Math.max(range.start, frames.start)
+      !overlaps(range, frames)
     )
       return;
     const input = sourceInput(

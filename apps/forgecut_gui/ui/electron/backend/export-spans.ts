@@ -14,6 +14,10 @@ export type FrameRange = { start: number; end: number };
 export type SpanLayer = FrameRange & { item: TimelineItem };
 export type ExportSpan = FrameRange & { layers: SpanLayer[]; plain: boolean };
 
+export function overlaps(a: FrameRange, b: FrameRange): boolean {
+  return Math.min(a.end, b.end) > Math.max(a.start, b.start);
+}
+
 export function exportFrameRange(
   project: Project,
   window?: ReviewWindow,
@@ -36,9 +40,7 @@ export function planExportSpans(
   const visuals = orderedTimelineItems(project).flatMap(({ item }) => {
     if ("AudioClip" in item) return [];
     const range = itemFrameRange(item, project.settings.fps);
-    return Math.min(range.end, frames.end) > Math.max(range.start, frames.start)
-      ? [{ ...range, item }]
-      : [];
+    return overlaps(range, frames) ? [{ ...range, item }] : [];
   });
   const cuts = [
     ...new Set([
@@ -51,9 +53,7 @@ export function planExportSpans(
   ].sort((a, b) => a - b);
   return cuts.slice(1).map((end, index) => {
     const start = cuts[index];
-    const layers = visuals.filter(
-      (layer) => layer.start < end && layer.end > start,
-    );
+    const layers = visuals.filter((layer) => overlaps(layer, { start, end }));
     return {
       start,
       end,
