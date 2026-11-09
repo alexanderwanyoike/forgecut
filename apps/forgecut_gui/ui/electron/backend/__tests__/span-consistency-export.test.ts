@@ -122,3 +122,37 @@ it.skipIf(!available)(
       );
   },
 );
+
+it.skipIf(!available)(
+  "keeps continuous frame selection when a span starts mid-clip in slower footage",
+  async () => {
+    const source = join(directory, "counter.mkv");
+    // Each 24 fps source frame k has luma 16 + 4k, so the export reveals which frame it shows.
+    ffmpeg([
+      "-f",
+      "lavfi",
+      "-i",
+      "nullsrc=s=32x32:r=24:d=2,geq=lum='16+4*N':cb=128:cr=128",
+      "-c:v",
+      "ffv1",
+      source,
+    ]);
+    const output = await exportWithMidClipTitle(source, 30, {
+      start: 133333,
+      duration: 300000,
+    });
+    const shown = frames(output, "yuv420p", 32 * 48).map((frame) =>
+      Math.round((frame[16 * 32 + 16] - 16) / 4),
+    );
+    // Matroska stores millisecond timestamps, and FFmpeg's fps filter shows the latest
+    // source frame whose timestamp rounds to the output slot.
+    const slotOf = (frame: number) =>
+      Math.round((Math.round((frame * 1000) / 24) * 30) / 1000);
+    const expected = Array.from({ length: 60 }, (_, slot) => {
+      let frame = 0;
+      while (slotOf(frame + 1) <= slot) frame += 1;
+      return frame;
+    });
+    expect(shown).toEqual(expected);
+  },
+);
