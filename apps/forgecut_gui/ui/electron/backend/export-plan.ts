@@ -196,7 +196,7 @@ function muxPlan(
       (assetOf(project, item)?.probe?.audio_channels ?? 0) === 0
     )
       return;
-    // Item-local timestamps keep the fade clock running from the clip's own start.
+    // Item-local audio timestamps keep the fade clock (ADR 0018).
     const offset = Math.max(0, frames.start - range.start) / fps;
     const input = sourceInput(
       project,
@@ -257,7 +257,6 @@ function assetOf(project: Project, item: TimelineItem): Asset | undefined {
   return project.assets.find((candidate) => candidate.id === id);
 }
 
-/** Seeking on the input side means late spans and ranges never decode earlier footage. */
 function sourceInput(
   project: Project,
   item: TimelineItem,
