@@ -18,12 +18,12 @@ function ffmpeg(args: string[]) {
   return run.stdout;
 }
 
-function source(path: string, color: string) {
+function source(path: string, color: string, size = "64x36") {
   ffmpeg([
     "-f",
     "lavfi",
     "-i",
-    `color=c=${color}:s=64x36:r=10:d=2`,
+    `color=c=${color}:s=${size}:r=10:d=2`,
     "-f",
     "lavfi",
     "-i",
@@ -109,6 +109,55 @@ it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
         if (Math.sqrt(energy / window) < 0.05) quietWindows.push(start);
       }
       expect(quietWindows).toEqual([]);
+    } finally {
+      await service.jobs.close();
+      await service.closePreviews();
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
+it.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
+  "centres a narrower cut at an odd offset, as the composited path does",
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), "forgecut-span-centre-"));
+    const state = new AppState();
+    const service = new EditingService(state);
+    try {
+      const narrow = join(directory, "narrow.mkv");
+      source(narrow, "white", "62x36");
+      await service.execute("update_project", {
+        settings: { width: 64, height: 36, fps: 10 },
+      });
+      await service.execute("init_default_tracks");
+      await service.execute("import_assets", { paths: [narrow] });
+      await service.execute("add_clip_to_timeline", {
+        assetId: state.project.assets[0].id,
+        trackId: state.project.timeline.tracks[0].id,
+        timelineStartUs: 0,
+      });
+      const output = join(directory, "centred.mp4");
+      expect(await exportProject(state.project, output)).toMatchObject({
+        ok: true,
+      });
+      const luma = ffmpeg([
+        "-i",
+        output,
+        "-frames:v",
+        "1",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "gray",
+        "pipe:1",
+      ]);
+      const row = 18 * 64;
+      expect([0, 1, 62, 63].map((column) => luma[row + column] > 128)).toEqual([
+        false,
+        true,
+        true,
+        false,
+      ]);
     } finally {
       await service.jobs.close();
       await service.closePreviews();
