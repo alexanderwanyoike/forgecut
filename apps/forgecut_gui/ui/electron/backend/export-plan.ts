@@ -82,10 +82,11 @@ function plainSpan(project: Project, span: ExportSpan): VideoGraph {
   const { width, height, fps } = project.settings;
   const [layer] = span.layers;
   const input = sourceInput(project, layer, span.start, 0);
+  // 4:4:4 lets pad and crop land on odd offsets, as the RGBA overlay path does.
   const fit =
     resolveVisualPlacement(project, layer.item)?.fit === "cover"
-      ? `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}`
-      : `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black`;
+      ? `scale=${width}:${height}:force_original_aspect_ratio=increase,format=yuv444p,crop=${width}:${height}`
+      : `scale=${width}:${height}:force_original_aspect_ratio=decrease,format=yuv444p,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black`;
   return {
     inputs: [input],
     textFiles: [],

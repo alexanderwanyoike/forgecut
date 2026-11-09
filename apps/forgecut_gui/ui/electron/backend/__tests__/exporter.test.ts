@@ -124,8 +124,8 @@ describe("Electron export planner", () => {
     for (const span of spans) {
       expect(span.inputs).toHaveLength(1);
       expect(span.filterGraph).not.toContain("overlay");
-      expect(span.filterGraph).toContain(
-        "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080",
+      expect(span.filterGraph).toMatch(
+        /scale=1920:1080:force_original_aspect_ratio=decrease,.*pad=1920:1080/,
       );
       expect(span.outputArgs).toEqual(
         expect.arrayContaining(["-frames:v", "120"]),
