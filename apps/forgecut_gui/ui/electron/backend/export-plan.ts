@@ -284,7 +284,7 @@ function videoSource(
   layer: SpanLayer,
   fromFrame: number,
   index: number,
-) {
+): { input: RenderInput; timing: string } {
   const { fps } = project.settings;
   const offsetFrames = Math.max(0, fromFrame - layer.start);
   const seekSeconds = Math.max(0, Math.floor(offsetFrames / fps) - 1);
