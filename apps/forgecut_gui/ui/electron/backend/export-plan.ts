@@ -13,7 +13,7 @@ import {
   resolveVisualPlacement,
 } from "../domain/visual-placement.js";
 import {
-  exportFrames,
+  exportFrameRange,
   planExportSpans,
   type ExportSpan,
   type FrameRange,
@@ -47,7 +47,7 @@ export function compileExportPlan(
   preset: ExportPresetId = "mp4",
   directory = ".",
 ): ExportPlan {
-  const frames = exportFrames(project, window);
+  const frames = exportFrameRange(project, window);
   if (frames.end <= frames.start)
     throw new Error("The sequence has no duration to export.");
   const { fps } = project.settings;

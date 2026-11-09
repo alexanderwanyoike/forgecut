@@ -14,7 +14,7 @@ export type FrameRange = { start: number; end: number };
 export type SpanLayer = FrameRange & { item: TimelineItem };
 export type ExportSpan = FrameRange & { layers: SpanLayer[]; plain: boolean };
 
-export function exportFrames(
+export function exportFrameRange(
   project: Project,
   window?: ReviewWindow,
 ): FrameRange {
