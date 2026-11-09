@@ -126,47 +126,79 @@ it.skipIf(!available)(
   },
 );
 
+// Matroska stores millisecond timestamps; QuickTime keeps NTSC frames exact at 1/30000.
+const film = {
+  rate: "24",
+  file: "counter.mkv",
+  seconds: 3,
+  ticksPerSecond: 1000,
+  ticks: (frame: number) => Math.round((frame * 1000) / 24),
+};
+const ntsc = {
+  rate: "30000/1001",
+  file: "counter.mov",
+  seconds: 22,
+  ticksPerSecond: 30000,
+  ticks: (frame: number) => frame * 1001,
+};
+
 it.skipIf(!available).each([
-  { name: "near its start", sourceInUs: 0, titleStartUs: 133333 },
   {
-    name: "after a seek, off the source frame grid",
-    sourceInUs: 66667,
+    name: "24 fps footage near its start",
+    source: film,
+    sourceUs: { in: 0, out: 3000000 },
+    titleStartUs: 133333,
+  },
+  {
+    name: "24 fps footage after a seek, off the source frame grid",
+    source: film,
+    sourceUs: { in: 66667, out: 3000000 },
     titleStartUs: 2500000,
   },
+  {
+    name: "29.97 fps footage well after a seek",
+    source: ntsc,
+    sourceUs: { in: 0, out: 21500000 },
+    titleStartUs: 20000000,
+  },
 ])(
-  "keeps continuous frame selection when a span enters slower footage $name",
-  async ({ sourceInUs, titleStartUs }) => {
-    const source = join(directory, "counter.mkv");
-    // Each 24 fps source frame k has luma 16 + 3k, so the export reveals which frame it shows.
+  "keeps continuous frame selection when a span enters $name",
+  async ({ source, sourceUs, titleStartUs }) => {
+    const path = join(directory, source.file);
+    // Frame k shows k mod 64 on the left and k div 64 on the right, in luma steps of 3.
     ffmpeg([
       "-f",
       "lavfi",
       "-i",
-      "nullsrc=s=32x32:r=24:d=3,geq=lum='16+3*N':cb=128:cr=128",
+      `nullsrc=s=32x32:r=${source.rate}:d=${source.seconds},geq=lum='16+3*if(lt(X,16),mod(N,64),floor(N/64))':cb=128:cr=128`,
       "-c:v",
       "ffv1",
-      source,
+      path,
     ]);
     const output = await exportWithMidClipTitle(
-      source,
+      path,
       30,
       { start: titleStartUs, duration: 200000 },
-      { in: sourceInUs, out: 3000000 },
+      sourceUs,
     );
-    const shown = frames(output, "yuv420p", 32 * 48).map((frame) =>
-      Math.round((frame[16 * 32 + 16] - 16) / 3),
+    const level = (frame: Buffer, column: number) =>
+      Math.round((frame[16 * 32 + column] - 16) / 3);
+    const shown = frames(output, "yuv420p", 32 * 48).map(
+      (frame) => level(frame, 4) + 64 * level(frame, 24),
     );
-    // Matroska stores millisecond timestamps. Continuous decoding anchors on the first
-    // frame at or after the source in-point, and FFmpeg's fps filter shows the latest
-    // source frame whose timestamp rounds to the output slot.
-    const timeMs = (frame: number) => Math.round((frame * 1000) / 24);
+    // Continuous decoding anchors on the first frame at or after the in-point, and
+    // FFmpeg's fps filter shows the latest frame whose timestamp rounds to the slot.
     let first = 0;
-    while (timeMs(first) < sourceInUs / 1000) first += 1;
+    while (source.ticks(first) * 1e6 < sourceUs.in * source.ticksPerSecond)
+      first += 1;
     const slotOf = (frame: number) =>
-      Math.round(((timeMs(frame) - timeMs(first)) * 30) / 1000);
+      Math.round(
+        ((source.ticks(frame) - source.ticks(first)) * 30) /
+          source.ticksPerSecond,
+      );
     const expected = shown.map((_, slot) => {
       let frame = first;
-      while (frame + 1 < 72 && slotOf(frame + 1) <= slot) frame += 1;
+      while (slotOf(frame + 1) <= slot) frame += 1;
       return frame;
     });
     expect(shown).toEqual(expected);
