@@ -40,6 +40,7 @@ async function exportWithMidClipTitle(
   source: string,
   fps: number,
   titleUs: { start: number; duration: number },
+  sourceUs: { in?: number; out?: number } = {},
 ) {
   await service.execute("update_project", {
     settings: { width: 32, height: 32, fps },
@@ -50,6 +51,8 @@ async function exportWithMidClipTitle(
     assetId: state.project.assets[0].id,
     trackId: state.project.timeline.tracks[0].id,
     timelineStartUs: 0,
+    ...(sourceUs.in === undefined ? {} : { sourceInUs: sourceUs.in }),
+    ...(sourceUs.out === undefined ? {} : { sourceOutUs: sourceUs.out }),
   });
   await service.execute("add_text_overlay", {
     trackId: "title",
@@ -123,34 +126,47 @@ it.skipIf(!available)(
   },
 );
 
-it.skipIf(!available)(
-  "keeps continuous frame selection when a span starts mid-clip in slower footage",
-  async () => {
+it.skipIf(!available).each([
+  { name: "near its start", sourceInUs: 0, titleStartUs: 133333 },
+  {
+    name: "after a seek, off the source frame grid",
+    sourceInUs: 66667,
+    titleStartUs: 2500000,
+  },
+])(
+  "keeps continuous frame selection when a span enters slower footage $name",
+  async ({ sourceInUs, titleStartUs }) => {
     const source = join(directory, "counter.mkv");
-    // Each 24 fps source frame k has luma 16 + 4k, so the export reveals which frame it shows.
+    // Each 24 fps source frame k has luma 16 + 3k, so the export reveals which frame it shows.
     ffmpeg([
       "-f",
       "lavfi",
       "-i",
-      "nullsrc=s=32x32:r=24:d=2,geq=lum='16+4*N':cb=128:cr=128",
+      "nullsrc=s=32x32:r=24:d=3,geq=lum='16+3*N':cb=128:cr=128",
       "-c:v",
       "ffv1",
       source,
     ]);
-    const output = await exportWithMidClipTitle(source, 30, {
-      start: 133333,
-      duration: 300000,
-    });
-    const shown = frames(output, "yuv420p", 32 * 48).map((frame) =>
-      Math.round((frame[16 * 32 + 16] - 16) / 4),
+    const output = await exportWithMidClipTitle(
+      source,
+      30,
+      { start: titleStartUs, duration: 200000 },
+      { in: sourceInUs, out: 3000000 },
     );
-    // Matroska stores millisecond timestamps, and FFmpeg's fps filter shows the latest
+    const shown = frames(output, "yuv420p", 32 * 48).map((frame) =>
+      Math.round((frame[16 * 32 + 16] - 16) / 3),
+    );
+    // Matroska stores millisecond timestamps. Continuous decoding anchors on the first
+    // frame at or after the source in-point, and FFmpeg's fps filter shows the latest
     // source frame whose timestamp rounds to the output slot.
+    const timeMs = (frame: number) => Math.round((frame * 1000) / 24);
+    let first = 0;
+    while (timeMs(first) < sourceInUs / 1000) first += 1;
     const slotOf = (frame: number) =>
-      Math.round((Math.round((frame * 1000) / 24) * 30) / 1000);
-    const expected = Array.from({ length: 60 }, (_, slot) => {
-      let frame = 0;
-      while (slotOf(frame + 1) <= slot) frame += 1;
+      Math.round(((timeMs(frame) - timeMs(first)) * 30) / 1000);
+    const expected = shown.map((_, slot) => {
+      let frame = first;
+      while (frame + 1 < 72 && slotOf(frame + 1) <= slot) frame += 1;
       return frame;
     });
     expect(shown).toEqual(expected);
