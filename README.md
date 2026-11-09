@@ -25,14 +25,14 @@ The adapter requires explicit attachment to a running editor. It does not launch
 
 ## Download
 
-Published installers: **v1.0.3**, including the MCP editing workflow, editable graphics, source workspace and Linux AppImage menu shortcuts.
+Published installers: **v1.0.4**, including the MCP editing workflow, editable graphics, source workspace, Linux AppImage menu shortcuts and much faster exports.
 
 | Linux                                                                                                                                                                                                                                      | Windows                                                                                                               | macOS                                                                                                                |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| [AppImage](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.3/forgecut-1.0.3-linux-x86_64.AppImage)                                                                                                                    | [64-bit installer](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.3/forgecut-1.0.3-win-x64.exe) | [Apple silicon](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.3/forgecut-1.0.3-mac-arm64.dmg) |
-| [Debian / Ubuntu](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.3/forgecut-1.0.3-linux-amd64.deb), [Fedora](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.3/forgecut-1.0.3-linux-x86_64.rpm) |                                                                                                                       | [Intel](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.3/forgecut-1.0.3-mac-x64.dmg)           |
+| [AppImage](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.4/forgecut-1.0.4-linux-x86_64.AppImage)                                                                                                                    | [64-bit installer](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.4/forgecut-1.0.4-win-x64.exe) | [Apple silicon](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.4/forgecut-1.0.4-mac-arm64.dmg) |
+| [Debian / Ubuntu](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.4/forgecut-1.0.4-linux-amd64.deb), [Fedora](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.4/forgecut-1.0.4-linux-x86_64.rpm) |                                                                                                                       | [Intel](https://github.com/alexanderwanyoike/forgecut/releases/download/v1.0.4/forgecut-1.0.4-mac-x64.dmg)           |
 
-See the [release notes](https://github.com/alexanderwanyoike/forgecut/releases/tag/v1.0.3) and runtime requirements below.
+See the [release notes](https://github.com/alexanderwanyoike/forgecut/releases/tag/v1.0.4) and runtime requirements below.
 
 ## Updating
 
