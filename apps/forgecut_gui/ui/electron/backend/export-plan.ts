@@ -5,6 +5,7 @@ import {
 } from "../shared/export-presets.js";
 import type { ReviewWindow } from "../domain/review-range.js";
 import type { Asset, Project, TimelineItem } from "./state.js";
+import type { VisualPlacement } from "../shared/ipc-contract.js";
 import { assetIdOf, itemData } from "./timeline-ops.js";
 import { itemFrameRange } from "../domain/sequence.js";
 import { audioEnvelope } from "../domain/audio.js";
@@ -86,16 +87,35 @@ function plainSpan(project: Project, span: ExportSpan): VideoGraph {
   // The overlay path's RGB round trip writes untagged BT.601 limited range, so
   // plain spans convert to the same values and drop the source's colour tags.
   // 4:4:4 lets pad and crop land on odd offsets, as that path does.
-  const fit =
-    resolveVisualPlacement(project, layer.item)?.fit === "cover"
-      ? `scale=${width}:${height}:force_original_aspect_ratio=increase:out_color_matrix=bt601:out_range=tv,format=yuv444p,crop=${width}:${height}`
-      : `scale=${width}:${height}:force_original_aspect_ratio=decrease:out_color_matrix=bt601:out_range=tv,format=yuv444p,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black`;
+  const fit = fitFilter(
+    width,
+    height,
+    resolveVisualPlacement(project, layer.item)?.fit,
+    {
+      scaleOptions: ":out_color_matrix=bt601:out_range=tv",
+      workingFormat: "yuv444p",
+      padColor: "black",
+    },
+  );
   return {
     inputs: [input],
     textFiles: [],
     // Cloning the last frame matches the overlay graph's eof_action=repeat when a source ends early.
     filterGraph: `[0:v]${timing},${fit},setsar=1,format=yuv420p,setparams=range=unknown:color_primaries=unknown:color_trc=unknown:colorspace=unknown,tpad=stop_mode=clone:stop=-1[outv]`,
   };
+}
+
+function fitFilter(
+  width: number,
+  height: number,
+  fit: VisualPlacement["fit"] | undefined,
+  options: { padColor: string; scaleOptions?: string; workingFormat?: string },
+): string {
+  const cover = fit === "cover";
+  const format = options.workingFormat
+    ? `,format=${options.workingFormat}`
+    : "";
+  return `scale=${width}:${height}:force_original_aspect_ratio=${cover ? "increase" : "decrease"}${options.scaleOptions ?? ""}${format},${cover ? `crop=${width}:${height}` : `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=${options.padColor}`}`;
 }
 
 function compositeSpan(
@@ -135,12 +155,11 @@ function compositeSpan(
     const placement = resolveVisualPlacement(project, item);
     if (!placement) throw new Error("Missing visual placement");
     const { x, y, width: targetWidth, height: targetHeight } = placement;
-    const fitFilter =
-      placement.fit === "cover"
-        ? `scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=increase,crop=${targetWidth}:${targetHeight}`
-        : `scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2:color=black@0`;
+    const fit = fitFilter(targetWidth, targetHeight, placement.fit, {
+      padColor: "black@0",
+    });
     filters.push(
-      `[${input.index}:v]${timing},format=rgba,${fitFilter},colorchannelmixer=aa=${placement.opacity},setpts=PTS+${from}/${fps}/TB[visual${index}]`,
+      `[${input.index}:v]${timing},format=rgba,${fit},colorchannelmixer=aa=${placement.opacity},setpts=PTS+${from}/${fps}/TB[visual${index}]`,
     );
     filters.push(
       `[${videoLabel}][visual${index}]overlay=x=${x}:y=${y}:format=rgb:eof_action=repeat:repeatlast=1:enable='${active}'[video${index}]`,
