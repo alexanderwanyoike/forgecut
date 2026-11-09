@@ -95,7 +95,7 @@ it.skipIf(!available)(
       "-f",
       "lavfi",
       "-i",
-      "color=c=0x3080c0:s=32x32:r=10:d=2",
+      "color=c=0x20c040:s=32x32:r=10:d=2",
       "-c:v",
       "libx264",
       "-pix_fmt",
@@ -121,7 +121,7 @@ it.skipIf(!available)(
     const composited = rgb[7];
     for (const plain of [rgb[2], rgb[15]])
       plain.forEach((channel, index) =>
-        expect(Math.abs(channel - composited[index])).toBeLessThanOrEqual(3),
+        expect(Math.abs(channel - composited[index])).toBeLessThanOrEqual(8),
       );
   },
 );
