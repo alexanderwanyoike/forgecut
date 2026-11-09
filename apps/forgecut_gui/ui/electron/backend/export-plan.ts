@@ -82,16 +82,18 @@ function plainSpan(project: Project, span: ExportSpan): VideoGraph {
   const { width, height, fps } = project.settings;
   const [layer] = span.layers;
   const input = sourceInput(project, layer, span.start, 0);
-  // 4:4:4 lets pad and crop land on odd offsets, as the RGBA overlay path does.
+  // The overlay path's RGB round trip writes untagged BT.601 limited range, so
+  // plain spans convert to the same values and drop the source's colour tags.
+  // 4:4:4 lets pad and crop land on odd offsets, as that path does.
   const fit =
     resolveVisualPlacement(project, layer.item)?.fit === "cover"
-      ? `scale=${width}:${height}:force_original_aspect_ratio=increase,format=yuv444p,crop=${width}:${height}`
-      : `scale=${width}:${height}:force_original_aspect_ratio=decrease,format=yuv444p,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black`;
+      ? `scale=${width}:${height}:force_original_aspect_ratio=increase:out_color_matrix=bt601:out_range=tv,format=yuv444p,crop=${width}:${height}`
+      : `scale=${width}:${height}:force_original_aspect_ratio=decrease:out_color_matrix=bt601:out_range=tv,format=yuv444p,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black`;
   return {
     inputs: [input],
     textFiles: [],
     // Cloning the last frame matches the overlay graph's eof_action=repeat when a source ends early.
-    filterGraph: `[0:v]trim=duration=${input.range!.durationUs / 1_000_000},setpts=PTS-STARTPTS,fps=${fps},${fit},setsar=1,format=yuv420p,tpad=stop_mode=clone:stop=-1[outv]`,
+    filterGraph: `[0:v]trim=duration=${input.range!.durationUs / 1_000_000},setpts=PTS-STARTPTS,fps=${fps},${fit},setsar=1,format=yuv420p,setparams=range=unknown:color_primaries=unknown:color_trc=unknown:colorspace=unknown,tpad=stop_mode=clone:stop=-1[outv]`,
   };
 }
 
