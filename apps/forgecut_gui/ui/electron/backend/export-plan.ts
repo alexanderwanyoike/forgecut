@@ -280,12 +280,7 @@ function sourceInput(
   };
 }
 
-/**
- * A clip entered mid-way seeks to a whole second at least a second before the
- * wanted frame. Whole seconds are exact in common stream time bases, so the fps
- * filter rounds every source frame to the same output slot as continuous
- * decoding from the clip start, and the preroll slots are then dropped.
- */
+/** Mid-clip entry seeks whole seconds and adds them back, keeping the clip-start anchor (ADR 0018). */
 function videoSource(
   project: Project,
   layer: SpanLayer,
@@ -302,12 +297,8 @@ function videoSource(
     index,
   );
   if (!input.range) return { input, timing: "setpts=PTS-STARTPTS" };
-  const trim = `trim=duration=${input.range.durationUs / 1_000_000}`;
-  // Without a seek the clip start is the reference, exactly as before spans.
-  const timing =
-    seekSeconds > 0
-      ? `${trim},fps=${fps}:start_time=0`
-      : `${trim},setpts=PTS-STARTPTS,fps=${fps}`;
+  const skipped = seekSeconds > 0 ? `+${seekSeconds}/TB` : "";
+  const timing = `trim=duration=${input.range.durationUs / 1_000_000},setpts=PTS-STARTPTS${skipped},fps=${fps}`;
   const prerollFrames = Math.round(offsetFrames - seekSeconds * fps);
   return {
     input,
