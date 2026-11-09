@@ -278,7 +278,7 @@ function sourceInput(
   };
 }
 
-/** Mid-clip entry seeks whole seconds and adds them back, keeping the clip-start anchor (ADR 0018). */
+/** Mid-clip entry seeks whole source frames and adds them back, keeping the clip-start anchor (ADR 0018). */
 function videoSource(
   project: Project,
   layer: SpanLayer,
@@ -286,24 +286,31 @@ function videoSource(
   index: number,
 ): { input: RenderInput; timing: string } {
   const { fps } = project.settings;
+  const sourceFps = assetOf(project, layer.item)?.probe?.fps || fps;
   const offsetFrames = Math.max(0, fromFrame - layer.start);
-  const seekSeconds = Math.max(0, Math.floor(offsetFrames / fps) - 1);
+  const skippedFrames = Math.max(
+    0,
+    Math.floor((offsetFrames / fps - 1) * sourceFps),
+  );
+  const skippedSeconds = skippedFrames / sourceFps;
   const input = sourceInput(
     project,
     layer.item,
-    seekSeconds * 1_000_000,
+    Math.floor(skippedSeconds * 1_000_000),
     index,
   );
   if (!input.range) return { input, timing: "setpts=PTS-STARTPTS" };
-  const skipped = seekSeconds > 0 ? `+${seekSeconds}/TB` : "";
-  const timing = `trim=duration=${input.range.durationUs / 1_000_000},setpts=PTS-STARTPTS${skipped},fps=${fps}`;
-  const prerollFrames = Math.round(offsetFrames - seekSeconds * fps);
+  const anchor =
+    skippedFrames > 0
+      ? `setpts=PTS-STARTPTS+round(${skippedSeconds}/TB)`
+      : "setpts=PTS-STARTPTS";
+  const continuous = `trim=duration=${input.range.durationUs / 1_000_000},${anchor},fps=${fps}`;
   return {
     input,
     timing:
-      prerollFrames > 0
-        ? `${timing},trim=start_frame=${prerollFrames},setpts=PTS-STARTPTS`
-        : timing,
+      offsetFrames > 0
+        ? `${continuous}:start_time=0,trim=start_frame=${offsetFrames},setpts=PTS-STARTPTS`
+        : continuous,
   };
 }
 
