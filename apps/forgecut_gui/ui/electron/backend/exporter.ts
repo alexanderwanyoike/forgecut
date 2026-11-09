@@ -9,9 +9,11 @@ import { resolveReviewWindow } from "../domain/review-range.js";
 import type { ReviewRange } from "../shared/ipc-contract.js";
 import type { Result } from "../shared/result.js";
 import { runMediaProcess } from "./media-process.js";
+import { MEDIA_SLICE_CPU_PERCENT } from "./process-budget.js";
 import type { Project } from "./state.js";
 import {
   compileExportPlan,
+  EXPORT_THREADS,
   type ExportPlan,
   type RenderPlan,
 } from "./export-plan.js";
@@ -180,12 +182,12 @@ export function buildFfmpegArgs(plan: RenderPlan): string[] {
     "-y",
     "-hide_banner",
     "-threads",
-    "1",
+    EXPORT_THREADS,
     "-filter_complex_threads",
-    "1",
+    EXPORT_THREADS,
     ...plan.inputs.flatMap((input) => [
       "-threads",
-      "1",
+      EXPORT_THREADS,
       ...(input.format ? ["-f", input.format] : []),
       ...(input.range
         ? [
@@ -258,6 +260,7 @@ function executeRenderPlan(
   let progressBuffer = "";
   return runMediaProcess("ffmpeg", buildFfmpegArgs(plan), {
     budget: true,
+    cpuPercent: MEDIA_SLICE_CPU_PERCENT,
     signal: options.signal,
     cwd,
     onStderr: (chunk) => {

@@ -19,6 +19,7 @@ import {
   type FrameRange,
   type SpanLayer,
 } from "./export-spans.js";
+import { MEDIA_SLICE_CPU_PERCENT } from "./process-budget.js";
 
 export type RenderInput = {
   path: string;
@@ -39,6 +40,8 @@ export type ExportPlan = { spans: SpanRender[]; mux: RenderPlan };
 type VideoGraph = Pick<RenderPlan, "inputs" | "filterGraph" | "textFiles">;
 
 const CONCAT_LIST = "spans.txt";
+/** One thread per core the media slice's CPU quota grants. */
+export const EXPORT_THREADS = String(MEDIA_SLICE_CPU_PERCENT / 100);
 
 export function compileExportPlan(
   project: Project,
@@ -269,7 +272,7 @@ function videoEncodingArgs(preset: ExportPresetId): string[] {
       "-c:v",
       "libvpx-vp9",
       "-threads",
-      "1",
+      EXPORT_THREADS,
       "-crf",
       "32",
       "-b:v",
@@ -279,7 +282,7 @@ function videoEncodingArgs(preset: ExportPresetId): string[] {
       "-cpu-used",
       "4",
     ];
-  return ["-c:v", "libx264", "-threads", "1", "-crf", "23"];
+  return ["-c:v", "libx264", "-threads", EXPORT_THREADS, "-crf", "23"];
 }
 
 function audioEncodingArgs(
