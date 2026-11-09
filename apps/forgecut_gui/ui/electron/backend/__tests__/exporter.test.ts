@@ -1,6 +1,7 @@
 /**
  * @vitest-environment node
  */
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildFfmpegArgs,
@@ -253,22 +254,23 @@ describe("Electron export planner", () => {
         ],
       },
     ]);
-    const plan = compileExportPlan(project, undefined, "mp4", "/tmp/stage");
+    const stage = join("/tmp", "stage");
+    const plan = compileExportPlan(project, undefined, "mp4", stage);
     expect(plan.spans.map((span) => span.outputPath)).toEqual([
-      "/tmp/stage/span-0.mp4",
-      "/tmp/stage/span-1.mp4",
+      join(stage, "span-0.mp4"),
+      join(stage, "span-1.mp4"),
     ]);
     expect(plan.mux.textFiles).toEqual([
       { name: "spans.txt", content: "file 'span-0.mp4'\nfile 'span-1.mp4'\n" },
     ]);
     const args = buildFfmpegArgs(plan.mux);
-    const concat = args.indexOf("/tmp/stage/spans.txt");
+    const concat = args.indexOf(resolve(stage, "spans.txt"));
     expect(args.slice(concat - 3, concat)).toEqual(["-f", "concat", "-i"]);
     expect(args).toEqual(
       expect.arrayContaining(["-map", "0:v", "-c:v", "copy"]),
     );
     expect(args).toContain("[outa]");
-    expect(args.at(-1)).toBe("/tmp/stage/render.mp4");
+    expect(args.at(-1)).toBe(join(stage, "render.mp4"));
   });
 
   it("calculates total duration across all timeline tracks", () => {
