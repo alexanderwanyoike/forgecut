@@ -49,20 +49,18 @@ export function planExportSpans(
         .filter((frame) => frame > frames.start && frame < frames.end),
     ]),
   ].sort((a, b) => a - b);
-  const spans: ExportSpan[] = [];
-  const overlapping = (start: number, end: number) =>
-    visuals.filter((layer) => layer.start < end && layer.end > start);
-  for (let index = 0; index + 1 < cuts.length; index += 1) {
-    const [start, end] = [cuts[index], cuts[index + 1]];
-    const layers = overlapping(start, end);
-    const plain = layers.length === 1 && isPlainVideo(project, layers[0].item);
-    const previous = spans.at(-1);
-    if (previous && !previous.plain && !plain) {
-      previous.end = end;
-      previous.layers = overlapping(previous.start, end);
-    } else spans.push({ start, end, layers, plain });
-  }
-  return spans;
+  return cuts.slice(1).map((end, index) => {
+    const start = cuts[index];
+    const layers = visuals.filter(
+      (layer) => layer.start < end && layer.end > start,
+    );
+    return {
+      start,
+      end,
+      layers,
+      plain: layers.length === 1 && isPlainVideo(project, layers[0].item),
+    };
+  });
 }
 
 function isPlainVideo(project: Project, item: TimelineItem): boolean {
