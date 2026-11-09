@@ -83,9 +83,7 @@ function plainSpan(project: Project, span: ExportSpan): VideoGraph {
   const { width, height } = project.settings;
   const [layer] = span.layers;
   const { input, timing } = videoSource(project, layer, span.start, 0);
-  // The overlay path's RGB round trip writes untagged BT.601 limited range, so
-  // plain spans convert to the same values and drop the source's colour tags.
-  // 4:4:4 lets pad and crop land on odd offsets, as that path does.
+  // Colour and 4:4:4 padding match the overlay path's output (ADR 0018).
   const fit = fitFilter(
     width,
     height,
