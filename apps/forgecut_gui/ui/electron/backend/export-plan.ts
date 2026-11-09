@@ -37,7 +37,6 @@ export type RenderPlan = {
   textFiles: { name: string; content: string }[];
 };
 export type SpanRender = RenderPlan & { offsetSeconds: number };
-/** Video spans render to separate files; the mux joins them and adds audio. */
 export type ExportPlan = { spans: SpanRender[]; mux: RenderPlan };
 type VideoGraph = Pick<RenderPlan, "inputs" | "filterGraph" | "textFiles">;
 
