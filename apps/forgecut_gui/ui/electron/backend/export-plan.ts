@@ -53,11 +53,13 @@ export function compileExportPlan(
     throw new Error("The sequence has no duration to export.");
   const { fps } = project.settings;
   const { extension } = EXPORT_PRESETS[preset];
-  const spans = planExportSpans(project, frames).map((span, index) => ({
+  const planned = planExportSpans(project, frames);
+  const files = planned.map((_, index) => `span-${index}.${extension}`);
+  const spans = planned.map((span, index) => ({
     ...(span.plain
       ? plainSpan(project, span)
       : compositeSpan(project, span, index)),
-    outputPath: join(directory, `span-${index}.${extension}`),
+    outputPath: join(directory, files[index]),
     offsetSeconds: (span.start - frames.start) / fps,
     outputArgs: [
       "-map",
@@ -73,7 +75,7 @@ export function compileExportPlan(
   }));
   return {
     spans,
-    mux: muxPlan(project, frames, preset, directory, spans.length),
+    mux: muxPlan(project, frames, preset, directory, files),
   };
 }
 
@@ -154,7 +156,7 @@ function muxPlan(
   frames: FrameRange,
   preset: ExportPresetId,
   directory: string,
-  spanCount: number,
+  spanFiles: string[],
 ): RenderPlan {
   const { fps, sample_rate: sampleRate } = project.settings;
   const duration = (frames.end - frames.start) / fps;
@@ -215,10 +217,7 @@ function muxPlan(
     textFiles: [
       {
         name: CONCAT_LIST,
-        content: Array.from(
-          { length: spanCount },
-          (_, index) => `file 'span-${index}.${extension}'\n`,
-        ).join(""),
+        content: spanFiles.map((file) => `file '${file}'\n`).join(""),
       },
     ],
     filterGraph: filters.join(";"),
