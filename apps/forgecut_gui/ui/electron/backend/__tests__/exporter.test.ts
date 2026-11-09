@@ -1,6 +1,7 @@
 /**
  * @vitest-environment node
  */
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildFfmpegArgs,
@@ -67,6 +68,23 @@ function videoClip(overrides = {}) {
   };
 }
 
+function sourceReads(args: string[]) {
+  const reads: { start: string | undefined; duration: string | undefined }[] =
+    [];
+  let start: string | undefined;
+  let duration: string | undefined;
+  for (let index = 0; index < args.indexOf("-filter_complex"); index += 1) {
+    if (args[index] === "-ss") start = args[index + 1];
+    if (args[index] === "-t") duration = args[index + 1];
+    if (args[index] === "-i") {
+      reads.push({ start, duration });
+      start = undefined;
+      duration = undefined;
+    }
+  }
+  return reads;
+}
+
 describe("Electron export planner", () => {
   it("bounds recording reads to each selected range when cuts reverse source order", () => {
     const project = baseProject([
@@ -84,40 +102,175 @@ describe("Electron export planner", () => {
         ],
       },
     ]);
-    const args = buildFfmpegArgs(compileExportPlan(project));
-    const reads: { start: string | undefined; duration: string | undefined }[] =
-      [];
-    let start: string | undefined;
-    let duration: string | undefined;
-    for (let index = 0; index < args.indexOf("-filter_complex"); index += 1) {
-      if (args[index] === "-ss") start = args[index + 1];
-      if (args[index] === "-t") duration = args[index + 1];
-      if (args[index] === "-i") {
-        reads.push({ start, duration });
-        start = undefined;
-        duration = undefined;
-      }
-    }
-    expect(reads).toEqual([
-      { start: "20", duration: "2" },
-      { start: "1", duration: "3" },
+    const { spans } = compileExportPlan(project);
+    expect(spans.map((span) => sourceReads(buildFfmpegArgs(span)))).toEqual([
+      [{ start: "20", duration: "2" }],
+      [{ start: "1", duration: "3" }],
     ]);
   });
 
-  it("builds ffmpeg args from a render plan", () => {
+  it("renders back-to-back clips on one track as plain cuts without compositing", () => {
+    const project = baseProject([
+      {
+        id: videoTrackId,
+        kind: "Video",
+        items: [
+          videoClip(),
+          videoClip({ id: "second", timeline_start_us: 4_000_000 }),
+        ],
+      },
+    ]);
+    const { spans } = compileExportPlan(project);
+    expect(spans).toHaveLength(2);
+    for (const span of spans) {
+      expect(span.inputs).toHaveLength(1);
+      expect(span.filterGraph).not.toContain("overlay");
+      expect(span.filterGraph).toMatch(
+        /scale=1920:1080:force_original_aspect_ratio=decrease.*pad=1920:1080/,
+      );
+      expect(span.outputArgs).toEqual(
+        expect.arrayContaining(["-frames:v", "120"]),
+      );
+    }
+    expect(spans.map((span) => span.offsetSeconds)).toEqual([0, 4]);
+  });
+
+  it("composites only the span a title covers and resumes the clip after it", () => {
     const project = baseProject([
       { id: videoTrackId, kind: "Video", items: [videoClip()] },
+      {
+        id: "track-text",
+        kind: "OverlayText",
+        items: [
+          {
+            TextOverlay: {
+              id: "title",
+              track_id: "track-text",
+              timeline_start_us: 1_000_000,
+              duration_us: 1_000_000,
+              text: "Title",
+              font_size: 48,
+              color: "#ffffff",
+              x: 0,
+              y: 0,
+            },
+          },
+        ],
+      },
     ]);
-    const plan = compileExportPlan(project);
-    plan.outputPath = "/tmp/out.mp4";
+    const { spans } = compileExportPlan(project);
+    expect(spans.map((span) => span.filterGraph.includes("overlay"))).toEqual([
+      false,
+      true,
+      false,
+    ]);
+    expect(spans[1].filterGraph).toContain("drawtext");
+    // Mid-clip spans seek to a whole second at least a second before their first frame.
+    expect(spans.map((span) => sourceReads(buildFfmpegArgs(span)))).toEqual([
+      [{ start: "1", duration: "4" }],
+      [{ start: "1", duration: "4" }],
+      [{ start: "2", duration: "3" }],
+    ]);
+  });
 
-    const args = buildFfmpegArgs(plan);
+  it("keeps a full-length title from opening every clip in one process", () => {
+    const project = baseProject([
+      {
+        id: videoTrackId,
+        kind: "Video",
+        items: [
+          videoClip(),
+          videoClip({ id: "second", timeline_start_us: 4_000_000 }),
+        ],
+      },
+      {
+        id: "track-text",
+        kind: "OverlayText",
+        items: [
+          {
+            TextOverlay: {
+              id: "logo",
+              track_id: "track-text",
+              timeline_start_us: 0,
+              duration_us: 8_000_000,
+              text: "Logo",
+              font_size: 24,
+              color: "#ffffff",
+              x: 0,
+              y: 0,
+            },
+          },
+        ],
+      },
+    ]);
+    const { spans } = compileExportPlan(project);
+    expect(spans.map((span) => span.inputs.length)).toEqual([1, 1]);
+    expect(spans.every((span) => span.filterGraph.includes("drawtext"))).toBe(
+      true,
+    );
+  });
 
-    expect(args[0]).toBe("-y");
-    expect(args).toContain("-filter_complex");
-    expect(args).toContain("[outv]");
+  it("opens only the clips a review range overlaps and seeks them on the input side", () => {
+    const long = { source_in_us: 1_000_000, source_out_us: 25_000_000 };
+    const project = baseProject([
+      {
+        id: videoTrackId,
+        kind: "Video",
+        items: [
+          videoClip(long),
+          videoClip({ ...long, id: "second", timeline_start_us: 24_000_000 }),
+          videoClip({ ...long, id: "third", timeline_start_us: 48_000_000 }),
+        ],
+      },
+    ]);
+    const plan = compileExportPlan(project, {
+      startSeconds: 30,
+      durationSeconds: 1,
+      frameCount: 30,
+    });
+    expect(plan.spans).toHaveLength(1);
+    const [span] = plan.spans;
+    expect(sourceReads(buildFfmpegArgs(span))).toEqual([
+      { start: "6", duration: "19" },
+    ]);
+    expect(span.filterGraph).toContain("trim=start_frame=180,");
+    const muxArgs = buildFfmpegArgs(plan.mux);
+    expect(sourceReads(muxArgs).slice(1)).toEqual([
+      { start: "7", duration: "18" },
+    ]);
+    for (const args of [buildFfmpegArgs(span), muxArgs])
+      expect(args.slice(args.indexOf("-filter_complex"))).not.toContain("-ss");
+    expect(plan.mux.filterGraph).toContain("asetpts=PTS-STARTPTS+6/TB");
+  });
+
+  it("joins span files with the concat demuxer and copies their video", () => {
+    const project = baseProject([
+      {
+        id: videoTrackId,
+        kind: "Video",
+        items: [
+          videoClip(),
+          videoClip({ id: "second", timeline_start_us: 4_000_000 }),
+        ],
+      },
+    ]);
+    const stage = join("/tmp", "stage");
+    const plan = compileExportPlan(project, undefined, "mp4", stage);
+    expect(plan.spans.map((span) => span.outputPath)).toEqual([
+      join(stage, "span-0.mp4"),
+      join(stage, "span-1.mp4"),
+    ]);
+    expect(plan.mux.textFiles).toEqual([
+      { name: "spans.txt", content: "file 'span-0.mp4'\nfile 'span-1.mp4'\n" },
+    ]);
+    const args = buildFfmpegArgs(plan.mux);
+    const concat = args.indexOf(resolve(stage, "spans.txt"));
+    expect(args.slice(concat - 3, concat)).toEqual(["-f", "concat", "-i"]);
+    expect(args).toEqual(
+      expect.arrayContaining(["-map", "0:v", "-c:v", "copy"]),
+    );
     expect(args).toContain("[outa]");
-    expect(args.at(-1)).toBe("/tmp/out.mp4");
+    expect(args.at(-1)).toBe(join(stage, "render.mp4"));
   });
 
   it("calculates total duration across all timeline tracks", () => {
