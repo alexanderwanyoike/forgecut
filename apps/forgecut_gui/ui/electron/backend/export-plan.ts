@@ -79,9 +79,9 @@ export function compileExportPlan(
 }
 
 function plainSpan(project: Project, span: ExportSpan): VideoGraph {
-  const { width, height, fps } = project.settings;
+  const { width, height } = project.settings;
   const [layer] = span.layers;
-  const input = sourceInput(project, layer, span.start, 0);
+  const { input, timing } = videoSource(project, layer, span.start, 0);
   // The overlay path's RGB round trip writes untagged BT.601 limited range, so
   // plain spans convert to the same values and drop the source's colour tags.
   // 4:4:4 lets pad and crop land on odd offsets, as that path does.
@@ -93,7 +93,7 @@ function plainSpan(project: Project, span: ExportSpan): VideoGraph {
     inputs: [input],
     textFiles: [],
     // Cloning the last frame matches the overlay graph's eof_action=repeat when a source ends early.
-    filterGraph: `[0:v]trim=duration=${input.range!.durationUs / 1_000_000},setpts=PTS-STARTPTS,fps=${fps},${fit},setsar=1,format=yuv420p,setparams=range=unknown:color_primaries=unknown:color_trc=unknown:colorspace=unknown,tpad=stop_mode=clone:stop=-1[outv]`,
+    filterGraph: `[0:v]${timing},${fit},setsar=1,format=yuv420p,setparams=range=unknown:color_primaries=unknown:color_trc=unknown:colorspace=unknown,tpad=stop_mode=clone:stop=-1[outv]`,
   };
 }
 
@@ -124,9 +124,13 @@ function compositeSpan(
       return;
     }
     if (!("VideoClip" in item || "ImageOverlay" in item)) return;
-    const input = sourceInput(project, layer, span.start, inputs.length);
+    const { input, timing } = videoSource(
+      project,
+      layer,
+      span.start,
+      inputs.length,
+    );
     inputs.push(input);
-    const image = "ImageOverlay" in item;
     const placement = resolveVisualPlacement(project, item);
     if (!placement) throw new Error("Missing visual placement");
     const { x, y, width: targetWidth, height: targetHeight } = placement;
@@ -134,11 +138,8 @@ function compositeSpan(
       placement.fit === "cover"
         ? `scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=increase,crop=${targetWidth}:${targetHeight}`
         : `scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2:color=black@0`;
-    const trim = input.range
-      ? `trim=duration=${input.range.durationUs / 1_000_000},`
-      : "";
     filters.push(
-      `[${input.index}:v]${trim}setpts=PTS-STARTPTS,${image ? "" : `fps=${fps},`}format=rgba,${fitFilter},colorchannelmixer=aa=${placement.opacity},setpts=PTS+${from}/${fps}/TB[visual${index}]`,
+      `[${input.index}:v]${timing},format=rgba,${fitFilter},colorchannelmixer=aa=${placement.opacity},setpts=PTS+${from}/${fps}/TB[visual${index}]`,
     );
     filters.push(
       `[${videoLabel}][visual${index}]overlay=x=${x}:y=${y}:format=rgb:eof_action=repeat:repeatlast=1:enable='${active}'[video${index}]`,
@@ -175,8 +176,9 @@ function muxPlan(
       return;
     const input = sourceInput(
       project,
-      { ...range, item },
-      frames.start,
+      item,
+      // Flooring keeps the seek at or before the wanted sample.
+      Math.floor((Math.max(0, frames.start - range.start) * 1_000_000) / fps),
       inputs.length,
     );
     if (
@@ -241,24 +243,17 @@ function assetOf(project: Project, item: TimelineItem): Asset | undefined {
   return project.assets.find((candidate) => candidate.id === id);
 }
 
-/**
- * Opens a source at the first frame the render needs. Seeking on the input
- * side means late spans and review ranges never decode earlier footage.
- */
+/** Seeking on the input side means late spans and ranges never decode earlier footage. */
 function sourceInput(
   project: Project,
-  layer: SpanLayer,
-  fromFrame: number,
+  item: TimelineItem,
+  offsetUs: number,
   index: number,
 ): RenderInput {
-  const asset = assetOf(project, layer.item);
-  const data = itemData(layer.item);
+  const asset = assetOf(project, item);
+  const data = itemData(item);
   if (!asset) throw new Error(`Missing source asset for ${data.id}`);
   if (!("source_in_us" in data)) return { path: asset.path, index };
-  // Flooring keeps the seek at or before the wanted frame's timestamp.
-  const offsetUs = Math.floor(
-    (Math.max(0, fromFrame - layer.start) * 1_000_000) / project.settings.fps,
-  );
   return {
     path: asset.path,
     index,
@@ -266,6 +261,44 @@ function sourceInput(
       startUs: data.source_in_us + offsetUs,
       durationUs: data.source_out_us - data.source_in_us - offsetUs,
     },
+  };
+}
+
+/**
+ * A clip entered mid-way seeks to a whole second at least a second before the
+ * wanted frame. Whole seconds are exact in common stream time bases, so the fps
+ * filter rounds every source frame to the same output slot as continuous
+ * decoding from the clip start, and the preroll slots are then dropped.
+ */
+function videoSource(
+  project: Project,
+  layer: SpanLayer,
+  fromFrame: number,
+  index: number,
+) {
+  const { fps } = project.settings;
+  const offsetFrames = Math.max(0, fromFrame - layer.start);
+  const seekSeconds = Math.max(0, Math.floor(offsetFrames / fps) - 1);
+  const input = sourceInput(
+    project,
+    layer.item,
+    seekSeconds * 1_000_000,
+    index,
+  );
+  if (!input.range) return { input, timing: "setpts=PTS-STARTPTS" };
+  const trim = `trim=duration=${input.range.durationUs / 1_000_000}`;
+  // Without a seek the clip start is the reference, exactly as before spans.
+  const timing =
+    seekSeconds > 0
+      ? `${trim},fps=${fps}:start_time=0`
+      : `${trim},setpts=PTS-STARTPTS,fps=${fps}`;
+  const prerollFrames = Math.round(offsetFrames - seekSeconds * fps);
+  return {
+    input,
+    timing:
+      prerollFrames > 0
+        ? `${timing},trim=start_frame=${prerollFrames},setpts=PTS-STARTPTS`
+        : timing,
   };
 }
 
