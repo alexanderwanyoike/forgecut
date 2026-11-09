@@ -7,6 +7,7 @@ const MEMORY = [
   "MemorySwapMax=268435456",
 ];
 export const MEDIA_SLICE_CPU_PERCENT = 400;
+export const MEDIA_SLICE_THREADS = String(MEDIA_SLICE_CPU_PERCENT / 100);
 
 export async function budgetedMediaCommand(
   executable: string,
