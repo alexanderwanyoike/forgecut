@@ -172,6 +172,43 @@ describe("Electron export planner", () => {
     ]);
   });
 
+  it("keeps a full-length title from opening every clip in one process", () => {
+    const project = baseProject([
+      {
+        id: videoTrackId,
+        kind: "Video",
+        items: [
+          videoClip(),
+          videoClip({ id: "second", timeline_start_us: 4_000_000 }),
+        ],
+      },
+      {
+        id: "track-text",
+        kind: "OverlayText",
+        items: [
+          {
+            TextOverlay: {
+              id: "logo",
+              track_id: "track-text",
+              timeline_start_us: 0,
+              duration_us: 8_000_000,
+              text: "Logo",
+              font_size: 24,
+              color: "#ffffff",
+              x: 0,
+              y: 0,
+            },
+          },
+        ],
+      },
+    ]);
+    const { spans } = compileExportPlan(project);
+    expect(spans.map((span) => span.inputs.length)).toEqual([1, 1]);
+    expect(spans.every((span) => span.filterGraph.includes("drawtext"))).toBe(
+      true,
+    );
+  });
+
   it("opens only the clips a review range overlaps and seeks them on the input side", () => {
     const long = { source_in_us: 1_000_000, source_out_us: 25_000_000 };
     const project = baseProject([
